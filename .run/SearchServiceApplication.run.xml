@@ -1,0 +1,13 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="SearchServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ENABLE_JMX_AGENT" value="false" />
+    <envs>
+      <env name="SERVER_PORT" value="8090" />
+    </envs>
+    <module name="search-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="mexa.club.searchservice.SearchServiceApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

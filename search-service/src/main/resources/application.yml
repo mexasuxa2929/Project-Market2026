@@ -1,0 +1,48 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: search-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  elasticsearch:
+    uris: ${ES_URIS:http://localhost:9200}
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
+app:
+  search:
+    elasticsearch:
+      enabled: false
+  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+services:
+  product:
+    url: ${PRODUCT_SERVICE_URL:http://localhost:8083}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: false

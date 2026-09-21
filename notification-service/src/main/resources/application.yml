@@ -1,0 +1,81 @@
+# PostgreSQL: notifications_db bo'lmasa:
+#   CREATE DATABASE notifications_db;
+# Keyin Flyway V1/V2 jadvallarni yaratadi; JPA ddl-auto: validate
+
+server:
+  port: 8087
+
+spring:
+  application:
+    name: notification-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/notifications_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mexa}
+    password: ${SPRING_DATASOURCE_PASSWORD:mexa1234}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    table: notification_flyway_schema_history
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
+app:
+  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+# SMS: false bo'lsa yoki email/parol bo'sh bo'lsa — SMS yuborilmaydi (startup xato bermaydi).
+# Ixtiyoriy API token (kelajakdagi integratsiya uchun saqlanadi).
+eskiz:
+  enabled: ${ESKIZ_ENABLED:false}
+  base-url: ${ESKIZ_BASE_URL:https://notify.eskiz.uz}
+  email: ${ESKIZ_EMAIL:}
+  password: ${ESKIZ_PASSWORD:}
+  api-token: ${ESKIZ_API_TOKEN:}
+  sender: ${ESKIZ_SENDER:4546}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
+    redis:
+      enabled: false

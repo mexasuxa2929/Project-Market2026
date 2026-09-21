@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warehouse Microservices Test Runner</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --ok: #16a34a;
+      --err: #dc2626;
+      --primary: #2563eb;
+    }
+    body.dark {
+      --bg: #0b1220;
+      --panel: #111a2e;
+      --text: #e5ecff;
+      --muted: #9bb0d3;
+      --border: #223251;
+      --ok: #22c55e;
+      --err: #f87171;
+      --primary: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .title { font-weight: 700; margin-right: auto; }
+    button {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .stats { display: flex; gap: 10px; width: 100%; margin-top: 8px; }
+    .stat {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 12px;
+      padding: 12px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .service-btn {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 8px;
+    }
+    .endpoint {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .endpoint-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .method {
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: #fff;
+    }
+    .GET { background: #2563eb; }
+    .POST { background: #16a34a; }
+    .PUT { background: #d97706; }
+    .PATCH { background: #7c3aed; }
+    .DELETE { background: #dc2626; }
+    .url { font-family: Consolas, monospace; word-break: break-all; }
+    textarea, input {
+      width: 100%;
+      margin-top: 6px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      font-family: Consolas, monospace;
+    }
+    pre {
+      background: rgba(148,163,184,0.15);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      overflow: auto;
+      max-height: 220px;
+      white-space: pre-wrap;
+      margin-top: 8px;
+    }
+    .muted { color: var(--muted); font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border); padding: 8px; font-size: 13px; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .err { color: var(--err); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">Microservices API Test Runner</div>
+    <span id="tokenState" class="muted">Token yo'q ❌</span>
+    <button id="loginBtn">Auto Login (superadmin)</button>
+    <button id="runAllBtn" class="primary">Run All</button>
+    <button id="exportBtn">Export JSON</button>
+    <button id="themeBtn">Dark/Light</button>
+    <div class="stats">
+      <div class="stat"><div class="muted">Jami</div><div id="totalCount">0</div></div>
+      <div class="stat"><div class="muted">O'tdi</div><div id="passCount" class="ok">0</div></div>
+      <div class="stat"><div class="muted">Xato</div><div id="failCount" class="err">0</div></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>Servislar</h3>
+      <button class="service-btn" data-service="AUTH">Auth</button>
+      <button class="service-btn" data-service="ADMIN">Admin</button>
+      <button class="service-btn" data-service="SHOP">Shop</button>
+      <button class="service-btn" data-service="PRODUCT">Product</button>
+      <button class="service-btn" data-service="WAREHOUSE">Warehouse</button>
+      <p class="muted">Warehouse endpointlari /v3/api-docs dan dinamik olinadi.</p>
+    </div>
+    <div class="panel">
+      <h3 id="serviceTitle">Auth</h3>
+      <div id="endpointContainer"></div>
+      <h3>Natijalar</h3>
+      <table>
+        <thead><tr><th>Status</th><th>Service</th><th>Method</th><th>URL</th><th>HTTP</th><th>Time (ms)</th></tr></thead>
+        <tbody id="resultsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const BASE = {
+      AUTH: "http://localhost:8081",
+      SHOP: "http://localhost:8094",
+      PRODUCT: "http://localhost:8083",
+      WAREHOUSE: "http://localhost:8080"
+    };
+
+    const state = {
+      token: localStorage.getItem("runner_token") || "",
+      context: {
+        superAdminId: "",
+        productId: "",
+        priceId: "",
+        testUserId: ""
+      },
+      activeService: "AUTH",
+      results: [],
+      endpoints: {
+        AUTH: [
+          ep("POST", "/api/auth/login", { username: "superadmin", password: "super123" }),
+          ep("POST", "/api/auth/register", { username: "testuser1", email: "testuser1@example.com", password: "Test123!" }),
+          ep("POST", "/api/auth/verify-email", { email: "testuser1@example.com", code: "123456" }),
+          ep("POST", "/api/auth/resend-code", { email: "testuser1@example.com" }),
+          ep("POST", "/api/auth/forgot-password", { email: "superadmin@example.com" }),
+          ep("POST", "/api/auth/reset-password", { token: "replace-reset-token", newPassword: "Super123!" }),
+          ep("POST", "/api/auth/refresh", { refreshToken: "replace-refresh-token" }),
+          ep("POST", "/api/auth/logout", { refreshToken: "replace-refresh-token" })
+        ],
+        ADMIN: [
+          ep("GET", "/api/admin/users", null, true),
+          ep("GET", "/api/admin/users/{{superAdminId}}", null, true),
+          ep("GET", "/api/admin/users/by-email?email=superadmin@example.com", null, true),
+          ep("GET", "/api/admin/roles", null, true),
+          ep("PUT", "/api/admin/users/{{superAdminId}}", { username: "superadmin", email: "superadmin@example.com", enabled: true }, true),
+          ep("PUT", "/api/admin/users/{{superAdminId}}/roles", { roleIds: ["replace-role-id"] }, true),
+          ep("PUT", "/api/admin/users/{{superAdminId}}/password", { oldPassword: "super123", newPassword: "super123" }, true),
+          ep("DELETE", "/api/admin/users/{{testUserId}}", null, true)
+        ],
+        SHOP: [
+          ep("GET", "/api/products", null, true),
+          ep("GET", "/api/products/search?q=test", null, true),
+          ep("GET", "/api/products/{{productId}}", null, true)
+        ],
+        PRODUCT: [
+          ep("GET", "/api/products", null, true),
+          ep("POST", "/api/products", {
+            name: "Runner Product",
+            description: "Created by test-runner",
+            categoryId: "00000000-0000-0000-0000-000000000001",
+            brandId: "00000000-0000-0000-0000-000000000001",
+            manufacturerId: "00000000-0000-0000-0000-000000000001",
+            supplierId: "00000000-0000-0000-0000-000000000001"
+          }, true),
+          ep("GET", "/api/products/{{productId}}", null, true),
+          ep("PUT", "/api/products/{{productId}}", { name: "Runner Product Updated", description: "Updated from runner" }, true),
+          ep("PATCH", "/api/products/{{productId}}/active", { active: true }, true),
+          ep("DELETE", "/api/products/{{productId}}", null, true),
+          ep("GET", "/api/products/search?q=test", null, true),
+          ep("GET", "/api/products/{{productId}}/images", null, true),
+          ep("POST", "/api/products/{{productId}}/prices", { price: 12000, currency: "UZS" }, true),
+          ep("GET", "/api/products/{{productId}}/prices", null, true),
+          ep("PUT", "/api/products/{{productId}}/prices/{{priceId}}", { price: 12500, currency: "UZS" }, true),
+          ep("DELETE", "/api/products/{{productId}}/prices/{{priceId}}", null, true)
+        ],
+        WAREHOUSE: []
+      }
+    };
+
+    function ep(method, url, body, auth = false) {
+      return { method, url, body, auth };
+    }
+
+    function renderTokenState() {
+      document.getElementById("tokenState").textContent = state.token ? "Authorized ✅" : "Token yo'q ❌";
+    }
+
+    function resolveVars(input) {
+      return String(input || "").replace(/\{\{(.*?)\}\}/g, (_, key) => state.context[key.trim()] || `{{${key}}}`);
+    }
+
+    function getBase(service) {
+      if (service === "ADMIN") return BASE.AUTH;
+      return BASE[service];
+    }
+
+    async function autoLogin() {
+      const started = performance.now();
+      const res = await fetch(BASE.AUTH + "/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "superadmin", password: "super123" })
+      });
+      const body = await safeJson(res);
+      if (!res.ok) throw new Error("Login failed: " + JSON.stringify(body));
+      const token = body.token || body.data?.token || body.accessToken;
+      if (!token) throw new Error("Token topilmadi");
+      state.token = token;
+      localStorage.setItem("runner_token", token);
+      renderTokenState();
+
+      const info = await runOne("ADMIN", { method: "GET", url: "/api/admin/users/by-email?email=superadmin@example.com", body: null, auth: true }, null, true);
+      const user = info.responseBody?.item || info.responseBody?.data?.item || info.responseBody?.data || info.responseBody;
+      state.context.superAdminId = user?.id || state.context.superAdminId;
+      state.context.testUserId = user?.id || state.context.testUserId;
+      pushResult({
+        service: "AUTH",
+        method: "POST",
+        url: "/api/auth/login",
+        status: res.status,
+        ms: Math.round(performance.now() - started),
+        ok: true,
+        responseBody: body
+      });
+      render();
+    }
+
+    async function safeJson(res) {
+      const t = await res.text();
+      if (!t) return null;
+      try { return JSON.parse(t); } catch (_) { return t; }
+    }
+
+    function endpointBodyText(endpoint) {
+      return endpoint.body == null ? "" : JSON.stringify(endpoint.body, null, 2);
+    }
+
+    function serviceEndpoints(service) {
+      return state.endpoints[service] || [];
+    }
+
+    function render() {
+      renderTokenState();
+      const service = state.activeService;
+      document.getElementById("serviceTitle").textContent = service;
+      const wrap = document.getElementById("endpointContainer");
+      wrap.innerHTML = "";
+
+      serviceEndpoints(service).forEach((endpoint, idx) => {
+        const card = document.createElement("div");
+        card.className = "endpoint";
+        const fullUrl = getBase(service) + resolveVars(endpoint.url);
+        card.innerHTML = `
+          <div class="endpoint-head">
+            <span class="method ${endpoint.method}">${endpoint.method}</span>
+            <span class="url">${fullUrl}</span>
+          </div>
+          <div class="muted">Authorization: ${endpoint.auth ? "Bearer token required" : "No token"}</div>
+          <textarea rows="6" id="body-${service}-${idx}" placeholder='JSON body (kerak bo'lsa)'>${escapeHtml(endpointBodyText(endpoint))}</textarea>
+          <button data-run="${service}:${idx}" style="margin-top:8px;">Run</button>
+          <pre id="resp-${service}-${idx}" class="muted">No response yet</pre>
+        `;
+        wrap.appendChild(card);
+      });
+
+      const tb = document.getElementById("resultsTable");
+      tb.innerHTML = "";
+      state.results.slice().reverse().forEach((r) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="${r.ok ? "ok" : "err"}">${r.ok ? "✅" : "❌"}</td>
+          <td>${r.service}</td>
+          <td>${r.method}</td>
+          <td>${escapeHtml(r.url)}</td>
+          <td>${r.status ?? "-"}</td>
+          <td>${r.ms ?? "-"}</td>
+        `;
+        tb.appendChild(tr);
+      });
+      updateStats();
+    }
+
+    function updateStats() {
+      const total = state.results.length;
+      const pass = state.results.filter((x) => x.ok).length;
+      const fail = total - pass;
+      document.getElementById("totalCount").textContent = String(total);
+      document.getElementById("passCount").textContent = String(pass);
+      document.getElementById("failCount").textContent = String(fail);
+    }
+
+    function pushResult(result) {
+      state.results.push({
+        at: new Date().toISOString(),
+        ...result
+      });
+    }
+
+    function parseBodyFromTextarea(service, index, fallback) {
+      const el = document.getElementById(`body-${service}-${index}`);
+      if (!el) return fallback;
+      const txt = el.value.trim();
+      if (!txt) return null;
+      try { return JSON.parse(txt); } catch (e) { return { "__raw": txt }; }
+    }
+
+    async function runOne(service, endpoint, index = null, silent = false) {
+      const start = performance.now();
+      const url = getBase(service) + resolveVars(endpoint.url);
+      const headers = { "Content-Type": "application/json" };
+      if (endpoint.auth && state.token) headers.Authorization = "Bearer " + state.token;
+
+      const bodyData = index === null ? endpoint.body : parseBodyFromTextarea(service, index, endpoint.body);
+      const req = { method: endpoint.method, headers };
+      if (!["GET", "DELETE"].includes(endpoint.method)) {
+        req.body = JSON.stringify(bodyData || {});
+      }
+
+      let status = 0;
+      let responseBody = null;
+      let ok = false;
+      try {
+        const res = await fetch(url, req);
+        status = res.status;
+        responseBody = await safeJson(res);
+        ok = res.ok;
+      } catch (e) {
+        responseBody = String(e);
+      }
+
+      // best-effort context updates
+      const productItem = responseBody?.item || responseBody?.data?.item || responseBody?.data;
+      const items = responseBody?.items || responseBody?.data?.items;
+      if (productItem?.id) state.context.productId = productItem.id;
+      if (Array.isArray(items) && items[0]?.id && endpoint.url.includes("/api/products")) state.context.productId = items[0].id;
+      if (Array.isArray(items) && items[0]?.id && endpoint.url.includes("/prices")) state.context.priceId = items[0].id;
+      if (productItem?.priceId) state.context.priceId = productItem.priceId;
+
+      const ms = Math.round(performance.now() - start);
+      const result = { service, method: endpoint.method, url, status, ms, ok, responseBody };
+      pushResult(result);
+
+      if (!silent && index !== null) {
+        const pre = document.getElementById(`resp-${service}-${index}`);
+        if (pre) pre.textContent = JSON.stringify({ status, ms, body: responseBody }, null, 2);
+      }
+      return result;
+    }
+
+    async function runAll() {
+      for (const service of ["AUTH", "ADMIN", "SHOP", "PRODUCT", "WAREHOUSE"]) {
+        if (service === "WAREHOUSE" && state.endpoints.WAREHOUSE.length === 0) {
+          await loadWarehouseEndpoints();
+        }
+        const endpoints = serviceEndpoints(service);
+        for (let i = 0; i < endpoints.length; i++) {
+          await runOne(service, endpoints[i], i);
+          render();
+        }
+      }
+    }
+
+    async function loadWarehouseEndpoints() {
+      try {
+        const res = await fetch(BASE.WAREHOUSE + "/v3/api-docs");
+        const api = await res.json();
+        const list = [];
+        for (const [path, methods] of Object.entries(api.paths || {})) {
+          for (const [method, def] of Object.entries(methods)) {
+            const m = method.toUpperCase();
+            const auth = (def.security || []).length > 0 || true;
+            const sample = buildSampleBody(def.requestBody);
+            list.push(ep(m, path, sample, auth));
+          }
+        }
+        state.endpoints.WAREHOUSE = list;
+      } catch (e) {
+        state.endpoints.WAREHOUSE = [ep("GET", "/actuator/health", null, false)];
+      }
+    }
+
+    function buildSampleBody(requestBody) {
+      const schema = requestBody?.content?.["application/json"]?.schema;
+      if (!schema) return null;
+      if (schema.example) return schema.example;
+      const props = schema.properties || {};
+      const obj = {};
+      Object.keys(props).forEach((k) => obj[k] = "");
+      return obj;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function exportJson() {
+      const blob = new Blob([JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        tokenPresent: Boolean(state.token),
+        context: state.context,
+        results: state.results
+      }, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "test-runner-results.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      try { await autoLogin(); render(); } catch (e) { alert(String(e)); }
+    });
+    document.getElementById("runAllBtn").addEventListener("click", async () => {
+      await runAll();
+      render();
+    });
+    document.getElementById("exportBtn").addEventListener("click", exportJson);
+    document.getElementById("themeBtn").addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      localStorage.setItem("runner_theme", document.body.classList.contains("dark") ? "dark" : "light");
+    });
+
+    document.querySelectorAll(".service-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const s = btn.dataset.service;
+        state.activeService = s;
+        if (s === "WAREHOUSE" && state.endpoints.WAREHOUSE.length === 0) {
+          await loadWarehouseEndpoints();
+        }
+        render();
+      });
+    });
+
+    document.addEventListener("click", async (e) => {
+      const run = e.target.getAttribute("data-run");
+      if (!run) return;
+      const [service, idxRaw] = run.split(":");
+      const idx = Number(idxRaw);
+      const endpoint = serviceEndpoints(service)[idx];
+      await runOne(service, endpoint, idx);
+      render();
+    });
+
+    if (localStorage.getItem("runner_theme") === "dark") {
+      document.body.classList.add("dark");
+    }
+    render();
+  </script>
+</body>
+</html>

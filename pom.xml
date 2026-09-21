@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>mexa.club</groupId>
+    <artifactId>WarehouseProject</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>WarehouseProject</name>
+    <description>WarehouseProject</description>
+    <url/>
+    <licenses>
+        <license/>
+    </licenses>
+    <developers>
+        <developer/>
+    </developers>
+    <scm>
+        <connection/>
+        <developerConnection/>
+        <tag/>
+        <url/>
+    </scm>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>realtime-lib</module>
+        <module>analytics-service</module>
+        <module>auth-service</module>
+        <module>discount-service</module>
+        <module>warehouse-service</module>
+        <module>shop-service</module>
+        <module>product-service</module>
+        <module>gateway-service</module>
+        <module>order-service</module>
+        <module>notification-service</module>
+        <module>delivery-service</module>
+        <module>report-service</module>
+        <module>search-service</module>
+        <module>payment-service</module>
+        <module>geo-service</module>
+    </modules>
+    <properties>
+        <java.version>17</java.version>
+        <!-- JDK 24+ ichida eski Lombok: ExceptionInInitializerError / TypeTag :: UNKNOWN -->
+        <lombok.version>1.18.38</lombok.version>
+        <springdoc.version>2.5.0</springdoc.version>
+    </properties>
+
+    <!--
+      Servis-stekni shu yerda <dependencies> qilib meros qilmaslik kerak: gateway-service kabi
+      modullar Spring Web + JPA + Tomcat ni tortib olardi (reactive gateway buziladi).
+      Har bir modul o'ziga kerakli dependencylarni o'zi e'lon qiladi.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>mexa.club</groupId>
+                <artifactId>realtime-lib</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

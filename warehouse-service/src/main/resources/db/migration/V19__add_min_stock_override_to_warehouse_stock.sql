@@ -1,0 +1,1 @@
+ALTER TABLE warehouse_stock ADD COLUMN IF NOT EXISTS min_stock_override INTEGER;

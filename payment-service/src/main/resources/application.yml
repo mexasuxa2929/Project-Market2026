@@ -1,0 +1,59 @@
+# PostgreSQL: payments_db bo'lmasa yaratish: CREATE DATABASE payments_db;
+
+server:
+  port: ${SERVER_PORT:8091}
+
+spring:
+  application:
+    name: payment-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/payments_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mexa}
+    password: ${SPRING_DATASOURCE_PASSWORD:mexa1234}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+services:
+  order:
+    url: ${ORDER_SERVICE_URL:http://localhost:8085}
+
+app:
+  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+payme:
+  merchant-id: ${PAYME_MERCHANT_ID:}
+  test-key: ${PAYME_TEST_KEY:}
+  prod-key: ${PAYME_PROD_KEY:}
+  active-key: ${PAYME_ACTIVE_KEY:test}
+  checkout-url: ${PAYME_CHECKOUT_URL:https://checkout.paycom.uz/}
+  callback-path: ${PAYME_CALLBACK_PATH:/payment/payme/callback}
+  timeout-ms: ${PAYME_TIMEOUT_MS:12000}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    mexa.club.paymentservice.payme: INFO

@@ -1,0 +1,63 @@
+HELP.md
+# Mahalliy sirlarni gitga chiqarmaslik (mail, DB va hokazo)
+application-local.properties
+**/application-local.properties
+.env
+.env.*
+!.env.example
+
+# Yuklangan mahsulot rasmlari (ildiz: app.storage.root)
+storage/
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Claude worktrees va tasodifiy artefaktlar
+.claude/worktrees/
+/0
+
+# Signing kaliti va maxfiy fayllar
+*.jks
+*.keystore
+
+# Lokal vosita config'lari
+.opencode/
+
+# Yuklangan fayllar (runtime)
+product-service/uploads/
+
+# Vaqtinchalik skriptlar (JWT token saqlangan)
+add-ru-translations.ps1
+create-10-products.ps1
+create-100-products-curl.ps1
+create-100-products.ps1
+paseo.json

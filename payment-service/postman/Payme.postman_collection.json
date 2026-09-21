@@ -1,0 +1,104 @@
+{
+  "info": {
+    "name": "Payme Merchant JSON-RPC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8091" },
+    { "key": "paymeKey", "value": "test_payme_secret" },
+    { "key": "orderId", "value": "1" },
+    { "key": "amountTiyin", "value": "100000" },
+    { "key": "paycomTxId", "value": "replace-with-paycom-id" }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": [{ "key": "username", "value": "Paycom" }, { "key": "password", "value": "{{paymeKey}}" }]
+  },
+  "item": [
+    {
+      "name": "CheckPerformTransaction",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 1,\n  \"method\": \"CheckPerformTransaction\",\n  \"params\": {\n    \"amount\": {{amountTiyin}},\n    \"account\": { \"order_id\": \"{{orderId}}\" }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "CreateTransaction",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 2,\n  \"method\": \"CreateTransaction\",\n  \"params\": {\n    \"id\": \"{{paycomTxId}}\",\n    \"time\": {{$timestamp}},\n    \"amount\": {{amountTiyin}},\n    \"account\": { \"order_id\": \"{{orderId}}\" }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "PerformTransaction",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3,\n  \"method\": \"PerformTransaction\",\n  \"params\": { \"id\": \"{{paycomTxId}}\" }\n}"
+        }
+      }
+    },
+    {
+      "name": "CancelTransaction",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 4,\n  \"method\": \"CancelTransaction\",\n  \"params\": { \"id\": \"{{paycomTxId}}\", \"reason\": 3 }\n}"
+        }
+      }
+    },
+    {
+      "name": "CheckTransaction",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 5,\n  \"method\": \"CheckTransaction\",\n  \"params\": { \"id\": \"{{paycomTxId}}\" }\n}"
+        }
+      }
+    },
+    {
+      "name": "GetStatement",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/payment/payme/callback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 6,\n  \"method\": \"GetStatement\",\n  \"params\": { \"from\": 1700000000000, \"to\": 1899999999999 }\n}"
+        }
+      }
+    },
+    {
+      "name": "Create order + checkout (REST)",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 1,\n  \"amountTiyin\": {{amountTiyin}},\n  \"returnUrl\": \"https://example.com/done\"\n}"
+        }
+      }
+    }
+  ]
+}

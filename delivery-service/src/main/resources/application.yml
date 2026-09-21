@@ -1,0 +1,67 @@
+# PostgreSQL: delivery_db yoki docker-compose dagi warehouse_db — datasource URL ga qarab.
+
+server:
+  port: 8088
+
+spring:
+  application:
+    name: delivery-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/delivery_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mexa}
+    password: ${SPRING_DATASOURCE_PASSWORD:mexa1234}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    table: delivery_flyway_schema_history
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
+app:
+  internal:
+    secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  # Eski kalit nomi (ichki controller / Flyign)
+  internal-secret: ${app.internal.secret}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+notification:
+  service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+
+order:
+  service:
+    url: ${ORDER_SERVICE_URL:http://localhost:8085}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    redis:
+      enabled: false

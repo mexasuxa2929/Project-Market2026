@@ -1,0 +1,13 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PaymentServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ENABLE_JMX_AGENT" value="false" />
+    <envs>
+      <env name="SERVER_PORT" value="8091" />
+    </envs>
+    <module name="payment-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="mexa.club.paymentservice.PaymentServiceApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

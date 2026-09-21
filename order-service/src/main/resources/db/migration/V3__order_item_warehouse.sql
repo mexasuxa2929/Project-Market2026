@@ -1,0 +1,1 @@
+ALTER TABLE order_item ADD COLUMN IF NOT EXISTS warehouse_id UUID;

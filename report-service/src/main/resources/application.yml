@@ -1,0 +1,60 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: report-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 5000
+  cache:
+    cache-names:
+      - dashboard
+      - salesReports
+      - productReports
+      - customerReports
+  caffeine:
+    spec: maximumSize=500,expireAfterWrite=15m
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
+app:
+  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+services:
+  order:
+    url: ${ORDER_SERVICE_URL:http://localhost:8085}
+  warehouse:
+    url: ${WAREHOUSE_SERVICE_URL:http://localhost:8084}
+  auth:
+    url: ${AUTH_SERVICE_URL:http://localhost:8081}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    redis:
+      enabled: false

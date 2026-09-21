@@ -1,0 +1,21 @@
+package mexa.club.authservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class LoginRequest {
+
+    @NotBlank
+    private String usernameOrEmail;
+
+    @NotBlank
+    private String password;
+
+    /** Mijoz qurilma identifikatori (refresh tokenni qurilmaga bog'lash uchun). Ixtiyoriy. */
+    private String deviceId;
+}

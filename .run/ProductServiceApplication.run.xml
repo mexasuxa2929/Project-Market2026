@@ -1,0 +1,13 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ProductServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ENABLE_JMX_AGENT" value="false" />
+    <envs>
+      <env name="SERVER_PORT" value="8083" />
+    </envs>
+    <module name="product-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="mexa.club.productservice.ProductServiceApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -1,0 +1,1 @@
+ALTER TABLE product ADD COLUMN IF NOT EXISTS color_code VARCHAR(20);

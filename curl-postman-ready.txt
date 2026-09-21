@@ -1,0 +1,84 @@
+# Postman uchun tayyor cURL ro'yxat (uncommented)
+# Eslatma:
+# - AUTH_BASE_URL: http://localhost:8081
+# - WAREHOUSE_BASE_URL: http://localhost:8080
+# - <JWT> ni login javobidan oling
+# - <...> joylarni real id/path bilan almashtiring
+
+# 1) AUTH
+curl -X POST "http://localhost:8081/api/auth/register" -H "Content-Type: application/json" -d "{\"username\":\"newuser\",\"email\":\"newuser@example.com\",\"password\":\"password123\"}"
+curl -X POST "http://localhost:8081/api/auth/login" -H "Content-Type: application/json" -d "{\"username\":\"superadmin\",\"password\":\"super123\"}"
+
+# 2) AUTH ADMIN (faqat SUPER_ADMIN)
+curl -X GET "http://localhost:8081/api/admin/users?page=0&size=20" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8081/api/admin/users/<USER_ID>" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8081/api/admin/roles" -H "Authorization: Bearer <JWT>"
+curl -X PUT "http://localhost:8081/api/admin/users/<USER_ID>/roles" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"roleIds\":[<ROLE_ID_USER>,<ROLE_ID_ADMIN>]}"
+curl -X PUT "http://localhost:8081/api/admin/users/<USER_ID>" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"username\":\"admin2\",\"email\":\"admin2@example.com\",\"enabled\":true}"
+curl -X PUT "http://localhost:8081/api/admin/users/<USER_ID>/password" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"oldPassword\":\"<OLD_PASSWORD>\",\"newPassword\":\"newpass123\"}"
+curl -X DELETE "http://localhost:8081/api/admin/users/<USER_ID>" -H "Authorization: Bearer <JWT>"
+
+# 3) Categories
+curl -X GET "http://localhost:8080/api/categories?size=50" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/categories" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Category A\",\"description\":\"Category description\"}"
+curl -X PUT "http://localhost:8080/api/categories/<CATEGORY_ID>" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Category A (updated)\",\"description\":\"Updated\"}"
+curl -X DELETE "http://localhost:8080/api/categories/<CATEGORY_ID>" -H "Authorization: Bearer <JWT>"
+
+# 4) Brands
+curl -X GET "http://localhost:8080/api/brands?size=50" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/brands" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Brand A\",\"description\":\"Brand description\"}"
+
+# 5) Manufacturers
+curl -X GET "http://localhost:8080/api/manufacturers?size=50" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/manufacturers" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Manufacturer A\",\"address\":\"Toshkent\",\"contactInfo\":\"+998900000000\"}"
+
+# 6) Suppliers
+curl -X GET "http://localhost:8080/api/suppliers?size=50" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/suppliers" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Supplier A\",\"address\":\"Toshkent\",\"contactInfo\":\"+998900000001\"}"
+
+# 7) Products (advanced filter ham bor)
+curl -X GET "http://localhost:8080/api/products?name=milk&categoryId=<CATEGORY_ID>&brandId=<BRAND_ID>&page=0&size=20&sort=name,asc" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/products/<PRODUCT_ID>" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/products" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Product A\",\"barcode\":\"1234567890123\",\"categoryId\":\"<CATEGORY_ID>\",\"brandId\":\"<BRAND_ID>\",\"manufacturerId\":\"<MANUFACTURER_ID>\",\"unit\":\"pcs\",\"leadTimeDays\":0,\"minStock\":0,\"weight\":0.0,\"length\":0.0,\"width\":0.0,\"height\":0.0,\"packageType\":\"box\",\"fragile\":false,\"active\":true}"
+curl -X PUT "http://localhost:8080/api/products/<PRODUCT_ID>" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Product A updated\",\"barcode\":\"1234567890123\",\"categoryId\":\"<CATEGORY_ID>\",\"brandId\":\"<BRAND_ID>\",\"manufacturerId\":\"<MANUFACTURER_ID>\",\"unit\":\"pcs\",\"leadTimeDays\":1,\"minStock\":5,\"weight\":0.5,\"length\":10.0,\"width\":5.0,\"height\":2.0,\"packageType\":\"box\",\"fragile\":false,\"active\":true}"
+curl -X PATCH "http://localhost:8080/api/products/<PRODUCT_ID>/active" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"active\":true}"
+curl -X DELETE "http://localhost:8080/api/products/<PRODUCT_ID>" -H "Authorization: Bearer <JWT>"
+
+# 8) Product images
+curl -X GET "http://localhost:8080/api/products/<PRODUCT_ID>/images" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/products/<PRODUCT_ID>/images" -H "Authorization: Bearer <JWT>" -F "files=@C:/path/to/image1.jpg" -F "files=@C:/path/to/image2.png"
+curl -X DELETE "http://localhost:8080/api/products/<PRODUCT_ID>/images/<FILENAME>" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/files/images/products/<PRODUCT_ID>/<FILENAME>" -H "Authorization: Bearer <JWT>"
+
+# 9) Product prices (+ update)
+curl -X GET "http://localhost:8080/api/products/<PRODUCT_ID>/prices" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/products/<PRODUCT_ID>/prices" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"costPrice\":10.5,\"salePrice\":12.99,\"effectiveDate\":\"2026-03-23T10:00:00\",\"endDate\":null}"
+curl -X PUT "http://localhost:8080/api/products/<PRODUCT_ID>/prices/<PRICE_ID>" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"costPrice\":11.0,\"salePrice\":13.5,\"effectiveDate\":\"2026-03-24T10:00:00\",\"endDate\":null}"
+curl -X DELETE "http://localhost:8080/api/products/<PRODUCT_ID>/prices/<PRICE_ID>" -H "Authorization: Bearer <JWT>"
+
+# 10) Audit / history
+curl -X GET "http://localhost:8080/api/audit-logs?page=0&size=50&sort=createdAt,desc" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/audit-logs?targetType=WAREHOUSE_STOCK&warehouseId=<WAREHOUSE_ID>&sort=createdAt,desc" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/audit-logs?targetType=PRODUCT_PRICE&targetId=<PRICE_ID>&sort=createdAt,desc" -H "Authorization: Bearer <JWT>"
+
+# 11) Warehouses + admins
+curl -X GET "http://localhost:8080/api/warehouses?size=20" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/warehouses" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"name\":\"Main Warehouse\",\"location\":\"Toshkent\",\"address\":\"some address\"}"
+curl -X PUT "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/admins" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"adminUserIds\":[<USER_ID_1>,<USER_ID_2>]}"
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/admins" -H "Authorization: Bearer <JWT>"
+curl -X DELETE "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/admins/<USER_ID>" -H "Authorization: Bearer <JWT>"
+
+# 12) Stock + low stock alert
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/stock?size=50" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/stock/alerts/low" -H "Authorization: Bearer <JWT>"
+curl -X PUT "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/stock/lines" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"productId\":\"<PRODUCT_ID>\",\"quantity\":100,\"reservedQuantity\":0}"
+curl -X POST "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/stock/adjust" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"productId\":\"<PRODUCT_ID>\",\"quantityDelta\":25}"
+
+# 13) Purchases + purchase items update/delete
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/purchases?size=20" -H "Authorization: Bearer <JWT>"
+curl -X GET "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>" -H "Authorization: Bearer <JWT>"
+curl -X POST "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/purchases" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"supplierId\":<SUPPLIER_ID>,\"invoiceNumber\":\"INV-001\",\"purchaseDate\":\"2026-03-23T12:00:00\",\"items\":[{\"productId\":\"<PRODUCT_ID>\",\"quantity\":10,\"unitPrice\":8.90}]}"
+curl -X PUT "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>/items/<ITEM_ID>" -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" -d "{\"productId\":\"<PRODUCT_ID>\",\"quantity\":12,\"unitPrice\":9.10}"
+curl -X DELETE "http://localhost:8080/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>/items/<ITEM_ID>" -H "Authorization: Bearer <JWT>"
+

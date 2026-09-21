@@ -1,0 +1,80 @@
+server:
+  port: 8094
+
+spring:
+  application:
+    name: shop-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: ${SHOP_SPRING_DATASOURCE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/warehouse_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:mexa}
+    password: ${SPRING_DATASOURCE_PASSWORD:mexa1234}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    # warehouse_db is shared with order/notification/warehouse services; each must use its own history table
+    # or version numbers collide (e.g. another service's V3 prevents shop V3 from running → missing shop_cart).
+    table: shop_flyway_schema_history
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    # Spring Boot 3.2 does not run Flyway repair from YAML; validate fails if an applied script file changed (checksum mismatch).
+    # Default false so local/dev starts after V1 edits; set FLYWAY_VALIDATE_ON_MIGRATE=true in prod after `flyway repair` (or restore original script).
+    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:false}
+  web:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: false
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
+app:
+  internal-api:
+    key: ${APP_INTERNAL_API_KEY:change-me-internal}
+  order-service:
+    url: ${ORDER_SERVICE_URL:http://localhost:8085}
+    timeout-ms: ${ORDER_SERVICE_TIMEOUT_MS:8000}
+  product-service:
+    url: ${PRODUCT_SERVICE_URL:http://localhost:8083}
+    timeout-ms: ${PRODUCT_SERVICE_TIMEOUT_MS:3000}
+    default-page-size: ${PRODUCT_SERVICE_PAGE_SIZE:200}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+
+springdoc:
+  api-docs:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+    persist-authorization: true
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: list
+    display-request-duration: true
+    filter: true
+  writer-with-default-pretty-printer: true
+
+management:
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info

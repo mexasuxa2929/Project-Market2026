@@ -1,0 +1,98 @@
+# Project Market — Docker boshqaruv buyruqlari
+# Barcha buyruqlar loyiha papkasida (docker-compose.yml yonida) bajariladi
+
+# --- 1. ISHGA TUSHIRISH ---
+# Oddiy run (DB tekshiradi, yo'q bo'lsa yaratadi, servislarni ishga tushiradi)
+sg docker -c "docker compose up -d"
+
+# To'liq build bilan (kod o'zgarganda)
+sg docker -c "docker compose up -d --build"
+
+# Noldan toza (DB lar qayta yaratiladi!)
+sg docker -c "docker compose down -v && docker compose up -d --build"
+
+# --- 2. TO'XTATISH ---
+# Vaqtincha to'xtatish (ma'lumot saqlanadi, up bilan qayta yonadi)
+sg docker -c "docker compose stop"
+
+# To'liq o'chirish (konteynerlar o'chadi, DB saqlanadi)
+sg docker -c "docker compose down"
+
+# To'liq o'chirish + DB o'chirish (barcha 11 ta DB o'chadi!)
+sg docker -c "docker compose down -v"
+
+# --- 3. HOLATNI TEKSHIRISH ---
+# Konteynerlar ro'yxati va health
+sg docker -c "docker compose ps"
+
+# Loglar (oxirgi 50 qator)
+sg docker -c "docker compose logs --tail=50"
+
+# Alohida servis logi
+sg docker -c "docker logs warehouse-auth-service --tail 50"
+sg docker -c "docker logs warehouse-postgres --tail 50"
+sg docker -c "docker logs warehouse-postgres-init --tail 20"
+
+# Jonli log kuzatish
+sg docker -c "docker compose logs -f"
+
+# --- 4. DATABASE ---
+# Docker postgres DB ro'yxati (port 5433)
+sg docker -c "docker exec warehouse-postgres psql -U mexa -l"
+sg docker -c "docker exec warehouse-postgres psql -U mexa -d postgres -c 'SELECT datname FROM pg_database ORDER BY datname;'"
+
+# Hostdan psql bilan (port 5433!)
+psql -h localhost -p 5433 -U mexa -l
+# Yoki pgAdmin: Host=localhost Port=5433 User=mexa Password=mexa1234
+
+# Host postgres bilan to'qnashuv bo'lsa
+sudo systemctl stop postgresql
+sudo systemctl disable postgresql
+ss -tlnp | grep 5432   # kim band qilganini ko'rish
+ss -tlnp | grep 5433   # docker postgres
+
+# --- 5. PORTLAR ---
+# Gateway: 8080, Auth: 8081, Product: 8083, Warehouse: 8084, Order: 8085
+# Notification: 8087, Delivery: 8088, Report: 8089, Search: 8090
+# Payment: 8091, Discount: 8092, Shop: 8094, Geo: 8095, Analytics: 8096
+# Postgres: 5433, Redis: 6379, Minio: 9000/9001, Elasticsearch: 9200, MailPit: 8025/1025
+
+# Swagger - barcha servislar
+# http://localhost:8080/swagger-ui.html
+
+# MailPit - email kodlar
+# http://localhost:8025
+
+# --- 6. API TEST (curl) ---
+# Register (username/email har safar yangi bo'lsin)
+curl -s -X POST http://localhost:8080/api/auth/register -H "Content-Type: application/json" -d '{"firstName":"Test","lastName":"User","username":"testuser1","email":"testuser1@example.com","phone":"+998901234567","password":"Test1234!"}' | python3 -m json.tool
+
+# OTP kodni olish (MailPit API)
+curl -s http://localhost:8025/api/v1/messages | python3 -m json.tool
+# yoki brauzerda http://localhost:8025
+
+# Verify email (kodni qo'ying)
+curl -s -X POST http://localhost:8080/api/auth/verify-email -H "Content-Type: application/json" -d '{"email":"testuser1@example.com","otpCode":"123456"}' | python3 -m json.tool
+
+# Login
+curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"usernameOrEmail":"testuser1@example.com","password":"Test1234!"}' | python3 -m json.tool
+
+# Superadmin login (admin endpointlar uchun)
+curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"usernameOrEmail":"superadmin","password":"super123"}' | python3 -m json.tool
+
+# Token bilan boshqa API (TOKEN ni qo'ying)
+TOKEN="eyJ..."
+curl -s http://localhost:8080/api/products -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+curl -s http://localhost:8080/swagger/auth/v3/api-docs | head -c 200
+
+# --- 7. TOZALASH ---
+# Ishlatilmayotgan image/volume larni tozalash
+sg docker -c "docker system prune -f"
+
+# Faqat volume larni ko'rish
+sg docker -c "docker volume ls | grep project"
+
+# --- 8. ENV ---
+# .env fayl muharrirlash
+nano .env
+# Muhim maydonlar: POSTGRES_PORT=5433, JWT_SECRET, APP_INTERNAL_SECRET, MAIL_USERNAME, MAIL_PASSWORD

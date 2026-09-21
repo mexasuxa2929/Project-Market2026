@@ -1,0 +1,13 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="DeliveryServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ENABLE_JMX_AGENT" value="false" />
+    <envs>
+      <env name="SERVER_PORT" value="8088" />
+    </envs>
+    <module name="delivery-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="mexa.club.deliveryservice.DeliveryServiceApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

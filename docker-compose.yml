@@ -1,0 +1,601 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: warehouse-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-warehouse_db}
+      POSTGRES_USER: ${POSTGRES_USER:-mexa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mexa1234}
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mexa} -d ${POSTGRES_DB:-warehouse_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  postgres-init:
+    image: postgres:16-alpine
+    container_name: warehouse-postgres-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-mexa1234}
+      POSTGRES_USER: ${POSTGRES_USER:-mexa}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        for db in products_db payments_db discounts_db analytics_db shop_db orders_db notifications_db delivery_db auth_db geo_db warehouse_db; do
+          psql -h postgres -U "$$POSTGRES_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 || psql -h postgres -U "$$POSTGRES_USER" -d postgres -c "CREATE DATABASE \"$$db\"";
+          echo "checked $$db";
+        done
+        echo "All databases ensured"
+    restart: "no"
+
+  minio:
+    image: minio/minio:latest
+    container_name: warehouse-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/minio/health/live > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: warehouse-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: warehouse-auth-service
+    environment:
+      SPRING_DATASOURCE_URL: ${AUTH_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/auth_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_SWAGGER_BASIC_AUTH_ENABLED: ${APP_SWAGGER_BASIC_AUTH_ENABLED:-false}
+      APP_SWAGGER_USERNAME: ${APP_SWAGGER_USERNAME:-swagger}
+      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:-change-me-now}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      SPRING_PROFILES_ACTIVE: ${AUTH_SPRING_PROFILES_ACTIVE:-default}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
+      SPRING_MAIL_HOST: ${MAIL_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@example.com}
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-989408291738-ficcbpvm7qkksfabogreqfj221sslrbo.apps.googleusercontent.com}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: warehouse-product-service
+    environment:
+      SPRING_DATASOURCE_URL: ${PRODUCT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/products_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_STORAGE_TYPE: ${APP_STORAGE_TYPE:-minio}
+      APP_STORAGE_MINIO_ENDPOINT: ${APP_STORAGE_MINIO_ENDPOINT:-http://minio:9000}
+      APP_STORAGE_MINIO_ACCESS_KEY: ${APP_STORAGE_MINIO_ACCESS_KEY:-minioadmin}
+      APP_STORAGE_MINIO_SECRET_KEY: ${APP_STORAGE_MINIO_SECRET_KEY:-minioadmin}
+      APP_STORAGE_MINIO_BUCKET: ${APP_STORAGE_MINIO_BUCKET:-product-images}
+      APP_STORAGE_MINIO_PUBLIC_BASE_URL: ${APP_STORAGE_MINIO_PUBLIC_BASE_URL:-}
+      REFERENCE_DATA_SERVICE_URL: ${REFERENCE_DATA_SERVICE_URL:-http://catalog-service:8086}
+      SPRING_PROFILES_ACTIVE: ${PRODUCT_SPRING_PROFILES_ACTIVE:-default}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
+      SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-change-me-internal}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:-change-me-internal}
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  shop-service:
+    build:
+      context: .
+      dockerfile: shop-service/Dockerfile
+    container_name: warehouse-shop-service
+    environment:
+      SPRING_DATASOURCE_URL: ${SHOP_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
+      PRODUCT_SERVICE_TIMEOUT_MS: ${PRODUCT_SERVICE_TIMEOUT_MS:-3000}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-change-me-internal}
+      APP_SWAGGER_ENABLED: ${SHOP_APP_SWAGGER_ENABLED:-true}
+      SPRING_PROFILES_ACTIVE: ${SHOP_SPRING_PROFILES_ACTIVE:-default}
+    ports:
+      - "8094:8094"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  warehouse-service:
+    build:
+      context: .
+      dockerfile: warehouse-service/Dockerfile
+    container_name: warehouse-warehouse-service
+    environment:
+      SPRING_DATASOURCE_URL: ${WAREHOUSE_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:-change-me-internal}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
+      APP_SWAGGER_ENABLED: ${WAREHOUSE_APP_SWAGGER_ENABLED:-true}
+      APP_SWAGGER_USERNAME: ${APP_SWAGGER_USERNAME:-swagger}
+      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:-change-me-now}
+      APP_SWAGGER_BASIC_AUTH_ENABLED: ${APP_SWAGGER_BASIC_AUTH_ENABLED:-false}
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    container_name: warehouse-gateway-service
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      PRODUCT_SERVICE_URL: ${GATEWAY_PRODUCT_SERVICE_URL:-http://product-service:8083}
+      SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8091}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      GATEWAY_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:-20}
+      GATEWAY_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:-40}
+      GATEWAY_CORS_ALLOWED_ORIGIN_1: ${GATEWAY_CORS_ALLOWED_ORIGIN_1:-http://localhost:3000}
+      GATEWAY_CORS_ALLOWED_ORIGIN_2: ${GATEWAY_CORS_ALLOWED_ORIGIN_2:-http://localhost:5173}
+      WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      DISCOUNT_SERVICE_URL: ${DISCOUNT_SERVICE_URL:-http://discount-service:8092}
+      ANALYTICS_SERVICE_URL: ${ANALYTICS_SERVICE_URL:-http://analytics-service:8096}
+      DELIVERY_SERVICE_URL: ${DELIVERY_SERVICE_URL:-http://delivery-service:8088}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
+      REPORT_SERVICE_URL: ${REPORT_SERVICE_URL:-http://report-service:8089}
+      SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:-http://search-service:8090}
+      GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
+    ports:
+      - "8080:8080"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      shop-service:
+        condition: service_healthy
+      warehouse-service:
+        condition: service_healthy
+      discount-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: warehouse-order-service
+    environment:
+      SPRING_DATASOURCE_URL: ${ORDER_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
+      DISCOUNT_SERVICE_URL: ${DISCOUNT_SERVICE_URL:-http://discount-service:8092}
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_healthy
+      discount-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: warehouse-notification-service
+    environment:
+      SPRING_DATASOURCE_URL: ${NOTIFICATION_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
+      ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
+    ports:
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  delivery-service:
+    build:
+      context: .
+      dockerfile: delivery-service/Dockerfile
+    container_name: warehouse-delivery-service
+    environment:
+      SPRING_DATASOURCE_URL: ${DELIVERY_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      order-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  report-service:
+    build:
+      context: .
+      dockerfile: report-service/Dockerfile
+    container_name: warehouse-report-service
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+    ports:
+      - "8089:8089"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: warehouse-elasticsearch
+    environment:
+      discovery.type: single-node
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: warehouse-payment-service
+    environment:
+      SERVER_PORT: ${PAYMENT_SERVER_PORT:-8091}
+      SPRING_DATASOURCE_URL: ${PAYMENT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/payments_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      PAYME_MERCHANT_ID: ${PAYME_MERCHANT_ID:-}
+      PAYME_TEST_KEY: ${PAYME_TEST_KEY:-}
+      PAYME_PROD_KEY: ${PAYME_PROD_KEY:-}
+      PAYME_ACTIVE_KEY: ${PAYME_ACTIVE_KEY:-test}
+      PAYME_CHECKOUT_URL: ${PAYME_CHECKOUT_URL:-https://checkout.paycom.uz/}
+      PAYME_CALLBACK_PATH: ${PAYME_CALLBACK_PATH:-/payment/payme/callback}
+      PAYME_TIMEOUT_MS: ${PAYME_TIMEOUT_MS:-12000}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+    ports:
+      - "${PAYMENT_SERVER_PORT:-8091}:${PAYMENT_SERVER_PORT:-8091}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  discount-service:
+    build:
+      context: .
+      dockerfile: discount-service/Dockerfile
+    container_name: warehouse-discount-service
+    environment:
+      SPRING_DATASOURCE_URL: ${DISCOUNT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/discounts_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
+    ports:
+      - "8092:8092"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  search-service:
+    build:
+      context: .
+      dockerfile: search-service/Dockerfile
+    container_name: warehouse-search-service
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      ES_URIS: ${ES_URIS:-http://elasticsearch:9200}
+      ES_USERNAME: ${ES_USERNAME:-}
+      ES_PASSWORD: ${ES_PASSWORD:-}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
+    ports:
+      - "8090:8090"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    container_name: warehouse-analytics-service
+    environment:
+      SERVER_PORT: 8096
+      SPRING_DATASOURCE_URL: ${ANALYTICS_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/analytics_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
+      DISCOUNT_SERVICE_URL: ${DISCOUNT_SERVICE_URL:-http://discount-service:8092}
+      ANALYTICS_CACHE_TTL_MINUTES: ${ANALYTICS_CACHE_TTL_MINUTES:-5}
+      ANALYTICS_LOW_STOCK_THRESHOLD: ${ANALYTICS_LOW_STOCK_THRESHOLD:-10}
+    ports:
+      - "8096:8096"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      order-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      warehouse-service:
+        condition: service_healthy
+      discount-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  geo-service:
+    build:
+      context: .
+      dockerfile: geo-service/Dockerfile
+    container_name: warehouse-geo-service
+    environment:
+      SPRING_DATASOURCE_URL: ${GEO_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/geo_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+    ports:
+      - "8095:8095"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: warehouse-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  postgres_data:
+  minio_data:
+  es_data:

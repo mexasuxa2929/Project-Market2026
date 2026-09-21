@@ -1,0 +1,378 @@
+# WarehouseProject va auth-service uchun API test `curl` lar
+# 
+# Izoh:
+# - Avval login qiling, keyin olingan JWT tokenni `<JWT>` o‘rniga qo‘ying.
+# - `auth-service` port: 8081 (application.yml bo‘yicha)
+# - `warehouse` port: 8080 (odatda `server.port=8080`, lekin sizda port band bo‘lishi mumkin)
+# - ROLE talablari: controller ichidagi `@PreAuthorize` bo‘yicha.
+#
+# Token header shakli:
+#   Authorization: Bearer <JWT>
+
+############################################
+# 0) URL va shablonlar
+############################################
+# AUTH_BASE_URL='http://localhost:8081'
+# WAREHOUSE_BASE_URL='http://localhost:8080'
+# JWT='<JWT_NI_KOCHIRING>'
+
+############################################
+# 1) AUTH: register (ixtiyoriy)
+# ROLE: public
+############################################
+# curl.exe -s -X POST "$AUTH_BASE_URL/api/auth/register" -H "Content-Type: application/json" ^
+#   -d '{"username":"newuser","email":"newuser@example.com","password":"password123"}'
+
+############################################
+# 2) AUTH: login (token olish)
+# ROLE: public
+############################################
+# DataInitializer default userlar:
+# - admin / admin123
+# - superadmin / super123
+#
+# curl.exe -s -X POST "$AUTH_BASE_URL/api/auth/login" -H "Content-Type: application/json" ^
+#   -d '{"username":"admin","password":"admin123"}'
+#
+# Natija ko‘pincha shunaqa bo‘ladi (token field):
+# { "success": true, "token": "...", "data": { "token": "..." } }
+#
+# TOKEN NI `<JWT>` ga qo‘ying.
+
+############################################
+# 2.1) AUTH ADMIN: users / roles / user_roles
+# ROLE: faqat SUPER_ADMIN
+############################################
+# (GET) users list (admin uchun)
+# curl.exe -s -X GET "$AUTH_BASE_URL/api/admin/users?page=0&size=20" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) bitta user
+# curl.exe -s -X GET "$AUTH_BASE_URL/api/admin/users/<USER_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) roles list
+# curl.exe -s -X GET "$AUTH_BASE_URL/api/admin/roles" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (PUT) role assign qilish (user_roles update)
+# curl.exe -s -X PUT "$AUTH_BASE_URL/api/admin/users/<USER_ID>/roles" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"roleIds":[<ROLE_ID_USER>,<ROLE_ID_ADMIN>]}'
+#
+# (PUT) user update (ixtiyoriy maydonlar)
+# curl.exe -s -X PUT "$AUTH_BASE_URL/api/admin/users/<USER_ID>" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"username":"admin2","email":"admin2@example.com","enabled":true}'
+#
+# (PUT) password change (faqat o‘sha user token egasi)
+# curl.exe -s -X PUT "$AUTH_BASE_URL/api/admin/users/<USER_ID>/password" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"oldPassword":"<OLD_PASSWORD>","newPassword":"newpass123"}'
+#
+# (DELETE) user delete
+# curl.exe -s -X DELETE "$AUTH_BASE_URL/api/admin/users/<USER_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 3) REFERENCE DATA: Categories
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/PUT/DELETE
+############################################
+# (GET) Categories list
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/categories?size=50" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) Category create
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/categories" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Category A","description":"Category description"}'
+#
+# (PUT) Category update
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/categories/<CATEGORY_ID>" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Category A (updated)","description":"Updated description"}'
+#
+# (DELETE) Category delete
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/categories/<CATEGORY_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 4) REFERENCE DATA: Brands
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/PUT/DELETE
+############################################
+# (GET)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/brands?size=50" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/brands" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Brand A","description":"Brand description"}'
+
+############################################
+# 5) REFERENCE DATA: Manufacturers
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/PUT/DELETE
+############################################
+# (GET)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/manufacturers?size=50" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/manufacturers" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Manufacturer A","address":"Toshkent","contactInfo":"+998900000000"}'
+
+############################################
+# 6) REFERENCE DATA: Suppliers
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/PUT/DELETE
+############################################
+# (GET)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/suppliers?size=50" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/suppliers" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Supplier A","address":"Toshkent","contactInfo":"+998900000001"}'
+
+############################################
+# 7) PRODUCTS
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/PUT/PATCH/DELETE
+############################################
+#
+# (GET) Products list
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/products?name=milk&barcode=" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) Products advanced filter + pagination + sorting
+# (sort param bir necha marta berilishi mumkin: masalan sort=price,desc&sort=name,asc)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/products?name=milk&categoryId=<CATEGORY_ID>&brandId=<BRAND_ID>&page=0&size=20&sort=name,asc" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) Product by id
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) Create product (JSON)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/products" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{
+#         "name":"Product A",
+#         "barcode":"1234567890123",
+#         "categoryId":"<CATEGORY_ID>",
+#         "brandId":"<BRAND_ID>",
+#         "manufacturerId":"<MANUFACTURER_ID>",
+#         "unit":"pcs",
+#         "leadTimeDays":0,
+#         "minStock":0,
+#         "weight":0.0,
+#         "length":0.0,
+#         "width":0.0,
+#         "height":0.0,
+#         "packageType":"box",
+#         "fragile":false,
+#         "active":true
+#       }'
+#
+# (PUT) Update product (JSON)
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{
+#         "name":"Product A (updated)",
+#         "barcode":"1234567890123",
+#         "categoryId":"<CATEGORY_ID>",
+#         "brandId":"<BRAND_ID>",
+#         "manufacturerId":"<MANUFACTURER_ID>",
+#         "unit":"pcs",
+#         "leadTimeDays":1,
+#         "minStock":5,
+#         "weight":0.5,
+#         "length":10.0,
+#         "width":5.0,
+#         "height":2.0,
+#         "packageType":"box",
+#         "fragile":false,
+#         "active":true
+#       }'
+#
+# (PATCH) Active toggle (JSON)
+# curl.exe -s -X PATCH "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/active" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"active":true}'
+#
+# (DELETE) Delete product
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 8) PRODUCTS: images (multipart)
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/DELETE
+############################################
+# (GET) List product images
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/images" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) Upload product images
+# - endpoint: POST /api/products/{id}/images
+# - form field name: "files"
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/images" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -F "files=@C:/path/to/image1.jpg" ^
+#   -F "files=@C:/path/to/image2.png"
+#
+# (DELETE) Delete product image
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/images/<FILENAME>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 9) PRODUCT FILE: image download
+# ROLE: USER/Admin/SUPER_ADMIN
+############################################
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/files/images/products/<PRODUCT_ID>/<FILENAME>" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -o image-out.jpg
+
+############################################
+# 10) PRODUCT PRICES
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST/DELETE
+############################################
+# (GET) Prices list for product
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/prices" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) Add price
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/prices" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{
+#         "costPrice": 10.50,
+#         "salePrice": 12.99,
+#         "effectiveDate": "2026-03-23T10:00:00",
+#         "endDate": null
+#       }'
+#
+# (PUT) Update price
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/prices/<PRICE_ID>" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{
+#         "costPrice": 11.00,
+#         "salePrice": 13.50,
+#         "effectiveDate": "2026-03-24T10:00:00",
+#         "endDate": null
+#       }'
+#
+# (DELETE) Delete price
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/products/<PRODUCT_ID>/prices/<PRICE_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 10.1) AUDIT / HISTORY (kim stock/price o'zgartirdi)
+# ROLE: ADMIN/SUPER_ADMIN
+############################################
+# (GET) Barcha auditlar (eng yangisi birinchi)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/audit-logs?page=0&size=50&sort=createdAt,desc" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) Faqat stock auditlari
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/audit-logs?targetType=WAREHOUSE_STOCK&warehouseId=<WAREHOUSE_ID>&sort=createdAt,desc" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) Faqat price auditlari
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/audit-logs?targetType=PRODUCT_PRICE&targetId=<PRICE_ID>&sort=createdAt,desc" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 11) WAREHOUSES
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: SUPER_ADMIN uchun POST/PUT
+############################################
+# (GET) list warehouses
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses?size=20" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) get warehouse by id
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) create warehouse
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/warehouses" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"name":"Main Warehouse","location":"Toshkent","address":"some address"}'
+#
+# (PUT) set admins by users.id
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/admins" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"adminUserIds":[<USER_ID_1>,<USER_ID_2>]}'
+#
+# (GET) list admins (warehouse_admin)
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/admins" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (DELETE) remove one admin from warehouse_admin
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/admins/<USER_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+
+############################################
+# 12) WAREHOUSE STOCK
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun PUT/POST
+############################################
+# (GET) list stock lines
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/stock?size=50" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) LOW STOCK ALERT (availableQuantity <= product.minStock)
+# "product kam qoldi" signal ro'yxati
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/stock/alerts/low" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (PUT) upsert stock lines
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/stock/lines" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"productId":"<PRODUCT_ID>","quantity":100,"reservedQuantity":0}'
+#
+# (POST) adjust stock (quantityDelta: musbat/kir, manfiy/chiq)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/stock/adjust" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"productId":"<PRODUCT_ID>","quantityDelta":25}'
+
+############################################
+# 13) WAREHOUSE PURCHASES
+# ROLE: USER/Admin/SUPER_ADMIN uchun GET
+# ROLE: ADMIN/SUPER_ADMIN uchun POST
+############################################
+# (GET) list purchases
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/purchases?size=20" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (GET) get purchase
+# curl.exe -s -X GET "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+#
+# (POST) create purchase (purchase stockga kirim qiladi)
+# curl.exe -s -X POST "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/purchases" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{
+#         "supplierId": <SUPPLIER_ID>,
+#         "invoiceNumber": "INV-001",
+#         "purchaseDate": "2026-03-23T12:00:00",
+#         "items": [
+#           {"productId":"<PRODUCT_ID>","quantity": 10, "unitPrice": 8.90}
+#         ]
+#       }'
+#
+# (PUT) update purchase item
+# curl.exe -s -X PUT "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>/items/<ITEM_ID>" -H "Content-Type: application/json" ^
+#   -H "Authorization: Bearer $JWT" ^
+#   -d '{"productId":"<PRODUCT_ID>","quantity":12,"unitPrice":9.10}'
+#
+# (DELETE) delete purchase item
+# curl.exe -s -X DELETE "$WAREHOUSE_BASE_URL/api/warehouses/<WAREHOUSE_ID>/purchases/<PURCHASE_ID>/items/<ITEM_ID>" ^
+#   -H "Authorization: Bearer $JWT"
+

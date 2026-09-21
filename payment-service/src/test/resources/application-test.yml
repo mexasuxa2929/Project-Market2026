@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:payme_it;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+app:
+  internal-secret: test-internal-secret-payment-it
+
+services:
+  order:
+    url: http://127.0.0.1:59998
+
+payme:
+  merchant-id: test_merchant
+  test-key: test_payme_secret
+  prod-key: prod_payme_secret
+  active-key: test
+  checkout-url: https://checkout.paycom.uz/
+  callback-path: /payment/payme/callback
+  timeout-ms: 12000

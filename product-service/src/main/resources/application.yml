@@ -1,0 +1,124 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: product-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 200
+  web:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: false
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/products_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mexa}
+    password: ${SPRING_DATASOURCE_PASSWORD:mexa1234}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 32
+        transaction:
+          jta:
+            platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    repair-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 25MB
+  cloud:
+    openfeign:
+      client:
+        config:
+          referenceDataClient:
+            connectTimeout: ${REFERENCE_DATA_CONNECT_TIMEOUT_MS:2000}
+            readTimeout: ${REFERENCE_DATA_READ_TIMEOUT_MS:3000}
+
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  expiration: ${JWT_EXPIRATION_MS:86400000}
+
+app:
+  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  realtime:
+    enabled: true
+    channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
+  storage:
+    type: ${APP_STORAGE_TYPE:local}
+    root: ${APP_STORAGE_ROOT:storage}
+    public-uri-prefix: /api/files
+    max-image-bytes: 5242880
+    minio:
+      endpoint: ${APP_STORAGE_MINIO_ENDPOINT:}
+      access-key: ${APP_STORAGE_MINIO_ACCESS_KEY:}
+      secret-key: ${APP_STORAGE_MINIO_SECRET_KEY:}
+      bucket: ${APP_STORAGE_MINIO_BUCKET:product-images}
+      public-base-url: ${APP_STORAGE_MINIO_PUBLIC_BASE_URL:}
+    s3:
+      endpoint: ${APP_STORAGE_S3_ENDPOINT:}
+      access-key: ${APP_STORAGE_S3_ACCESS_KEY:}
+      secret-key: ${APP_STORAGE_S3_SECRET_KEY:}
+      bucket: ${APP_STORAGE_S3_BUCKET:product-images}
+      public-base-url: ${APP_STORAGE_S3_PUBLIC_BASE_URL:}
+  reference-data:
+    url: ${REFERENCE_DATA_SERVICE_URL:http://localhost:8084}
+    category-path: ${REFERENCE_DATA_CATEGORY_PATH:/api/categories/{id}}
+    brand-path: ${REFERENCE_DATA_BRAND_PATH:/api/brands/{id}}
+    manufacturer-path: ${REFERENCE_DATA_MANUFACTURER_PATH:/api/manufacturers/{id}}
+  warehouse-service:
+    url: ${WAREHOUSE_SERVICE_URL:http://localhost:8084}
+  shop-service:
+    url: ${SHOP_SERVICE_URL:http://localhost:8094}
+  internal-api:
+    key: ${APP_INTERNAL_API_KEY:change-me-internal}
+  swagger:
+    username: ${APP_SWAGGER_USERNAME:swagger}
+    password: ${APP_SWAGGER_PASSWORD:change-me-now}
+    basic-auth:
+      enabled: ${APP_SWAGGER_BASIC_AUTH_ENABLED:false}
+
+springdoc:
+  api-docs:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+    persist-authorization: true
+    operationsSorter: method
+    tagsSorter: alpha
+    docExpansion: list
+    display-request-duration: true
+    filter: true
+  writer-with-default-pretty-printer: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    db:
+      enabled: false
+    redis:
+      enabled: false

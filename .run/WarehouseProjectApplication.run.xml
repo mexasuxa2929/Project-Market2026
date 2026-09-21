@@ -1,0 +1,13 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="WarehouseProjectApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ENABLE_JMX_AGENT" value="false" />
+    <envs>
+      <env name="WAREHOUSE_SERVER_PORT" value="8084" />
+    </envs>
+    <module name="warehouse-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="mexa.club.warehouseproject.WarehouseProjectApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
