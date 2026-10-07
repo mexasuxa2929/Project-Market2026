@@ -24,12 +24,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +43,7 @@ import mexa.club.desktop_app.market.model.AuthProvider
 import mexa.club.desktop_app.market.model.RoleDefinition
 import mexa.club.desktop_app.market.model.RoleUserRow
 import mexa.club.desktop_app.market.model.UserStatus
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.roles.common.RolePillBadge
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import mexa.club.desktop_app.market.ui.users.common.UserAvatarCircle
@@ -54,6 +58,12 @@ fun RoleUsersTableSection(
     onReassignRole: (RoleUserRow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var page by remember(users) { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
+    val totalPages = if (users.isEmpty()) 1 else (users.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = users.drop(safePage * pageSize).take(pageSize)
+
     Column(
         modifier
             .fillMaxWidth()
@@ -77,11 +87,24 @@ fun RoleUsersTableSection(
                 Text("Foydalanuvchilar topilmadi", color = MexaWarehouseColors.textMuted, fontSize = 14.sp)
             }
         } else {
-            LazyColumn(Modifier.height((users.size.coerceAtMost(8) * 56).dp.coerceAtLeast(168.dp))) {
-                items(users, key = { it.id }) { user ->
+            LazyColumn(Modifier.height((paged.size.coerceAtMost(8) * 56).dp.coerceAtLeast(168.dp))) {
+                items(paged, key = { it.id }) { user ->
                     RoleUserTableRow(user, onReassign = { onReassignRole(user) })
                 }
             }
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = users.size,
+                infoText = run {
+                    val from = if (users.isEmpty()) 0 else safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, users.size)
+                    "$from - $to / ${users.size} ta foydalanuvchi"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

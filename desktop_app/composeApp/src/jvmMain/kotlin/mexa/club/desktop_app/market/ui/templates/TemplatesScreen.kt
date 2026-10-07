@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 data class TemplateRow(
@@ -59,6 +61,8 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
     var error by remember { mutableStateOf<String?>(null) }
     var templates by remember { mutableStateOf<List<TemplateRow>>(emptyList()) }
     var editTarget by remember { mutableStateOf<TemplateRow?>(null) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
 
     suspend fun fetchTemplates(): List<TemplateRow> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/templates")
@@ -94,6 +98,10 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
         TemplateEditDialog(template = target, onDismiss = { editTarget = null }, onSaved = { editTarget = null; reload() })
     }
 
+    val totalPages = if (templates.isEmpty()) 1 else (templates.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = templates.drop(safePage * pageSize).take(pageSize)
+
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -125,7 +133,24 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
             templates.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Shablonlar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> TemplatesTable(templates, onRowClick = { editTarget = it })
+            else -> TemplatesTable(paged, onRowClick = { editTarget = it })
+        }
+
+        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        if (!loading && error == null && templates.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = templates.size,
+                infoText = run {
+                    val from = safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, templates.size)
+                    "$from - $to / ${templates.size} ta shablon"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

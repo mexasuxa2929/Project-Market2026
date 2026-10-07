@@ -15,6 +15,7 @@ sealed class AdminNavScreen {
     data object Products : AdminNavScreen() { override val superAdminOnly = false }
     data object Orders : AdminNavScreen() { override val superAdminOnly = true }
     data object Delivery : AdminNavScreen() { override val superAdminOnly = true }
+    data object Deliveries : AdminNavScreen() { override val superAdminOnly = true }
     data object Couriers : AdminNavScreen() { override val superAdminOnly = true }
     data object Notifications : AdminNavScreen() { override val superAdminOnly = false }
     data object Templates : AdminNavScreen() { override val superAdminOnly = true }

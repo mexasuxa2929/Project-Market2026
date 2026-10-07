@@ -1,5 +1,7 @@
 package mexa.club.orderservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import mexa.club.orderservice.OrderCreatedEvent;
@@ -7,6 +9,7 @@ import mexa.club.orderservice.client.AuthUserClient;
 import mexa.club.orderservice.client.DeliveryClient;
 import mexa.club.orderservice.client.GeoZoneClient;
 import mexa.club.orderservice.client.DiscountClient;
+import mexa.club.orderservice.client.PaymentServiceClient;
 import mexa.club.orderservice.client.ProductServiceClient;
 import mexa.club.orderservice.client.ShopInternalClient;
 import mexa.club.orderservice.client.StockBatchClient;
@@ -16,8 +19,11 @@ import mexa.club.orderservice.client.discount.DiscountApplyPayload;
 import mexa.club.orderservice.client.discount.DiscountEnvelope;
 import mexa.club.orderservice.client.discount.InternalDiscountApplyRequest;
 import mexa.club.orderservice.client.payload.DeliveryCreatedPayload;
+import mexa.club.orderservice.client.payload.DeliveryQuotePayload;
 import mexa.club.orderservice.client.payload.InternalAddressPayload;
+import mexa.club.orderservice.client.payload.InternalApiEnvelope;
 import mexa.club.orderservice.client.payload.InternalDeliveryCreateRequest;
+import mexa.club.orderservice.client.payload.PaymentRefundRequest;
 import mexa.club.orderservice.client.payload.PriceResolveResponse;
 import mexa.club.orderservice.client.payload.ProductResponse;
 import mexa.club.orderservice.client.payload.SalesOutRequestPayload;
@@ -28,6 +34,7 @@ import mexa.club.orderservice.dto.AdminNoteRequest;
 import mexa.club.orderservice.dto.CreateOrderItemRequest;
 import mexa.club.orderservice.dto.CreateOrderRequest;
 import mexa.club.orderservice.dto.InternalOrderStatsResponse;
+import mexa.club.orderservice.dto.OrderPreviewResponse;
 import mexa.club.orderservice.dto.OrderResponse;
 import mexa.club.orderservice.dto.OrderStatsResponse;
 import mexa.club.orderservice.dto.OrderStatusHistoryResponse;
@@ -93,6 +100,8 @@ public class OrderService {
     private final WarehousePurchaseClient warehousePurchaseClient;
     private final GeoZoneClient geoZoneClient;
     private final GeocodingService geocodingService;
+    private final PaymentServiceClient paymentServiceClient;
+    private final ObjectMapper objectMapper;
 
     public OrderService(
             OrderRepository orderRepository,
@@ -112,6 +121,8 @@ public class OrderService {
             WarehousePurchaseClient warehousePurchaseClient,
             GeoZoneClient geoZoneClient,
             GeocodingService geocodingService,
+            PaymentServiceClient paymentServiceClient,
+            ObjectMapper objectMapper,
             @Value("${app.warehouse.default-id}") UUID defaultWarehouseId
     ) {
         this.orderRepository = orderRepository;
@@ -131,6 +142,8 @@ public class OrderService {
         this.warehousePurchaseClient = warehousePurchaseClient;
         this.geoZoneClient = geoZoneClient;
         this.geocodingService = geocodingService;
+        this.paymentServiceClient = paymentServiceClient;
+        this.objectMapper = objectMapper;
         this.defaultWarehouseId = defaultWarehouseId;
     }
 
@@ -151,7 +164,6 @@ public class OrderService {
         }
         order.setNote(request.note());
         order.setCurrency("UZS");
-        order.setDeliveryFee(BigDecimal.ZERO);
         order.setPaymentMethod(normalizePaymentMethod(request.paymentMethod()));
 
         BigDecimal subtotal = BigDecimal.ZERO;
@@ -175,6 +187,12 @@ public class OrderService {
             order.getItems().add(item);
         }
         order.setSubtotal(subtotal);
+        // Yetkazish narxi order saqlanishdan OLDIN hisoblanadi: manzil → teskari
+        // geokodlash → delivery quote. Xato bo'lsa order yaratilmaydi (503) —
+        // "bepul order" muammosi yo'q. (Avval: fee=0 saqlanib, afterCommit'da
+        // tuzatilardi; xato bo'lsa order doim bepul qolardi.)
+        DeliveryFeeQuote feeQuote = resolveDeliveryFee(request.deliveryAddressId(), subtotal);
+        order.setDeliveryFee(feeQuote.fee());
         // Geo-routing: yetkazish manzili qaysi poligon ichida bo'lsa, order
         // usha poligonga biriktirilgan omborga yunaltiriladi. Topilmasa —
         // zaxira bo'yicha eski allocate (eng ko'p zaxiraga ega ombor).
@@ -229,6 +247,87 @@ public class OrderService {
         realtimePublisher.orderCreated(saved.getId(), saved.getUserId(), saved.getOrderNumber(), saved.getStatus().name());
         return orderMapper.toResponse(saved);
     }
+
+    public OrderPreviewResponse preview(UUID userId, CreateOrderRequest request) {
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<UUID> productIds = new ArrayList<>();
+        for (CreateOrderItemRequest reqItem : request.items()) {
+            fetchProduct(reqItem.productId());
+            productIds.add(reqItem.productId());
+            BigDecimal unitPrice = fetchResolvedPrice(reqItem.productId(), reqItem.quantity());
+            subtotal = subtotal.add(unitPrice.multiply(BigDecimal.valueOf(reqItem.quantity())));
+        }
+
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        String discountMessage = null;
+        String discountCode = request.discountCode();
+        if (discountCode != null && !discountCode.isBlank()) {
+            try {
+                DiscountEnvelope<DiscountApplyPayload> discountResult = discountClient.apply(
+                        new InternalDiscountApplyRequest(
+                                UUID.randomUUID(), userId, discountCode.trim(),
+                                subtotal, productIds, List.of()));
+                if (discountResult != null && discountResult.data() != null) {
+                    discountAmount = discountResult.data().discountAmount() != null
+                            ? discountResult.data().discountAmount()
+                            : BigDecimal.ZERO;
+                    discountMessage = discountResult.message();
+                }
+            } catch (FeignException ex) {
+                discountAmount = BigDecimal.ZERO;
+            }
+        }
+
+        DeliveryFeeQuote feeQuote = resolveDeliveryFee(request.deliveryAddressId(), subtotal);
+        BigDecimal deliveryFee = feeQuote.fee();
+        boolean freeDelivery = feeQuote.freeDelivery();
+        String incentiveMessage = feeQuote.incentiveMessage();
+
+        BigDecimal total = subtotal.subtract(discountAmount).add(deliveryFee).max(BigDecimal.ZERO);
+        return new OrderPreviewResponse(subtotal, discountAmount, deliveryFee, total,
+                freeDelivery, discountMessage, incentiveMessage);
+    }
+
+    /**
+     * Yetkazish narxini manzil orqali hisoblaydi (manzil → teskari geokodlash →
+     * delivery quote). Manzil yo'q bo'lsa — 0 (yetkazishsiz buyurtma).
+     * Hisoblab bo'lmasa — 503 DELIVERY_PRICING_UNAVAILABLE: order yaratilmaydi,
+     * "bepul order" muammosi yuzaga kelmaydi.
+     */
+    private DeliveryFeeQuote resolveDeliveryFee(UUID addressId, BigDecimal subtotal) {
+        if (addressId == null) {
+            return new DeliveryFeeQuote(BigDecimal.ZERO, false, null);
+        }
+        try {
+            String region = "";
+            String district = "";
+            InternalAddressPayload address = shopInternalClient.getAddress(addressId);
+            if (address != null && address.latitude() != null && address.longitude() != null) {
+                Optional<GeocodingService.RegionDistrict> rd = geocodingService.reverse(
+                        BigDecimal.valueOf(address.latitude()), BigDecimal.valueOf(address.longitude()));
+                if (rd.isPresent()) {
+                    region = rd.get().region();
+                    district = rd.get().district();
+                }
+            }
+            InternalApiEnvelope<DeliveryQuotePayload> quote = deliveryClient.quote(region, district, subtotal);
+            if (quote == null || quote.data() == null) {
+                throw new IllegalStateException("delivery quote bo'sh javob berdi");
+            }
+            BigDecimal fee = quote.data().finalFee() != null ? quote.data().finalFee() : BigDecimal.ZERO;
+            if (fee.signum() < 0) {
+                fee = BigDecimal.ZERO;
+            }
+            String incentive = quote.data().incentive() != null ? quote.data().incentive().message() : null;
+            return new DeliveryFeeQuote(fee, Boolean.TRUE.equals(quote.data().freeDelivery()), incentive);
+        } catch (Exception ex) {
+            log.error("Delivery fee unavailable for address {}: {}", addressId, ex.getMessage());
+            throw new OrderServiceException(HttpStatus.SERVICE_UNAVAILABLE, "DELIVERY_PRICING_UNAVAILABLE",
+                    "Yetkazish narxini hisoblab bo'lmadi. Iltimos, keyinroq urinib ko'ring.");
+        }
+    }
+
+    private record DeliveryFeeQuote(BigDecimal fee, boolean freeDelivery, String incentiveMessage) {}
 
     private static Map<UUID, Integer> coveredQuantities(Order order) {
         Map<UUID, Integer> map = new HashMap<>();
@@ -477,13 +576,43 @@ public class OrderService {
                             .filter(s -> s != null && !s.isBlank())
                             .collect(Collectors.joining(", "));
 
+            // Avtomatik mexanizm: order subtotal'ni uzatamiz — delivery-service
+            // admin kiritgan zona tariflari orqali fee'ni o'zi hisoblaydi
+            // (fee = baza + km + kg; subtotal >= freeAbove bo'lsa bepul).
+            BigDecimal orderSubtotal = orderRepository.findById(orderId)
+                    .map(Order::getSubtotal).orElse(null);
             DeliveryCreatedPayload created = deliveryClient
-                    .createDelivery(new InternalDeliveryCreateRequest(orderId, warehouseId, fullAddress, recipientName, phone, region, district))
+                    .createDelivery(new InternalDeliveryCreateRequest(
+                            orderId, warehouseId, fullAddress, recipientName, phone,
+                            region, district, null, orderSubtotal))
                     .data();
             log.info("Delivery created for order {}: trackingCode={}", orderId, created != null ? created.trackingCode() : "n/a");
+            // Hisoblangan fee'ni order totaliga yozamiz: total = subtotal + fee - discount.
+            if (created != null && created.deliveryFee() != null) {
+                applyDeliveryFee(orderId, created.deliveryFee());
+            }
         } catch (Exception ex) {
             log.warn("Delivery creation failed for order {}: {}", orderId, ex.getMessage());
         }
+    }
+
+    /**
+     * Delivery-service hisoblagan fee'ni order'ga yozadi.
+     * afterCommit callback ichidan chaqiriladi (alohida tranzaksiya).
+     */
+    @Transactional
+    public void applyDeliveryFee(UUID orderId, BigDecimal fee) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            return;
+        }
+        BigDecimal safeFee = fee != null && fee.compareTo(BigDecimal.ZERO) > 0 ? fee : BigDecimal.ZERO;
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal subtotal = order.getSubtotal() != null ? order.getSubtotal() : BigDecimal.ZERO;
+        order.setDeliveryFee(safeFee);
+        order.setTotalAmount(subtotal.add(safeFee).subtract(discount).max(BigDecimal.ZERO));
+        orderRepository.save(order);
+        log.info("Delivery fee applied for order {}: fee={}, total={}", orderId, safeFee, order.getTotalAmount());
     }
 
     /**
@@ -500,6 +629,42 @@ public class OrderService {
         order.setStatus(OrderStatus.DELIVERED);
         order.setClosedAt(LocalDateTime.now());
         saveStatusHistory(order.getId(), prev, OrderStatus.DELIVERED, order.getUserId(), "Delivery completed");
+        Order saved = orderRepository.save(order);
+        realtimePublisher.orderStatusChanged(saved.getId(), saved.getUserId(), saved.getStatus().name());
+        return orderMapper.toResponse(saved);
+    }
+
+    /**
+     * delivery-service yetkazib berishni muvaffaqiyatsiz deb bildirganda chaqiriladi (internal).
+     * Order CANCELLED bo'ladi, zaxira qaytariladi, chegirma bekor qilinadi.
+     * Terminal holatlar (DELIVERED/CANCELLED/REFUNDED) o'zgarmaydi — idempotent.
+     */
+    @Transactional
+    public OrderResponse deliveryFailed(UUID id, String reason) {
+        Order order = getOrder(id);
+        OrderStatus prev = order.getStatus();
+        if (prev == OrderStatus.DELIVERED || prev == OrderStatus.CANCELLED || prev == OrderStatus.REFUNDED) {
+            return orderMapper.toResponse(order);
+        }
+        order.setStatus(OrderStatus.CANCELLED);
+        if (order.getClosedAt() == null) {
+            order.setClosedAt(LocalDateTime.now());
+        }
+        order.setCancelReason(reason == null || reason.isBlank() ? "Delivery failed" : reason);
+        try {
+            reverseSalesOut(order);
+        } catch (Exception ex) {
+            // Zaxira qaytarish ishlamasa ham buyurtma bekor qilinadi — faqat log
+            log.warn("Reverse sales-out failed for order {}, cancellation continues: {}", order.getId(), ex.getMessage());
+        }
+        if (order.getDiscountCode() != null) {
+            try {
+                discountClient.cancel(order.getId());
+            } catch (FeignException ex) {
+                // do not block cancellation
+            }
+        }
+        saveStatusHistory(order.getId(), prev, OrderStatus.CANCELLED, order.getUserId(), order.getCancelReason());
         Order saved = orderRepository.save(order);
         realtimePublisher.orderStatusChanged(saved.getId(), saved.getUserId(), saved.getStatus().name());
         return orderMapper.toResponse(saved);
@@ -523,17 +688,37 @@ public class OrderService {
         return orderMapper.toResponse(saved);
     }
 
+    /**
+     * Admin refund: avval payment-service orqali haqiqiy pul qaytariladi (Payme),
+     * so'ng order REFUNDED ga o'tkaziladi. Payment xato bersa — order o'zgarmaydi.
+     */
     @Transactional
-    public OrderResponse refundOrder(UUID id, UUID changedBy, String reason) {
+    public OrderResponse refund(UUID id, UUID changedBy, String reason) {
         Order order = getOrder(id);
-        if (order.getStatus() != OrderStatus.DELIVERED) {
-            throw new OrderServiceException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Only DELIVERED orders can be refunded");
+        if (order.getPaymentStatus() != PaymentStatus.PAID) {
+            throw new OrderServiceException(HttpStatus.BAD_REQUEST, "INVALID_PAYMENT_STATUS", "Only paid orders can be refunded");
+        }
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            throw new OrderServiceException(HttpStatus.CONFLICT, "ALREADY_REFUNDED", "Order is already refunded");
+        }
+        try {
+            paymentServiceClient.refund(new PaymentRefundRequest(id, reason));
+        } catch (FeignException ex) {
+            throw paymentRefundFailure(ex);
         }
         OrderStatus prev = order.getStatus();
         order.setStatus(OrderStatus.REFUNDED);
         order.setPaymentStatus(PaymentStatus.REFUNDED);
-        order.setCancelReason(reason != null && !reason.isBlank() ? reason : "Refunded by admin");
-        reverseSalesOut(order);
+        order.setCancelReason(reason == null || reason.isBlank() ? "Refunded by admin" : reason);
+        if (order.getClosedAt() == null) {
+            order.setClosedAt(LocalDateTime.now());
+        }
+        try {
+            reverseSalesOut(order);
+        } catch (Exception ex) {
+            // Zaxira qaytarish ishlamasa ham refund davom etadi — faqat log
+            log.warn("Reverse sales-out failed for order {}, refund continues: {}", order.getId(), ex.getMessage());
+        }
         if (order.getDiscountCode() != null) {
             try {
                 discountClient.cancel(order.getId());
@@ -541,10 +726,35 @@ public class OrderService {
                 // do not block refund
             }
         }
-        saveStatusHistory(order.getId(), prev, OrderStatus.REFUNDED, changedBy, reason);
-        Order savedRefund = orderRepository.save(order);
-        realtimePublisher.orderStatusChanged(savedRefund.getId(), savedRefund.getUserId(), savedRefund.getStatus().name());
-        return orderMapper.toResponse(savedRefund);
+        saveStatusHistory(order.getId(), prev, OrderStatus.REFUNDED, changedBy, order.getCancelReason());
+        Order saved = orderRepository.save(order);
+        realtimePublisher.orderStatusChanged(saved.getId(), saved.getUserId(), saved.getStatus().name());
+        return orderMapper.toResponse(saved);
+    }
+
+    /** payment-service refund xatosini order xatosiga aylantiradi (status/code/message saqlanadi). */
+    private OrderServiceException paymentRefundFailure(FeignException ex) {
+        HttpStatus status = HttpStatus.BAD_GATEWAY;
+        String code = "PAYMENT_SERVICE_ERROR";
+        String message = "Payment service refund failed";
+        int httpStatus = ex.status();
+        if (httpStatus >= 400 && httpStatus < 600) {
+            status = HttpStatus.valueOf(httpStatus);
+        }
+        try {
+            JsonNode body = objectMapper.readTree(ex.contentUTF8());
+            if (body != null && body.isObject()) {
+                if (body.hasNonNull("code")) {
+                    code = body.get("code").asText();
+                }
+                if (body.hasNonNull("message")) {
+                    message = body.get("message").asText();
+                }
+            }
+        } catch (Exception parseEx) {
+            // Gateway/proxy HTML javobi — defolt xabar qoladi
+        }
+        return new OrderServiceException(status, code, message);
     }
 
     @Transactional

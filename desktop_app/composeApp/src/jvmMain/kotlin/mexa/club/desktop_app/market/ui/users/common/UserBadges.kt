@@ -34,10 +34,10 @@ fun RoleBadge(role: UserRole, modifier: Modifier = Modifier) {
     }
     Box(
         modifier
-            .background(bg, RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .background(bg, RoundedCornerShape(5.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
     ) {
-        Text(label, color = fg, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = fg, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.sp)
     }
 }
 
@@ -55,10 +55,10 @@ fun RoleBadge(rawRoleName: String, modifier: Modifier = Modifier) {
         val label = rawRoleName.removePrefix("ROLE_").uppercase()
         Box(
             modifier
-                .background(MexaWarehouseColors.infoBadgeBg, RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 3.dp),
+                .background(MexaWarehouseColors.infoBadgeBg, RoundedCornerShape(5.dp))
+                .padding(horizontal = 7.dp, vertical = 2.dp),
         ) {
-            Text(label, color = MexaWarehouseColors.indigoAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(label, color = MexaWarehouseColors.indigoAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.sp)
         }
     }
 }
@@ -71,10 +71,10 @@ fun StatusBadge(status: UserStatus, modifier: Modifier = Modifier) {
     }
     Box(
         modifier
-            .background(bg, RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .background(bg, RoundedCornerShape(5.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
     ) {
-        Text(label, color = fg, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = fg, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.sp)
     }
 }
 
@@ -87,9 +87,9 @@ fun AuthBadge(provider: AuthProvider, modifier: Modifier = Modifier) {
     Box(
         modifier
             .background(MexaWarehouseColors.tableHeaderBg, RoundedCornerShape(4.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 5.dp, vertical = 1.dp),
     ) {
-        Text(label, color = MexaWarehouseColors.textMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = MexaWarehouseColors.textMuted, fontSize = 9.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
     }
 }
 
@@ -100,14 +100,14 @@ fun UserAvatarCircle(fullName: String, size: Dp = 36.dp, modifier: Modifier = Mo
         .ifBlank { "?" }
     val bgColor = remember(fullName) { avatarColorFromName(fullName) }
     Box(
-        modifier.then(Modifier.size(size)).background(bgColor, CircleShape),
+        modifier.then(Modifier.size(size)).background(bgColor.copy(alpha = 0.14f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             initials,
-            color = Color.White,
-            fontSize = (size.value * 0.35f).sp,
-            fontWeight = FontWeight.Bold,
+            color = bgColor,
+            fontSize = (size.value * 0.34f).sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }

@@ -55,7 +55,12 @@ class CatalogRemoteMediator(
                 dao.deleteStaleKeys(queryKey, maxCachedQueries)
             }
             dao.upsertAll(
-                response.content.map { CatalogProductEntity(queryKey, it.id, gson.toJson(it)) }
+                response.content.mapNotNull {
+                    try {
+                        val v = it.id as String?
+                        if (v.isNullOrBlank()) null else CatalogProductEntity(queryKey, v, gson.toJson(it))
+                    } catch (_: Exception) { null }
+                }
             )
 
             MediatorResult.Success(endOfPaginationReached = !response.hasMore)

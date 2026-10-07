@@ -20,4 +20,7 @@ public interface WarehouseAdminRepository extends JpaRepository<WarehouseAdmin, 
 
     @Query("SELECT DISTINCT a.userId FROM WarehouseAdmin a WHERE a.warehouse.id = :warehouseId")
     List<UUID> findAdminUserIdsByWarehouseId(UUID warehouseId);
+
+    @Query("SELECT a FROM WarehouseAdmin a JOIN FETCH a.warehouse WHERE a.userId = :userId")
+    List<WarehouseAdmin> findByUserId(UUID userId);
 }

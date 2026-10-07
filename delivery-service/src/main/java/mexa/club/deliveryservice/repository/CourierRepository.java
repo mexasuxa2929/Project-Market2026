@@ -27,4 +27,8 @@ public interface CourierRepository extends JpaRepository<Courier, UUID> {
             @Param("region") String region);
 
     List<Courier> findByActiveTrue();
+
+    List<Courier> findByWarehouseId(UUID warehouseId);
+
+    List<Courier> findByWarehouseIdIsNull();
 }

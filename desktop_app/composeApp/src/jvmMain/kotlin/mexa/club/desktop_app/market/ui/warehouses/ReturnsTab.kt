@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +65,7 @@ import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.jsonString
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 private data class ReturnItemRow(
@@ -86,19 +89,25 @@ private data class StockReturnRow(
 }
 
 @Composable
-internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
+internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int = 0) {
     val scope = rememberCoroutineScope()
     var returns by remember { mutableStateOf<List<StockReturnRow>>(emptyList()) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableStateOf(0) }
+    var initialized by remember { mutableStateOf(false) }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var selectedReturn by remember { mutableStateOf<StockReturnRow?>(null) }
     var processingId by remember { mutableStateOf<String?>(null) }
+    var approvingReturn by remember { mutableStateOf<StockReturnRow?>(null) }
+    var rejectingReturn by remember { mutableStateOf<StockReturnRow?>(null) }
+    var actionError by remember { mutableStateOf<String?>(null) }
 
-    suspend fun load() {
-        loading = true
+    suspend fun load(showSpinner: Boolean) {
+        if (showSpinner) loading = true
         error = null
         runCatching {
             withContext(Dispatchers.IO) {
@@ -128,12 +137,19 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
                     )
                 }
             }
-        }.onSuccess { returns = it }
-            .onFailure { error = it.message ?: "Xatolik yuz berdi" }
+        }.onSuccess {
+            returns = it
+            initialized = true
+        }.onFailure {
+            // Fon (SSE/polling) yangilashida xatolik → eski ro'yxat saqlanadi
+            if (!initialized) error = it.message ?: "Xatolik yuz berdi"
+        }
         loading = false
     }
 
-    LaunchedEffect(refreshKey) { load() }
+    // syncKey: ombor bo'limidagi boshqa qismlardagi o'zgarishlar (SSE/pfon) shu tabga
+    // ham yetib kelganda ro'yxat jim yangilanadi (spinner chiqmasdan).
+    LaunchedEffect(refreshKey, syncKey) { load(showSpinner = !initialized) }
 
     if (showCreateDialog) {
         CreateReturnDialog(
@@ -160,6 +176,99 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
         )
     }
 
+    approvingReturn?.let { returnRow ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { approvingReturn = null },
+            title = { Text("Qaytarmani tasdiqlash", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Qaytarma tasdiqlanadi va stok miqdori qaytariladi. Davom etasizmi?",
+                    color = MexaWarehouseColors.textMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    approvingReturn = null
+                    processingId = returnRow.id
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching {
+                                ApiClient.put("/api/warehouses/$warehouseId/returns/${returnRow.id}/approve", "{}")
+                            }
+                        }
+                        processingId = null
+                        result.onSuccess {
+                            refreshKey++
+                            onChanged()
+                        }.onFailure { e ->
+                            actionError = e.message ?: "Tasdiqlashda xatolik yuz berdi"
+                        }
+                    }
+                }) {
+                    Text("Tasdiqlash", color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { approvingReturn = null }) {
+                    Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                }
+            },
+        )
+    }
+
+    rejectingReturn?.let { returnRow ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { rejectingReturn = null },
+            title = { Text("Qaytarmani rad etish", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Qaytarma rad etiladi, stok o'zgarmaydi. Davom etasizmi?",
+                    color = MexaWarehouseColors.textMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    rejectingReturn = null
+                    processingId = returnRow.id
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching {
+                                ApiClient.put("/api/warehouses/$warehouseId/returns/${returnRow.id}/reject", "{}")
+                            }
+                        }
+                        processingId = null
+                        result.onSuccess {
+                            refreshKey++
+                            onChanged()
+                        }.onFailure { e ->
+                            actionError = e.message ?: "Rad etishda xatolik yuz berdi"
+                        }
+                    }
+                }) {
+                    Text("Rad etish", color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { rejectingReturn = null }) {
+                    Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                }
+            },
+        )
+    }
+
+    actionError?.let { msg ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { actionError = null },
+            title = { Text("Xatolik", fontWeight = FontWeight.Bold) },
+            text = { Text(msg, color = MexaWarehouseColors.textMuted) },
+            confirmButton = {
+                TextButton(onClick = { actionError = null }) {
+                    Text("OK", fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
+                }
+            },
+        )
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -181,6 +290,10 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
             }
         }
 
+        val totalPages = if (returns.isEmpty()) 1 else (returns.size + pageSize - 1) / pageSize
+        val safePage = page.coerceIn(0, totalPages - 1)
+        val pagedReturns = returns.drop(safePage * pageSize).take(pageSize)
+
         Surface(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -196,6 +309,7 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
                     Text("SABAB", Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("MAHSULOTLAR", Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("HOLATI", Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text("AMALLAR", Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                 }
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
@@ -215,7 +329,7 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
                         }
                     }
 
-                    else -> returns.forEachIndexed { index, returnRow ->
+                    else -> pagedReturns.forEachIndexed { index, returnRow ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -226,22 +340,51 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit) {
                             Text(returnRow.createdAt.ifEmpty { "â€”" }, Modifier.weight(1.1f), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
                             Text(returnRow.reason.ifEmpty { "â€”" }, Modifier.weight(1.5f), fontSize = 13.sp, color = MexaWarehouseColors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${returnRow.items.size} ta", Modifier.weight(1f), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
-                            Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.width(110.dp)) {
                                 ReturnStatusBadge(returnRow.status)
+                            }
+                            Row(Modifier.width(90.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                IconButton(
+                                    onClick = { selectedReturn = returnRow },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Filled.Visibility, contentDescription = "Ko'rish", tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(15.dp))
+                                }
                                 if (returnRow.isPending && processingId != returnRow.id) {
                                     IconButton(
-                                        onClick = { selectedReturn = returnRow },
+                                        onClick = { approvingReturn = returnRow },
                                         modifier = Modifier.size(28.dp),
                                     ) {
-                                        Icon(Icons.Filled.ArrowBack, contentDescription = null, tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Filled.Check, contentDescription = "Tasdiqlash", tint = MexaWarehouseColors.statusActiveFg, modifier = Modifier.size(15.dp))
+                                    }
+                                    IconButton(
+                                        onClick = { rejectingReturn = returnRow },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(Icons.Filled.Close, contentDescription = "Rad etish", tint = MexaWarehouseColors.danger, modifier = Modifier.size(15.dp))
                                     }
                                 }
                             }
                         }
-                        if (index < returns.lastIndex) {
+                        if (index < pagedReturns.lastIndex) {
                             HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
                         }
                     }
+                }
+                if (!loading && error == null && returns.isNotEmpty()) {
+                    HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+                    PaginationBar(
+                        page = safePage,
+                        pageSize = pageSize,
+                        totalElements = returns.size,
+                        infoText = run {
+                            val from = safePage * pageSize + 1
+                            val to = minOf((safePage + 1) * pageSize, returns.size)
+                            "$from - $to / ${returns.size} ta qaytarma"
+                        },
+                        onPageChange = { page = it },
+                        onPageSizeChange = { pageSize = it; page = 0 },
+                    )
                 }
             }
         }
@@ -606,6 +749,8 @@ private fun ReturnDetailDialog(
     val scope = rememberCoroutineScope()
     var processing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var itemsPage by remember { mutableStateOf(0) }
+    var itemsPageSize by remember { mutableStateOf(10) }
 
     Dialog(
         onDismissRequest = {},
@@ -624,7 +769,7 @@ private fun ReturnDetailDialog(
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Orqaga", tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(20.dp))
                         }
                         Column {
-                            Text("Qaytarma â€” ${returnRow.createdAt.ifEmpty { returnRow.id.take(8) }}", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                            Text("Qaytarma — ${returnRow.createdAt.ifEmpty { returnRow.id.take(8) }}", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                             if (returnRow.reason.isNotBlank()) {
                                 Text(returnRow.reason, fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
                             }
@@ -665,7 +810,10 @@ private fun ReturnDetailDialog(
                                 Text("Ma'lumot yo'q", fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
                             }
                         } else {
-                            returnRow.items.forEachIndexed { index, item ->
+                            val itemsTotalPages = (returnRow.items.size + itemsPageSize - 1) / itemsPageSize
+                            val itemsSafePage = itemsPage.coerceIn(0, itemsTotalPages - 1)
+                            val pagedItems = returnRow.items.drop(itemsSafePage * itemsPageSize).take(itemsPageSize)
+                            pagedItems.forEachIndexed { index, item ->
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(item.productName, Modifier.weight(1.6f), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(ReturnDetailFormat.qty(item.quantity), Modifier.width(90.dp), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
@@ -681,10 +829,21 @@ private fun ReturnDetailDialog(
                                         color = if (item.condition == "GOOD") MexaWarehouseColors.statusActiveFg else MexaWarehouseColors.textMuted,
                                     )
                                 }
-                                if (index < returnRow.items.lastIndex) {
+                                if (index < pagedItems.lastIndex) {
                                     HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
                                 }
                             }
+                            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+                            val fromIdx = itemsSafePage * itemsPageSize + 1
+                            val toIdx = minOf((itemsSafePage + 1) * itemsPageSize, returnRow.items.size)
+                            PaginationBar(
+                                page = itemsSafePage,
+                                pageSize = itemsPageSize,
+                                totalElements = returnRow.items.size,
+                                infoText = "$fromIdx - $toIdx / ${returnRow.items.size} ta mahsulot",
+                                onPageChange = { itemsPage = it },
+                                onPageSizeChange = { s -> itemsPageSize = s; itemsPage = 0 },
+                            )
                         }
                     }
                 }

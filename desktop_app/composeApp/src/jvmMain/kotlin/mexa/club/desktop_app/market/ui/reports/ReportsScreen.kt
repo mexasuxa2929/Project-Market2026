@@ -54,6 +54,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 private data class DashboardStats(
@@ -228,6 +229,11 @@ fun ReportsScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun GenericReportTable(rows: List<JsonObject>, columns: List<Pair<String, String>>) {
+    var page by androidx.compose.runtime.remember(rows) { androidx.compose.runtime.mutableStateOf(0) }
+    var pageSize by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(20) }
+    val totalPages = if (rows.isEmpty()) 1 else (rows.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = rows.drop(safePage * pageSize).take(pageSize)
     Column(
         Modifier
             .fillMaxWidth()
@@ -241,7 +247,7 @@ private fun GenericReportTable(rows: List<JsonObject>, columns: List<Pair<String
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle))
-        rows.forEachIndexed { idx, r ->
+        paged.forEachIndexed { idx, r ->
             Row(
                 Modifier
                     .background(if (idx % 2 == 0) MexaWarehouseColors.surfaceLowest else MexaWarehouseColors.surfaceContainerLow.copy(alpha = 0.35f))
@@ -253,6 +259,19 @@ private fun GenericReportTable(rows: List<JsonObject>, columns: List<Pair<String
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f)))
         }
+        androidx.compose.material3.HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+        PaginationBar(
+            page = safePage,
+            pageSize = pageSize,
+            totalElements = rows.size,
+            infoText = run {
+                val from = if (rows.isEmpty()) 0 else safePage * pageSize + 1
+                val to = minOf((safePage + 1) * pageSize, rows.size)
+                "$from - $to / ${rows.size} ta qator"
+            },
+            onPageChange = { page = it },
+            onPageSizeChange = { pageSize = it; page = 0 },
+        )
     }
 }
 

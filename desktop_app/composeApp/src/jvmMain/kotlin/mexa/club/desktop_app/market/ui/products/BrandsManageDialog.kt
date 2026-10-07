@@ -62,6 +62,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import org.jetbrains.skia.Image as SkiaImage
 
@@ -120,6 +121,12 @@ fun BrandsManageDialog(
     var confirmItem  by remember { mutableStateOf<BrandItem?>(null) }
     var showAddBrand by remember { mutableStateOf(false) }
     var editingBrand by remember { mutableStateOf<BrandItem?>(null) }
+    var listPage     by remember { mutableStateOf(0) }
+    var listPageSize by remember { mutableStateOf(20) }
+
+    val brandTotalPages = if (brands.isEmpty()) 1 else (brands.size + listPageSize - 1) / listPageSize
+    val brandSafePage = listPage.coerceIn(0, brandTotalPages - 1)
+    val pagedBrands = brands.drop(brandSafePage * listPageSize).take(listPageSize)
 
     fun load() {
         scope.launch {
@@ -279,7 +286,7 @@ fun BrandsManageDialog(
                             }
                         }
                         else -> Column(Modifier.verticalScroll(rememberScrollState())) {
-                            brands.forEachIndexed { index, brand ->
+                            pagedBrands.forEachIndexed { index, brand ->
                                 Row(
                                     Modifier
                                         .fillMaxWidth()
@@ -336,12 +343,25 @@ fun BrandsManageDialog(
                                         }
                                     }
                                 }
-                                if (index < brands.lastIndex) {
+                                if (index < pagedBrands.lastIndex) {
                                     HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.5f))
                                 }
                             }
                         }
                     }
+                }
+
+                if (!loading && error == null && brands.isNotEmpty()) {
+                    val fromIdx = brandSafePage * listPageSize + 1
+                    val toIdx = minOf((brandSafePage + 1) * listPageSize, brands.size)
+                    PaginationBar(
+                        page = brandSafePage,
+                        pageSize = listPageSize,
+                        totalElements = brands.size,
+                        infoText = "$fromIdx - $toIdx / ${brands.size} ta brend",
+                        onPageChange = { listPage = it },
+                        onPageSizeChange = { s -> listPageSize = s; listPage = 0 },
+                    )
                 }
 
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle)

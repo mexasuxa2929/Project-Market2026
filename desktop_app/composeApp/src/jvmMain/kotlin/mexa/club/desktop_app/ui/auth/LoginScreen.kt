@@ -27,8 +27,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,7 +82,6 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val api: AuthApiClient = org.koin.compose.koinInject { org.koin.core.parameter.parametersOf(AppStrings.authNetwork(lang)) }
-    var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var loginFeedback by remember { mutableStateOf<FeedbackDialogState?>(null) }
@@ -200,24 +197,9 @@ fun LoginScreen(
 
                         Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = rememberMe,
-                                    onCheckedChange = { rememberMe = it },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = WarehousePalette.Primary,
-                                        checkmarkColor = Color.White,
-                                    ),
-                                )
-                                Text(
-                                    AppStrings.rememberMe(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = WarehousePalette.OnSurfaceVariant,
-                                )
-                            }
                             TextButton(
                                 onClick = {
                                     resetStep = ResetPasswordStep.EnterEmail
@@ -256,7 +238,7 @@ fun LoginScreen(
                                                 refresh = r.value.refreshToken,
                                                 session = r.value.sessionId,
                                                 expiresInSeconds = r.value.expiresInSeconds,
-                                                rememberMe = rememberMe,
+                                                rememberMe = true,
                                             )
                                             if (!AuthSession.hasAdminAccess) {
                                                 loading = false
@@ -306,6 +288,14 @@ fun LoginScreen(
 
                         Spacer(Modifier.height(24.dp))
                         HorizontalDivider(color = WarehousePalette.SurfaceContainer)
+                        Spacer(Modifier.height(24.dp))
+                        GoogleSignInButton(
+                            lang = lang,
+                            api = api,
+                            rememberMe = true,
+                            onFeedback = { loginFeedback = it },
+                            onSuccess = onLoginSuccess,
+                        )
                         Spacer(Modifier.height(24.dp))
                         Row(
                             Modifier.fillMaxWidth(),

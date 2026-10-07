@@ -26,6 +26,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -50,6 +51,7 @@ import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 data class NotificationRow(
@@ -94,6 +96,8 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
     var statusFilter by remember { mutableStateOf(ALL_FILTER) }
     var statusExpanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<NotificationRow?>(null) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
 
     suspend fun fetchNotifications(): List<NotificationRow> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/notifications?page=0&size=200")
@@ -140,6 +144,9 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
                 n.recipientPhone.contains(searchQuery, ignoreCase = true) ||
                 n.subject.contains(searchQuery, ignoreCase = true))
     }
+    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -161,7 +168,7 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { searchQuery = it; page = 0 },
                 placeholder = { Text("Email, telefon yoki mavzu bo'yicha...", fontSize = 14.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.weight(1f),
@@ -178,9 +185,9 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
                     shape = RoundedCornerShape(8.dp),
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    DropdownMenuItem(text = { Text("Barcha holatlar") }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false })
+                    DropdownMenuItem(text = { Text("Barcha holatlar") }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false; page = 0 })
                     NOTIFICATION_STATUS_OPTIONS.forEach { opt ->
-                        DropdownMenuItem(text = { Text(notificationStatusLabel(opt)) }, onClick = { statusFilter = opt; statusExpanded = false })
+                        DropdownMenuItem(text = { Text(notificationStatusLabel(opt)) }, onClick = { statusFilter = opt; statusExpanded = false; page = 0 })
                     }
                 }
             }
@@ -200,7 +207,24 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
             filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Bildirishnomalar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> NotificationsTable(filtered, onRowClick = { selected = it })
+            else -> NotificationsTable(paged, onRowClick = { selected = it })
+        }
+
+        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        if (!loading && error == null && filtered.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = filtered.size,
+                infoText = run {
+                    val from = safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, filtered.size)
+                    "$from - $to / ${filtered.size} ta bildirishnoma"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

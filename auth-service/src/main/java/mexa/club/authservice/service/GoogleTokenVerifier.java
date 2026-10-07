@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
 
 @Service
 public class GoogleTokenVerifier {
@@ -21,8 +20,16 @@ public class GoogleTokenVerifier {
         if (googleClientId == null || googleClientId.isBlank()) {
             throw new IllegalStateException("app.google.client-id must be configured");
         }
+        // Bir nechta client ID (Android ilova + Desktop) qo'llab-quvvatlanadi: vergul bilan ajratiladi.
+        java.util.Set<String> audience = java.util.Arrays.stream(googleClientId.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toSet());
+        if (audience.isEmpty()) {
+            throw new IllegalStateException("app.google.client-id must be configured");
+        }
         this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singleton(googleClientId))
+                .setAudience(audience)
                 .setAcceptableTimeSkewSeconds(300L)
                 .build();
     }

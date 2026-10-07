@@ -203,6 +203,15 @@ public class PurchaseService {
 
         warehouseStockService.subtractQuantity(warehouseId, item.getProductId(), item.getQuantity());
         stockLotService.rollbackPurchaseItem(warehouseId, item.getProductId(), itemId, item.getQuantity());
+        stockMovementService.log(
+                warehouseId,
+                item.getProductId(),
+                MovementType.PURCHASE_DELETE,
+                item.getQuantity().abs().negate(),
+                purchaseId,
+                "PURCHASE",
+                "purchase-item-delete"
+        );
         purchase.getItems().remove(item);
 
         recomputePurchaseTotal(purchase);
@@ -227,13 +236,24 @@ public class PurchaseService {
     }
 
     @Transactional
-    public void deletePurchase(UUID warehouseId, UUID purchaseId) {
+    public void deletePurchase(UUID warehouseId, UUID purchaseId, String reason) {
+        String deletionReason = WarehouseStockService.requireReason(reason);
         Purchase purchase = purchaseRepository.findByIdAndWarehouseId(purchaseId, warehouseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase", String.valueOf(purchaseId)));
 
         for (PurchaseItem item : purchase.getItems()) {
             warehouseStockService.subtractQuantity(warehouseId, item.getProductId(), item.getQuantity());
             stockLotService.rollbackPurchaseItem(warehouseId, item.getProductId(), item.getId(), item.getQuantity());
+            // Harakat tarixiga yoziladi (kim o'chirgani actor sifatida saqlanadi)
+            stockMovementService.log(
+                    warehouseId,
+                    item.getProductId(),
+                    MovementType.PURCHASE_DELETE,
+                    item.getQuantity().abs().negate(),
+                    purchaseId,
+                    "PURCHASE",
+                    deletionReason
+            );
         }
 
         stockLotService.removeLotsForPurchase(purchaseId);
@@ -243,7 +263,7 @@ public class PurchaseService {
                 "PURCHASE",
                 String.valueOf(purchaseId),
                 warehouseId,
-                "Deleted purchase and rolled back stock for " + purchase.getItems().size() + " item(s)"
+                "Deleted purchase and rolled back stock for " + purchase.getItems().size() + " item(s). Reason: " + deletionReason
         );
     }
 

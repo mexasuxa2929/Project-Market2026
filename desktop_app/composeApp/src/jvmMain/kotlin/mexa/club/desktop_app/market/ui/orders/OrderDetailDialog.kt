@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -48,6 +49,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -108,6 +110,10 @@ fun OrderDetailDialog(
     var history by remember { mutableStateOf<List<StatusHistoryRow>>(emptyList()) }
     var loadingHistory by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var itemsPage by remember { mutableStateOf(0) }
+    var itemsPageSize by remember { mutableStateOf(10) }
+    var historyPage by remember { mutableStateOf(0) }
+    var historyPageSize by remember { mutableStateOf(10) }
 
     suspend fun fetchDetail(): OrderDetail = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/orders/$orderId")
@@ -318,15 +324,30 @@ fun OrderDetailDialog(
                         ) {
                             if (d.items.isEmpty()) {
                                 Text("Mahsulotlar topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
-                            }
-                            d.items.forEach { item ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(item.productName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
-                                        Text("${item.quantity} x ${formatMoney(item.unitPrice, d.currency)}", fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+                            } else {
+                                val itemsTotalPages = (d.items.size + itemsPageSize - 1) / itemsPageSize
+                                val itemsSafePage = itemsPage.coerceIn(0, itemsTotalPages - 1)
+                                val pagedItems = d.items.drop(itemsSafePage * itemsPageSize).take(itemsPageSize)
+                                pagedItems.forEach { item ->
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(item.productName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
+                                            Text("${item.quantity} x ${formatMoney(item.unitPrice, d.currency)}", fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+                                        }
+                                        Text(formatMoney(item.subtotal, d.currency), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
                                     }
-                                    Text(formatMoney(item.subtotal, d.currency), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
                                 }
+                                HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
+                                val fromIdx = itemsSafePage * itemsPageSize + 1
+                                val toIdx = minOf((itemsSafePage + 1) * itemsPageSize, d.items.size)
+                                PaginationBar(
+                                    page = itemsSafePage,
+                                    pageSize = itemsPageSize,
+                                    totalElements = d.items.size,
+                                    infoText = "$fromIdx - $toIdx / ${d.items.size} ta mahsulot",
+                                    onPageChange = { itemsPage = it },
+                                    onPageSizeChange = { s -> itemsPageSize = s; itemsPage = 0 },
+                                )
                             }
                         }
 
@@ -443,7 +464,10 @@ fun OrderDetailDialog(
                                         .padding(12.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    history.forEach { h ->
+                                    val histTotalPages = (history.size + historyPageSize - 1) / historyPageSize
+                                    val histSafePage = historyPage.coerceIn(0, histTotalPages - 1)
+                                    val pagedHistory = history.drop(histSafePage * historyPageSize).take(historyPageSize)
+                                    pagedHistory.forEach { h ->
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Column(Modifier.weight(1f)) {
                                                 val from = if (h.fromStatus.isNullOrBlank()) "—" else orderStatusLabel(h.fromStatus)
@@ -456,6 +480,17 @@ fun OrderDetailDialog(
                                             Text(formatHistoryDate(h.createdAt), fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                                         }
                                     }
+                                    HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
+                                    val fromIdx = histSafePage * historyPageSize + 1
+                                    val toIdx = minOf((histSafePage + 1) * historyPageSize, history.size)
+                                    PaginationBar(
+                                        page = histSafePage,
+                                        pageSize = historyPageSize,
+                                        totalElements = history.size,
+                                        infoText = "$fromIdx - $toIdx / ${history.size} ta yozuv",
+                                        onPageChange = { historyPage = it },
+                                        onPageSizeChange = { s -> historyPageSize = s; historyPage = 0 },
+                                    )
                                 }
                             }
                         }

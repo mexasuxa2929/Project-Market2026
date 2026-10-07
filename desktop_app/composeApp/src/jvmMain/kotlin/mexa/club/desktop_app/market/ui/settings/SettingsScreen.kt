@@ -50,6 +50,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.devices.DevicesSection
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 private data class ProfileInfo(val id: String, val username: String, val email: String, val roles: List<String>)
@@ -216,6 +217,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        DevicesSection()
     }
 }
 

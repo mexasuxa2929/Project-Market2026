@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
         "spring.datasource.url=jdbc:h2:mem:productpricedb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+        "spring.flyway.enabled=false"
 })
 class ProductPriceRepositoryDataJpaTest {
 
@@ -27,10 +28,10 @@ class ProductPriceRepositoryDataJpaTest {
     void findByProductIdOrderByEffectiveDateDesc_returnsSortedPrices() {
         UUID productId = UUID.randomUUID();
         LocalDateTime base = LocalDateTime.now().minusHours(1);
-        ProductPrice older = new ProductPrice(UUID.randomUUID(), productId, BigDecimal.ONE, BigDecimal.TEN,
-                base, null);
-        ProductPrice newer = new ProductPrice(UUID.randomUUID(), productId, BigDecimal.valueOf(2), BigDecimal.valueOf(12),
-                base.plusMinutes(1), null);
+        ProductPrice older = new ProductPrice(UUID.randomUUID(), productId, BigDecimal.ONE,
+                base, null, null, null, null);
+        ProductPrice newer = new ProductPrice(UUID.randomUUID(), productId, BigDecimal.valueOf(2),
+                base.plusMinutes(1), null, null, null, null);
 
         productPriceRepository.save(older);
         productPriceRepository.save(newer);

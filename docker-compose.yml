@@ -97,7 +97,7 @@ services:
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-989408291738-ficcbpvm7qkksfabogreqfj221sslrbo.apps.googleusercontent.com}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-758985644197-6cg7sel08sg5mjubod3pdhsvt6q07h2s.apps.googleusercontent.com}
     ports:
       - "8081:8081"
     depends_on:
@@ -206,6 +206,7 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:-change-me-internal}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       APP_SWAGGER_ENABLED: ${WAREHOUSE_APP_SWAGGER_ENABLED:-true}
       APP_SWAGGER_USERNAME: ${APP_SWAGGER_USERNAME:-swagger}
@@ -234,6 +235,7 @@ services:
     container_name: warehouse-gateway-service
     environment:
       JWT_SECRET: ${JWT_SECRET}
+      LOGGING_LEVEL_MEXA_CLUB_GATEWAYSERVICE_REALTIME: DEBUG
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       PRODUCT_SERVICE_URL: ${GATEWAY_PRODUCT_SERVICE_URL:-http://product-service:8083}
       SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
@@ -294,6 +296,10 @@ services:
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
       DISCOUNT_SERVICE_URL: ${DISCOUNT_SERVICE_URL:-http://discount-service:8092}
+      SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      DELIVERY_SERVICE_URL: ${DELIVERY_SERVICE_URL:-http://delivery-service:8088}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8091}
     ports:
       - "8085:8085"
     depends_on:
@@ -445,6 +451,7 @@ services:
       PAYME_TIMEOUT_MS: ${PAYME_TIMEOUT_MS:-12000}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
       APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
     ports:

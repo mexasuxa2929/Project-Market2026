@@ -62,6 +62,7 @@ import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.jsonString
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 private data class PurchaseProduct(
@@ -482,8 +483,14 @@ private fun PendingTransfersSection(
     var decision by remember { mutableStateOf<Pair<TransferRow, Boolean>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var listPage by remember { mutableStateOf(0) }
+    var listPageSize by remember { mutableStateOf(10) }
 
     LaunchedEffect(transfers) { localTransfers = transfers }
+
+    val totalPages = if (localTransfers.isEmpty()) 1 else (localTransfers.size + listPageSize - 1) / listPageSize
+    val safePage = listPage.coerceIn(0, totalPages - 1)
+    val pagedTransfers = localTransfers.drop(safePage * listPageSize).take(listPageSize)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -517,7 +524,7 @@ private fun PendingTransfersSection(
                     }
                 } else {
                     Column {
-                        localTransfers.forEachIndexed { idx, tr ->
+                        pagedTransfers.forEachIndexed { idx, tr ->
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -544,10 +551,21 @@ private fun PendingTransfersSection(
                                     }
                                 }
                             }
-                            if (idx < localTransfers.lastIndex) {
+                            if (idx < pagedTransfers.lastIndex) {
                                 Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.4f)))
                             }
                         }
+                        HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+                        val fromIdx = safePage * listPageSize + 1
+                        val toIdx = minOf((safePage + 1) * listPageSize, localTransfers.size)
+                        PaginationBar(
+                            page = safePage,
+                            pageSize = listPageSize,
+                            totalElements = localTransfers.size,
+                            infoText = "$fromIdx - $toIdx / ${localTransfers.size} ta kirim",
+                            onPageChange = { listPage = it },
+                            onPageSizeChange = { s -> listPageSize = s; listPage = 0 },
+                        )
                     }
                 }
             }

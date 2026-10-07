@@ -42,6 +42,8 @@ jwt:
   secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
 
 app:
+  internal:
+    secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
   internal-api:
     key: ${APP_INTERNAL_API_KEY:change-me-internal}
   order-service:

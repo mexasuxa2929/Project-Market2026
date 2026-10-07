@@ -56,6 +56,23 @@ data class OrderPageApiWrapper(
     val error: ErrorPayload?
 )
 
+@Immutable
+data class OrderPreviewData(
+    val subtotal: Double = 0.0,
+    val discountAmount: Double = 0.0,
+    val deliveryFee: Double = 0.0,
+    val totalAmount: Double = 0.0,
+    val freeDelivery: Boolean = false,
+    val discountMessage: String? = null,
+    val incentiveMessage: String? = null
+)
+
+data class OrderPreviewWrapper(
+    val success: Boolean,
+    val data: OrderPreviewData?,
+    val error: ErrorPayload?
+)
+
 data class CreateOrderItemRequest(
     val productId: String,
     val quantity: Int

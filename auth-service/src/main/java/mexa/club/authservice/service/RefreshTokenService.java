@@ -140,6 +140,25 @@ public class RefreshTokenService {
         String refreshToken = generateRawRefreshToken();
         String refreshTokenHash = hash(refreshToken);
         LocalDateTime refreshExpiresAt = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(jwtSessionProperties.getRefreshTokenTtl());
+
+        // Qayta kirish (token recreate) — shu qurilma allaqachon faol sessiyaga ega bo'lsa,
+        // yangi qurilma yaratmaymiz: eski sessiya o'sha qatorda qayta ishlatiladi.
+        var existingSession = userSessionService.findActiveByUserAndDevice(user.getId(), deviceId);
+        if (existingSession.isPresent()) {
+            var session = existingSession.get();
+            // Avvalgi refresh tokenni bekor qilamiz (u sessiyaga ulangan holda qolmasin).
+            refreshTokenRepository.findByTokenHash(session.getRefreshTokenHash()).ifPresent(old -> {
+                if (!old.isRevoked()) {
+                    old.setRevoked(true);
+                    refreshTokenRepository.save(old);
+                }
+            });
+            var reused = userSessionService.reuse(session, refreshTokenHash, refreshExpiresAt, deviceInfo, ipAddress);
+            String accessToken = jwtUtil.generateToken(user);
+            persistRefreshToken(user.getId(), refreshTokenHash, refreshExpiresAt, reused.getId());
+            return new TokenPair(accessToken, refreshToken, reused.getId(), jwtSessionProperties.getAccessTokenTtl(), "Bearer");
+        }
+
         var session = userSessionService.create(user.getId(), deviceInfo, ipAddress, refreshTokenHash, refreshExpiresAt, deviceId);
         String accessToken = jwtUtil.generateToken(user);
         persistRefreshToken(user.getId(), refreshTokenHash, refreshExpiresAt, session.getId());

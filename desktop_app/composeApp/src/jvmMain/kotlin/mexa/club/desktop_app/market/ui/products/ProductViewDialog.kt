@@ -65,6 +65,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import org.jetbrains.skia.Image as SkiaImage
 
@@ -124,6 +125,8 @@ fun ProductViewDialog(
     var ratingDist    by remember { mutableStateOf<Map<Int,Long>>(emptyMap()) }
     var reviews       by remember { mutableStateOf<List<ReviewItem>>(emptyList()) }
     var reviewsLoading by remember { mutableStateOf(false) }
+    var reviewsPage   by remember { mutableStateOf(0) }
+    var reviewsPageSize by remember { mutableStateOf(10) }
 
     // ── Load ──────────────────────────────────────────────────────────────────
     LaunchedEffect(product.id) {
@@ -240,53 +243,49 @@ fun ProductViewDialog(
 
         loading = false
 
-        // Reyting + sharhlarni yuklash (parallel, xato bo'lsa e'tiborsiz)
-        reviewsLoading = true
+        // Reytingni yuklash (xato bo'lsa e'tiborsiz)
         runCatching {
             withContext(Dispatchers.IO) {
-                coroutineScope {
-                    val ratingJob = async {
-                        runCatching {
-                            val text = ApiClient.get("/api/shops/products/${product.id}/rating")
-                            val data = ApiClient.parseJsonObject(text)?.get("data") as? JsonObject
-                            if (data != null) {
-                                val avg = (data["avgRating"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0
-                                val cnt = (data["reviewCount"] as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
-                                val dist = mutableMapOf<Int, Long>()
-                                (data["distribution"] as? JsonObject)?.entries?.forEach { (k, v) ->
-                                    dist[k.toIntOrNull() ?: 0] = (v as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
-                                }
-                                Triple(avg, cnt, dist.toMap())
-                            } else null
-                        }.getOrNull()
+                val text = ApiClient.get("/api/shops/products/${product.id}/rating")
+                val data = ApiClient.parseJsonObject(text)?.get("data") as? JsonObject
+                if (data != null) {
+                    val avg = (data["avgRating"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0
+                    val cnt = (data["reviewCount"] as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
+                    val dist = mutableMapOf<Int, Long>()
+                    (data["distribution"] as? JsonObject)?.entries?.forEach { (k, v) ->
+                        dist[k.toIntOrNull() ?: 0] = (v as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
                     }
-                    val reviewsJob = async {
-                        runCatching {
-                            val text = ApiClient.get("/api/shops/products/${product.id}/reviews?page=0&size=10")
-                            val data = ApiClient.parseJsonObject(text)?.get("data") as? JsonObject
-                            val arr  = data?.get("content") as? JsonArray
-                            arr?.filterIsInstance<JsonObject>()?.map { r ->
-                                ReviewItem(
-                                    id        = r.stringField("id"),
-                                    username  = r.stringField("username").ifBlank { "Foydalanuvchi" },
-                                    rating    = (r["rating"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
-                                    comment   = r.stringField("comment"),
-                                    createdAt = r.stringField("createdAt").take(10),
-                                )
-                            } ?: emptyList()
-                        }.getOrElse { emptyList() }
-                    }
-                    Pair(ratingJob.await(), reviewsJob.await())
-                }
+                    Triple(avg, cnt, dist.toMap())
+                } else null
             }
-        }.onSuccess { (ratingData, reviewList) ->
+        }.onSuccess { ratingData ->
             ratingData?.let { (avg, cnt, dist) ->
                 avgRating   = avg
                 reviewCount = cnt
                 ratingDist  = dist
             }
-            reviews = reviewList
         }
+    }
+
+    // ── Sharhlar (server sahifalash) ────────────────────────────────────────
+    LaunchedEffect(product.id, reviewsPage, reviewsPageSize) {
+        reviewsLoading = true
+        reviews = runCatching {
+            withContext(Dispatchers.IO) {
+                val text = ApiClient.get("/api/shops/products/${product.id}/reviews?page=$reviewsPage&size=$reviewsPageSize")
+                val data = ApiClient.parseJsonObject(text)?.get("data") as? JsonObject
+                val arr  = data?.get("content") as? JsonArray
+                arr?.filterIsInstance<JsonObject>()?.map { r ->
+                    ReviewItem(
+                        id        = r.stringField("id"),
+                        username  = r.stringField("username").ifBlank { "Foydalanuvchi" },
+                        rating    = (r["rating"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
+                        comment   = r.stringField("comment"),
+                        createdAt = r.stringField("createdAt").take(10),
+                    )
+                } ?: emptyList()
+            }
+        }.getOrElse { emptyList() }
         reviewsLoading = false
     }
 
@@ -760,6 +759,19 @@ fun ProductViewDialog(
                                     reviews.forEach { review ->
                                         ReviewRow(review = review)
                                         Spacer(Modifier.height(6.dp))
+                                    }
+                                    if (reviewCount > 0) {
+                                        HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
+                                        val fromIdx = reviewsPage * reviewsPageSize + 1
+                                        val toIdx = minOf((reviewsPage + 1) * reviewsPageSize, reviewCount.toInt())
+                                        PaginationBar(
+                                            page = reviewsPage,
+                                            pageSize = reviewsPageSize,
+                                            totalElements = reviewCount.toInt(),
+                                            infoText = "$fromIdx - $toIdx / $reviewCount ta sharh",
+                                            onPageChange = { reviewsPage = it },
+                                            onPageSizeChange = { s -> reviewsPageSize = s; reviewsPage = 0 },
+                                        )
                                     }
                                 } else if (reviewCount == 0L) {
                                     Text(

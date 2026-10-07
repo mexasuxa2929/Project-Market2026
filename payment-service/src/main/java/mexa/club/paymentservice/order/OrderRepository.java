@@ -2,6 +2,7 @@ package mexa.club.paymentservice.order;
 
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -12,4 +13,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from Order o where o.id = :id")
     Optional<Order> findByIdForUpdate(@Param("id") Long id);
+
+    Optional<Order> findByOrderServiceId(UUID orderServiceId);
 }

@@ -26,8 +26,14 @@ public class GeocodingService {
 
     private static final Logger log = LoggerFactory.getLogger(GeocodingService.class);
 
+    private static final long REVERSE_CACHE_TTL_MS = 10 * 60 * 1000L;
+    private static final int REVERSE_CACHE_MAX = 500;
+
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final Map<String, CachedRegionDistrict> reverseCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedRegionDistrict(RegionDistrict value, long expiresAt) {}
 
     public GeocodingService(
             ObjectMapper objectMapper,
@@ -60,6 +66,11 @@ public class GeocodingService {
         if (lat == null || lng == null) {
             return Optional.empty();
         }
+        String cacheKey = lat.toPlainString() + "|" + lng.toPlainString();
+        CachedRegionDistrict cached = reverseCache.get(cacheKey);
+        if (cached != null && cached.expiresAt() > System.currentTimeMillis()) {
+            return Optional.of(cached.value());
+        }
         try {
             String body = restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/reverse")
@@ -83,8 +94,14 @@ public class GeocodingService {
             if ((district == null || district.isBlank()) && (region == null || region.isBlank())) {
                 return Optional.empty();
             }
-            return Optional.of(new RegionDistrict(
-                    region != null ? region : "", district != null ? district : ""));
+            RegionDistrict result = new RegionDistrict(
+                    region != null ? region : "", district != null ? district : "");
+            if (reverseCache.size() >= REVERSE_CACHE_MAX) {
+                reverseCache.clear();
+            }
+            reverseCache.put(cacheKey, new CachedRegionDistrict(
+                    result, System.currentTimeMillis() + REVERSE_CACHE_TTL_MS));
+            return Optional.of(result);
         } catch (Exception e) {
             log.warn("Reverse geocoding failed for {},{}: {}", lat, lng, e.getMessage());
             return Optional.empty();

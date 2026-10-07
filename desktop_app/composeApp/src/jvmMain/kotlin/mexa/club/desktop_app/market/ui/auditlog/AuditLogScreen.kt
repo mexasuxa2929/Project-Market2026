@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 data class AuditLogRow(
@@ -62,6 +64,8 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
     var error by remember { mutableStateOf<String?>(null) }
     var logs by remember { mutableStateOf<List<AuditLogRow>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
 
     suspend fun fetchLogs(): List<AuditLogRow> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/audit-logs?page=0&size=200")
@@ -101,6 +105,9 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
             l.actorUsername.contains(searchQuery, ignoreCase = true) ||
             l.details.contains(searchQuery, ignoreCase = true)
     }
+    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -121,7 +128,7 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
 
         OutlinedTextField(
             value = searchQuery,
-            onValueChange = { searchQuery = it },
+            onValueChange = { searchQuery = it; page = 0 },
             placeholder = { Text("Amal, obyekt turi yoki foydalanuvchi bo'yicha...", fontSize = 14.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
             modifier = Modifier.fillMaxWidth(),
@@ -143,7 +150,24 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
             filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Yozuvlar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> AuditLogTable(filtered)
+            else -> AuditLogTable(paged)
+        }
+
+        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        if (!loading && error == null && filtered.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = filtered.size,
+                infoText = run {
+                    val from = safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, filtered.size)
+                    "$from - $to / ${filtered.size} ta yozuv"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

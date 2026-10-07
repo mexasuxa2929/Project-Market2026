@@ -1,10 +1,14 @@
 package mexa.club.deliveryservice.service;
 
+import jakarta.persistence.criteria.Predicate;
 import mexa.club.deliveryservice.client.OrderInternalClient;
+import mexa.club.deliveryservice.client.payload.DeliveryFailedRequest;
 import mexa.club.deliveryservice.dto.AssignCourierRequest;
 import mexa.club.deliveryservice.dto.CourierRequest;
 import mexa.club.deliveryservice.dto.CourierStatsResponse;
+import mexa.club.deliveryservice.dto.CourierWarehouseStatsResponse;
 import mexa.club.deliveryservice.dto.CreateDeliveryRequest;
+import mexa.club.deliveryservice.dto.DeliveryFeeQuoteResponse;
 import mexa.club.deliveryservice.dto.DeliveryFeeResponse;
 import mexa.club.deliveryservice.dto.DeliveryResponse;
 import mexa.club.deliveryservice.dto.UpdateDeliveryStatusRequest;
@@ -23,6 +27,7 @@ import mexa.club.deliveryservice.dto.DeliveryFeeUpdateRequest;
 import mexa.club.deliveryservice.dto.DeliveryZoneRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,9 +36,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 public class DeliveryService {
@@ -43,26 +51,35 @@ public class DeliveryService {
     private final DeliveryTrackingEventRepository eventRepository;
     private final CourierRepository courierRepository;
     private final DeliveryZoneRepository zoneRepository;
+    private final mexa.club.deliveryservice.repository.DeliveryZoneAuditRepository auditRepository;
+    private final mexa.club.deliveryservice.repository.CourierActionAuditRepository courierAuditRepository;
     private final DeliveryMapper mapper;
     private final DeliveryNotificationService deliveryNotificationService;
     private final OrderInternalClient orderInternalClient;
+    private final mexa.club.deliveryservice.pricing.DeliveryPricingService pricingService;
 
     public DeliveryService(
             DeliveryRepository deliveryRepository,
             DeliveryTrackingEventRepository eventRepository,
             CourierRepository courierRepository,
             DeliveryZoneRepository zoneRepository,
+            mexa.club.deliveryservice.repository.DeliveryZoneAuditRepository auditRepository,
+            mexa.club.deliveryservice.repository.CourierActionAuditRepository courierAuditRepository,
             DeliveryMapper mapper,
             DeliveryNotificationService deliveryNotificationService,
-            OrderInternalClient orderInternalClient
+            OrderInternalClient orderInternalClient,
+            mexa.club.deliveryservice.pricing.DeliveryPricingService pricingService
     ) {
         this.deliveryRepository = deliveryRepository;
         this.eventRepository = eventRepository;
         this.courierRepository = courierRepository;
         this.zoneRepository = zoneRepository;
+        this.auditRepository = auditRepository;
+        this.courierAuditRepository = courierAuditRepository;
         this.mapper = mapper;
         this.deliveryNotificationService = deliveryNotificationService;
         this.orderInternalClient = orderInternalClient;
+        this.pricingService = pricingService;
     }
 
     /**
@@ -80,6 +97,21 @@ public class DeliveryService {
         }
     }
 
+    /**
+     * Yetkazib bo'lmaganda (FAILED / RETURNED) order-service'ga xabar beradi.
+     * Xatolik bo'lsa faqat log yoziladi — delivery oqimi hech qachon uzilmaydi.
+     */
+    private void notifyOrderDeliveryFailed(Delivery d, String reason) {
+        if (d.getOrderId() == null) {
+            return;
+        }
+        try {
+            orderInternalClient.deliveryFailed(d.getOrderId(), new DeliveryFailedRequest(reason));
+        } catch (Exception ex) {
+            log.warn("Order status sync failed for delivery {}: {}", d.getId(), ex.getMessage());
+        }
+    }
+
     @Transactional
     public DeliveryResponse create(CreateDeliveryRequest request) {
         // Idempotency: order uchun delivery mavjud bo'lsa yangi yaratilmaydi (qayta CONFIRMED hollari).
@@ -87,7 +119,14 @@ public class DeliveryService {
         if (existing != null) {
             return toResponse(existing);
         }
-        DeliveryFeeResponse fee = calculateFee(request.region(), request.district());
+        // Pricing engine: admin qoidalari (formula + zona + surcharge + free delivery + incentive)
+        // orqali fee avtomatik hisoblanadi va analytics event yoziladi.
+        mexa.club.deliveryservice.pricing.PricingDtos.PricingQuote quote = pricingService.calculate(
+                new mexa.club.deliveryservice.pricing.PricingDtos.PricingRequest(
+                        null, request.region(), request.district(),
+                        request.distanceKm(), request.weightKg(), request.orderSubtotal(),
+                        request.deliveryType(), java.time.LocalDateTime.now(),
+                        request.orderId(), true));
         Delivery d = new Delivery();
         d.setOrderId(request.orderId());
         d.setFromWarehouseId(request.warehouseId());
@@ -96,8 +135,9 @@ public class DeliveryService {
         d.setRecipientPhone(request.recipientPhone());
         d.setRegion(request.region());
         d.setDistrict(request.district());
-        d.setDeliveryFee(fee.fee());
-        d.setEstimatedDelivery(LocalDate.now().plusDays(fee.estimatedDays()));
+        d.setDeliveryFee(quote.finalFee());
+        d.setEstimatedDelivery(LocalDate.now().plusDays(
+                quote.estimatedDays() != null && quote.estimatedDays() > 0 ? quote.estimatedDays() : 1));
         d.setStatus(DeliveryStatus.PENDING);
         d.setTrackingCode(nextTrackingCode());
         Delivery saved = deliveryRepository.save(d);
@@ -145,6 +185,7 @@ public class DeliveryService {
         courier.setCurrentDeliveries(courier.getCurrentDeliveries() + 1);
         courierRepository.save(courier);
         deliveryRepository.save(d);
+        auditCourier(courier, "ASSIGNED_DELIVERY", d.getId(), d.getOrderId(), null, null);
         logEvent(d.getId(), d.getStatus(), null, "Courier assigned: " + courier.getName());
         deliveryNotificationService.notifyAssigned(d, courier.getName());
         return toResponse(d);
@@ -177,6 +218,8 @@ public class DeliveryService {
         deliveryRepository.save(d);
         decreaseCourierLoad(d.getCourierId());
         logEvent(d.getId(), DeliveryStatus.DELIVERED, null, "Delivery completed");
+        courierRepository.findById(d.getCourierId()).ifPresent(c ->
+                auditCourier(c, "COMPLETED_DELIVERY", d.getId(), d.getOrderId(), null, null));
         deliveryNotificationService.notifyCompleted(d);
         notifyOrderDelivered(d);
         return toResponse(d);
@@ -190,7 +233,10 @@ public class DeliveryService {
         deliveryRepository.save(d);
         decreaseCourierLoad(d.getCourierId());
         logEvent(d.getId(), DeliveryStatus.FAILED, null, "Delivery failed: " + reason);
+        courierRepository.findById(d.getCourierId()).ifPresent(c ->
+                auditCourier(c, "FAILED_DELIVERY", d.getId(), d.getOrderId(), null, reason));
         deliveryNotificationService.notifyFailed(d, reason);
+        notifyOrderDeliveryFailed(d, "Delivery failed: " + reason);
         return toResponse(d);
     }
 
@@ -214,7 +260,10 @@ public class DeliveryService {
         courier.setPhone(request.phone());
         courier.setRegion(request.region());
         courier.setActive(request.active());
-        return courierRepository.save(courier);
+        courier.setWarehouseId(request.warehouseId());
+        Courier saved = courierRepository.save(courier);
+        auditCourier(saved, "CREATED", null, null, saved.getWarehouseId(), null);
+        return saved;
     }
 
     @Transactional
@@ -226,12 +275,155 @@ public class DeliveryService {
         courier.setPhone(request.phone());
         courier.setRegion(request.region());
         courier.setActive(request.active());
-        return courierRepository.save(courier);
+        if (request.warehouseId() != null) {
+            courier.setWarehouseId(request.warehouseId());
+        }
+        Courier saved = courierRepository.save(courier);
+        auditCourier(saved, "UPDATED", null, null, saved.getWarehouseId(), null);
+        return saved;
+    }
+
+    /** Shu omborga biriktirilgan kuryerlar — boshqa omborlarga chalkashmaydi. */
+    @Transactional(readOnly = true)
+    public List<Courier> warehouseCouriers(UUID warehouseId) {
+        return courierRepository.findByWarehouseId(warehouseId);
+    }
+
+    /** Biriktirilmagan kuryerlar (ombor tanlash ro'yxati uchun). */
+    @Transactional(readOnly = true)
+    public List<Courier> unassignedCouriers() {
+        return courierRepository.findByWarehouseIdIsNull();
+    }
+
+    /**
+     * Kuryerni omborga ID orqali biriktirish. Kuryer allaqachon boshqa
+     * omborga biriktirilgan bo'lsa — ruxsat yo'q (avval u yerdan bo'shatiladi).
+     */
+    @Transactional
+    public Courier assignCourierToWarehouse(UUID courierId, UUID warehouseId) {
+        Courier courier = courierRepository.findById(courierId).orElseThrow(() ->
+                new DeliveryException(HttpStatus.NOT_FOUND, "COURIER_NOT_FOUND", "Courier not found"));
+        if (courier.getWarehouseId() != null && !courier.getWarehouseId().equals(warehouseId)) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "COURIER_BUSY",
+                    "Bu kuryer boshqa omborga biriktirilgan — avval u yerdan bo'shating");
+        }
+        courier.setWarehouseId(warehouseId);
+        Courier saved = courierRepository.save(courier);
+        auditCourier(saved, "ATTACHED_WAREHOUSE", null, null, warehouseId, null);
+        return saved;
+    }
+
+    /** Kuryerni ombordan bo'shatish (boshqa omborga o'tkazish uchun). */
+    @Transactional
+    public Courier unassignCourierFromWarehouse(UUID courierId) {
+        Courier courier = courierRepository.findById(courierId).orElseThrow(() ->
+                new DeliveryException(HttpStatus.NOT_FOUND, "COURIER_NOT_FOUND", "Courier not found"));
+        if (courier.getCurrentDeliveries() != null && courier.getCurrentDeliveries() > 0) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "COURIER_HAS_DELIVERIES",
+                    "Faol yetkazmasi bor kuryerni bo'shatib bo'lmaydi");
+        }
+        UUID prevWarehouse = courier.getWarehouseId();
+        courier.setWarehouseId(null);
+        Courier saved = courierRepository.save(courier);
+        auditCourier(saved, "DETACHED_WAREHOUSE", null, null, prevWarehouse, null);
+        return saved;
+    }
+
+    /**
+     * Buyurtmani kuryerdan olib tashlash: yukini kamaytirib, delivery'ni
+     * PENDING'ga qaytaradi (qayta tayinlash mumkin). Tarixga yoziladi.
+     */
+    @Transactional
+    public DeliveryResponse unassignDelivery(UUID deliveryId, String reason) {
+        Delivery d = getDelivery(deliveryId);
+        if (d.getCourierId() == null) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "NOT_ASSIGNED", "Delivery has no courier");
+        }
+        Courier courier = courierRepository.findById(d.getCourierId()).orElse(null);
+        UUID courierId = d.getCourierId();
+        String courierName = courier != null ? courier.getName() : null;
+        d.setCourierId(null);
+        d.setStatus(DeliveryStatus.PENDING);
+        deliveryRepository.save(d);
+        decreaseCourierLoad(courierId);
+        logEvent(d.getId(), DeliveryStatus.PENDING, null,
+                "Unassigned from courier" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
+        auditCourierRaw(courierId, courierName, "UNASSIGNED_DELIVERY",
+                d.getId(), d.getOrderId(), null, reason);
+        return toResponse(d);
+    }
+
+    /** Admin detail ko'rinishi: kuryerning barcha yetkazmalari + holatlari. */
+    @Transactional(readOnly = true)
+    public List<DeliveryResponse> courierDeliveriesById(UUID courierId) {
+        getCourierById(courierId);
+        return deliveryRepository.findByCourierIdOrderByCreatedAtDesc(courierId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<mexa.club.deliveryservice.entity.CourierActionAudit> courierAudit(UUID courierId, UUID actorId) {
+        if (courierId != null) {
+            return courierAuditRepository.findTop100ByCourierIdOrderByCreatedAtDesc(courierId);
+        }
+        if (actorId != null) {
+            return courierAuditRepository.findTop100ByActorIdOrderByCreatedAtDesc(actorId);
+        }
+        return courierAuditRepository.findTop100ByOrderByCreatedAtDesc();
+    }
+
+    /** Kuryer ustidagi amalni tarixga yozadi: kim (admin/superadmin), nima, qachon. */
+    private void auditCourier(Courier courier, String action,
+                              UUID deliveryId, UUID orderId, UUID warehouseId, String reason) {
+        auditCourierRaw(courier != null ? courier.getId() : null,
+                courier != null ? courier.getName() : null,
+                action, deliveryId, orderId, warehouseId, reason);
+    }
+
+    private void auditCourierRaw(UUID courierId, String courierName, String action,
+                                 UUID deliveryId, UUID orderId, UUID warehouseId, String reason) {
+        try {
+            mexa.club.deliveryservice.entity.CourierActionAudit a =
+                    new mexa.club.deliveryservice.entity.CourierActionAudit();
+            a.setCourierId(courierId);
+            a.setCourierName(courierName);
+            a.setAction(action);
+            a.setDeliveryId(deliveryId);
+            a.setOrderId(orderId);
+            a.setWarehouseId(warehouseId);
+            a.setReason(reason);
+            var auth = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof
+                    mexa.club.deliveryservice.security.JwtUserPrincipal p) {
+                a.setActorId(p.userId());
+                a.setActorUsername(p.username());
+            }
+            if (auth != null) {
+                boolean superAdmin = auth.getAuthorities().stream()
+                        .anyMatch(g -> "ROLE_SUPER_ADMIN".equals(g.getAuthority()));
+                boolean admin = auth.getAuthorities().stream()
+                        .anyMatch(g -> "ROLE_ADMIN".equals(g.getAuthority()));
+                a.setActorRole(superAdmin ? "SUPER_ADMIN" : admin ? "ADMIN" : "SYSTEM");
+            } else {
+                a.setActorRole("SYSTEM");
+            }
+            courierAuditRepository.save(a);
+        } catch (Exception ex) {
+            log.warn("Courier audit failed: {}", ex.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
     public Courier getCourierById(UUID id) {
         return courierRepository.findById(id).orElseThrow(() ->
+                new DeliveryException(HttpStatus.NOT_FOUND, "COURIER_NOT_FOUND", "Courier not found"));
+    }
+
+    /** Rol almashtirishdan oldin tekshiruv: user kuryer sifatida qayerdadir biriktirilganmi. */
+    @Transactional(readOnly = true)
+    public Courier getCourierByUserId(UUID userId) {
+        return courierRepository.findByUserId(userId).orElseThrow(() ->
                 new DeliveryException(HttpStatus.NOT_FOUND, "COURIER_NOT_FOUND", "Courier not found"));
     }
 
@@ -243,6 +435,7 @@ public class DeliveryService {
             throw new DeliveryException(HttpStatus.BAD_REQUEST, "COURIER_HAS_DELIVERIES",
                     "Cannot delete courier with active deliveries");
         }
+        auditCourier(courier, "DELETED", null, null, courier.getWarehouseId(), null);
         courierRepository.delete(courier);
     }
 
@@ -278,6 +471,51 @@ public class DeliveryService {
                 todayDeliveries, weeklyDeliveries, monthlyDeliveries, Math.round(successRate * 10.0) / 10.0);
     }
 
+    /**
+     * Omborga biriktirilgan har bir kuryer uchun yetkazmalar statistikasi:
+     * jami, faol (kutilmoqda/biriktirilgan/olingan/yo'lda), yetkazilgan,
+     * muvaffaqiyatsiz, qaytarilgan va bugungi yetkazmalar.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierWarehouseStatsResponse> courierStatsByWarehouse(UUID warehouseId) {
+        List<Courier> couriers = courierRepository.findByWarehouseId(warehouseId);
+        if (couriers.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> courierIds = couriers.stream().map(Courier::getId).toList();
+        Map<UUID, List<Delivery>> byCourier = deliveryRepository.findByCourierIdIn(courierIds).stream()
+                .collect(Collectors.groupingBy(Delivery::getCourierId));
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        return couriers.stream().map(c -> {
+            List<Delivery> list = byCourier.getOrDefault(c.getId(), List.of());
+            long total = list.size();
+            long active = list.stream()
+                    .map(Delivery::getStatus)
+                    .filter(DeliveryService::isActiveDelivery)
+                    .count();
+            long delivered = list.stream()
+                    .filter(d -> d.getStatus() == DeliveryStatus.DELIVERED)
+                    .count();
+            long failed = list.stream()
+                    .filter(d -> d.getStatus() == DeliveryStatus.FAILED)
+                    .count();
+            long returned = list.stream()
+                    .filter(d -> d.getStatus() == DeliveryStatus.RETURNED)
+                    .count();
+            long today = list.stream()
+                    .filter(d -> d.getCreatedAt() != null && !d.getCreatedAt().isBefore(todayStart))
+                    .count();
+            return new CourierWarehouseStatsResponse(c.getId(), total, active, delivered, failed, returned, today);
+        }).toList();
+    }
+
+    private static boolean isActiveDelivery(DeliveryStatus status) {
+        return status == DeliveryStatus.PENDING
+                || status == DeliveryStatus.ASSIGNED
+                || status == DeliveryStatus.PICKED_UP
+                || status == DeliveryStatus.IN_TRANSIT;
+    }
+
     @Transactional(readOnly = true)
     public String exportCouriers() {
         List<Courier> couriers = courierRepository.findAll();
@@ -304,11 +542,45 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public DeliveryFeeResponse calculateFee(String region, String district) {
-        DeliveryZone zone = zoneRepository.findByRegionIgnoreCaseAndDistrictIgnoreCase(region, district).orElse(null);
-        if (zone == null) {
-            return new DeliveryFeeResponse(BigDecimal.valueOf(15000), 2);
-        }
-        return new DeliveryFeeResponse(zone.getFee(), zone.getEstimatedDays());
+        DeliveryFeeQuoteResponse q = quote(region, district, null, null, null);
+        return new DeliveryFeeResponse(q.fee(), q.estimatedDays());
+    }
+
+    /**
+     * Eski API uchun adapter — endi butun hisob yangi pricing engine'da
+     * (formula + zona + surcharge + free delivery + cart incentive).
+     * Formula: fee = base + distance*perKm + weight*perKg, min/max klamp,
+     * keyin surcharges va free delivery/incentive chegirmalari qo'llanadi.
+     */
+    @Transactional(readOnly = true)
+    public DeliveryFeeQuoteResponse quote(
+            String region, String district,
+            Double distanceKm, Double weightKg, BigDecimal subtotal) {
+        var q = pricingService.calculate(new mexa.club.deliveryservice.pricing.PricingDtos.PricingRequest(
+                null, region, district, distanceKm, weightKg, subtotal, null,
+                java.time.LocalDateTime.now(), null, false));
+        return new DeliveryFeeQuoteResponse(
+                q.finalFee(),
+                q.estimatedDays() != null ? q.estimatedDays() : 1,
+                q.baseFee(),
+                distanceKm != null ? distanceKm : 0.0,
+                q.distanceFee(),
+                weightKg != null ? weightKg : 0.0,
+                q.weightFee(),
+                q.freeDelivery(),
+                null,
+                null);
+    }
+
+    /** Ombor (lat1,lng1) va manzil (lat2,lng2) orasidagi masofa, km (Haversine). */
+    public static double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * R * Math.asin(Math.sqrt(a));
     }
 
     @Transactional(readOnly = true)
@@ -321,8 +593,38 @@ public class DeliveryService {
             DeliveryStatus status, UUID courierId, LocalDateTime dateFrom, LocalDateTime dateTo,
             String region, String search, int page, int size
     ) {
-        Page<Delivery> result = deliveryRepository.findByFilters(
-                status, courierId, dateFrom, dateTo, region, search, PageRequest.of(page, size));
+        // Dinamik Specification: faqat berilgan filtrlar WHERE qo'shadi
+        // (eski @Query null-param tipi aniqlanmasligi tufayli buzilgan edi).
+        Specification<Delivery> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (courierId != null) {
+                predicates.add(cb.equal(root.get("courierId"), courierId));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), dateFrom));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), dateTo));
+            }
+            if (region != null && !region.isBlank()) {
+                predicates.add(cb.like(root.get("region"), "%" + region.trim() + "%"));
+            }
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim() + "%";
+                predicates.add(cb.or(
+                        cb.like(root.get("recipientName"), like),
+                        cb.like(root.get("recipientPhone"), like),
+                        cb.like(root.get("deliveryAddress"), like),
+                        cb.like(root.get("trackingCode"), like)
+                ));
+            }
+            query.orderBy(cb.desc(root.get("createdAt")));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<Delivery> result = deliveryRepository.findAll(spec, PageRequest.of(page, size));
         return result.map(this::toResponse).toList();
     }
 
@@ -337,6 +639,7 @@ public class DeliveryService {
         deliveryRepository.save(d);
         decreaseCourierLoad(d.getCourierId());
         logEvent(d.getId(), DeliveryStatus.RETURNED, null, "Delivery returned: " + (reason != null ? reason : ""));
+        notifyOrderDeliveryFailed(d, "Delivery returned: " + (reason != null ? reason : ""));
         return toResponse(d);
     }
 
@@ -366,28 +669,152 @@ public class DeliveryService {
 
     @Transactional
     public DeliveryZone createZone(DeliveryZoneRequest request) {
+        validateZoneRequest(request);
+        zoneRepository.findByRegionIgnoreCaseAndDistrictIgnoreCase(
+                request.region().trim(), request.district().trim()).ifPresent(z -> {
+            throw new DeliveryException(HttpStatus.CONFLICT, "ZONE_DUPLICATE",
+                    "Bu viloyat+tuman uchun zona allaqachon mavjud");
+        });
         DeliveryZone zone = new DeliveryZone();
-        zone.setRegion(request.region());
-        zone.setDistrict(request.district());
-        zone.setFee(request.fee());
-        zone.setEstimatedDays(request.estimatedDays());
-        return zoneRepository.save(zone);
+        applyZoneRequest(zone, request);
+        DeliveryZone saved = zoneRepository.save(zone);
+        auditZone(null, saved, "CREATE", "admin");
+        return saved;
     }
 
     @Transactional
     public DeliveryZone updateZone(UUID id, DeliveryZoneRequest request) {
+        validateZoneRequest(request);
         DeliveryZone zone = zoneRepository.findById(id).orElseThrow(() ->
                 new DeliveryException(HttpStatus.NOT_FOUND, "ZONE_NOT_FOUND", "Zone not found"));
+        zoneRepository.findByRegionIgnoreCaseAndDistrictIgnoreCase(
+                request.region().trim(), request.district().trim())
+                .filter(z -> !z.getId().equals(id))
+                .ifPresent(z -> {
+                    throw new DeliveryException(HttpStatus.CONFLICT, "ZONE_DUPLICATE",
+                            "Bu viloyat+tuman uchun boshqa zona allaqachon mavjud");
+                });
+        DeliveryZone before = snapshotZone(zone);
+        applyZoneRequest(zone, request);
+        DeliveryZone saved = zoneRepository.save(zone);
+        auditZone(before, saved, "UPDATE", "admin");
+        return saved;
+    }
+
+    /** 3-bosqich: global standartni barcha zonalarga qo'llash. */
+    @Transactional
+    public int applyDefaultsToAll(DeliveryZoneRequest defaults) {
+        validateZoneRequest(defaults);
+        List<DeliveryZone> all = zoneRepository.findAll();
+        for (DeliveryZone z : all) {
+            DeliveryZone before = snapshotZone(z);
+            z.setFee(defaults.fee());
+            z.setPerKmFee(defaults.perKmFee() != null ? defaults.perKmFee() : BigDecimal.ZERO);
+            z.setPerKgFee(defaults.perKgFee() != null ? defaults.perKgFee() : BigDecimal.ZERO);
+            z.setFreeAbove(defaults.freeAbove());
+            z.setEstimatedDays(defaults.estimatedDays());
+            zoneRepository.save(z);
+            auditZone(before, z, "BULK_APPLY", "admin");
+        }
+        return all.size();
+    }
+
+    @Transactional(readOnly = true)
+    public List<mexa.club.deliveryservice.entity.DeliveryZoneAudit> zoneAudit(UUID zoneId) {
+        if (zoneId != null) {
+            return auditRepository.findTop50ByZoneIdOrderByCreatedAtDesc(zoneId);
+        }
+        return auditRepository.findTop50ByOrderByCreatedAtDesc();
+    }
+
+    private void validateZoneRequest(DeliveryZoneRequest request) {
+        if (request.region() == null || request.region().isBlank()
+                || request.district() == null || request.district().isBlank()) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "VALIDATION",
+                    "Viloyat va tuman majburiy");
+        }
+        if (request.fee() == null || request.fee().compareTo(BigDecimal.ZERO) < 0) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "VALIDATION",
+                    "Bazaviy narx manfiy bo'lishi mumkin emas");
+        }
+        if (request.estimatedDays() == null || request.estimatedDays() < 1 || request.estimatedDays() > 30) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "VALIDATION",
+                    "Kun 1..30 oralig'ida bo'lishi kerak");
+        }
+        if ((request.perKmFee() != null && request.perKmFee().compareTo(BigDecimal.ZERO) < 0)
+                || (request.perKgFee() != null && request.perKgFee().compareTo(BigDecimal.ZERO) < 0)
+                || (request.freeAbove() != null && request.freeAbove().compareTo(BigDecimal.ZERO) < 0)) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "VALIDATION",
+                    "km/kg/bepul chegara manfiy bo'lishi mumkin emas");
+        }
+    }
+
+    private static DeliveryZone snapshotZone(DeliveryZone z) {
+        DeliveryZone c = new DeliveryZone();
+        c.setId(z.getId());
+        c.setRegion(z.getRegion());
+        c.setDistrict(z.getDistrict());
+        c.setFee(z.getFee());
+        c.setPerKmFee(z.getPerKmFee());
+        c.setPerKgFee(z.getPerKgFee());
+        c.setFreeAbove(z.getFreeAbove());
+        c.setEstimatedDays(z.getEstimatedDays());
+        return c;
+    }
+
+    private void auditZone(DeliveryZone before, DeliveryZone after, String action, String by) {
+        try {
+            mexa.club.deliveryservice.entity.DeliveryZoneAudit a =
+                    new mexa.club.deliveryservice.entity.DeliveryZoneAudit();
+            a.setZoneId(after.getId());
+            a.setAction(action);
+            a.setOldFee(before != null ? before.getFee() : null);
+            a.setNewFee(after.getFee());
+            a.setOldPerKmFee(before != null ? before.getPerKmFee() : null);
+            a.setNewPerKmFee(after.getPerKmFee());
+            a.setOldPerKgFee(before != null ? before.getPerKgFee() : null);
+            a.setNewPerKgFee(after.getPerKgFee());
+            a.setOldFreeAbove(before != null ? before.getFreeAbove() : null);
+            a.setNewFreeAbove(after.getFreeAbove());
+            a.setChangedBy(by);
+            auditRepository.save(a);
+        } catch (Exception ex) {
+            log.warn("Zone audit failed: {}", ex.getMessage());
+        }
+    }
+
+    private static void applyZoneRequest(DeliveryZone zone, DeliveryZoneRequest request) {
         zone.setRegion(request.region());
         zone.setDistrict(request.district());
         zone.setFee(request.fee());
+        zone.setPerKmFee(request.perKmFee() != null ? request.perKmFee() : BigDecimal.ZERO);
+        zone.setPerKgFee(request.perKgFee() != null ? request.perKgFee() : BigDecimal.ZERO);
+        zone.setFreeAbove(request.freeAbove());
+        zone.setMinFee(request.minFee());
+        zone.setMaxFee(request.maxFee());
+        if (request.priority() != null) zone.setPriority(request.priority());
         zone.setEstimatedDays(request.estimatedDays());
-        return zoneRepository.save(zone);
     }
 
     @Transactional
     public void deleteZone(UUID id) {
+        DeliveryZone zone = zoneRepository.findById(id).orElseThrow(() ->
+                new DeliveryException(HttpStatus.NOT_FOUND, "ZONE_NOT_FOUND", "Zone not found"));
+        // 1-bosqich: faol delivery bor zonani o'chirishdan himoya
+        long activeCount = deliveryRepository.findAll().stream()
+                .filter(d -> d.getRegion() != null && d.getDistrict() != null
+                        && d.getRegion().equalsIgnoreCase(zone.getRegion())
+                        && d.getDistrict().equalsIgnoreCase(zone.getDistrict()))
+                .filter(d -> d.getStatus() != DeliveryStatus.DELIVERED
+                        && d.getStatus() != DeliveryStatus.RETURNED)
+                .count();
+        if (activeCount > 0) {
+            throw new DeliveryException(HttpStatus.BAD_REQUEST, "ZONE_IN_USE",
+                    "Bu zonada " + activeCount + " ta faol yetkazma bor — avval ularni yakunlang");
+        }
+        DeliveryZone before = snapshotZone(zone);
         zoneRepository.deleteById(id);
+        auditZone(before, before, "DELETE", "admin");
     }
 
     private Delivery getCourierDelivery(UUID deliveryId, UUID courierUserId) {

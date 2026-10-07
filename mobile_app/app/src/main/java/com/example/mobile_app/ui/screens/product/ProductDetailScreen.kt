@@ -153,7 +153,7 @@ fun ProductDetailScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 150.dp)
+                    contentPadding = PaddingValues(bottom = 180.dp)
                 ) {
                     // ── 1. Rasm ────────────────────────────────────────────
                     item(key = "pager") {
@@ -254,7 +254,7 @@ fun ProductDetailScreen(
                     if (rec is UiState.Success && rec.data.isNotEmpty()) {
                         item(key = "recommended") {
                             val products = rec.data
-                            Column(Modifier.padding(start = 12.dp, bottom = 16.dp)) {
+                            Column(Modifier.padding(start = 12.dp, bottom = 8.dp)) {
                                 Text(
                                     tr("detail_recommended"),
                                     fontSize = 18.sp,
@@ -275,6 +275,11 @@ fun ProductDetailScreen(
                                 }
                             }
                         }
+                    }
+
+                    // Bottom sheet ostida oxirgi item yarim qolib ketmasligi uchun qo'shimcha margin
+                    item(key = "bottom_spacer") {
+                        Spacer(Modifier.height(24.dp))
                     }
                 }
 

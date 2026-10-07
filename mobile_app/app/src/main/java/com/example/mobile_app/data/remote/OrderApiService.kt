@@ -3,6 +3,7 @@ package com.example.mobile_app.data.remote
 import com.example.mobile_app.data.model.order.CreateOrderRequest
 import com.example.mobile_app.data.model.order.OrderApiWrapper
 import com.example.mobile_app.data.model.order.OrderPageApiWrapper
+import com.example.mobile_app.data.model.order.OrderPreviewWrapper
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -23,6 +24,9 @@ interface OrderApiService {
 
     @POST("api/shops/me/orders")
     suspend fun createOrder(@Body request: CreateOrderRequest): Response<OrderApiWrapper>
+
+    @POST("api/orders/preview")
+    suspend fun preview(@Body request: CreateOrderRequest): Response<OrderPreviewWrapper>
 
     @POST("api/shops/me/orders/{id}/cancel")
     suspend fun cancelOrder(

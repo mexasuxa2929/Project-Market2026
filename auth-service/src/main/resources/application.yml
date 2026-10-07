@@ -91,7 +91,7 @@ app:
       enabled: ${APP_PASSWORD_RESET_CLEANUP_ENABLED:true}
       scheduler-interval-ms: ${APP_PASSWORD_RESET_CLEANUP_INTERVAL_MS:600000}
   google:
-    client-id: ${GOOGLE_CLIENT_ID:989408291738-ficcbpvm7qkksfabogreqfj221sslrbo.apps.googleusercontent.com}
+    client-id: ${GOOGLE_CLIENT_ID:758985644197-6cg7sel08sg5mjubod3pdhsvt6q07h2s.apps.googleusercontent.com}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}

@@ -236,7 +236,7 @@ spring:
         - id: deliveries-api
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8088}
           predicates:
-            - Path=/api/deliveries/**,/api/delivery/**,/api/admin/deliveries/**,/api/admin/couriers/**,/api/courier/deliveries/**,/internal/deliveries/**
+            - Path=/api/deliveries/**,/api/delivery/**,/api/admin/deliveries/**,/api/admin/pricing/**,/api/admin/delivery-zones,/api/admin/delivery-zones/**,/api/admin/couriers/**,/api/admin/courier-actions/**,/api/courier/deliveries/**,/internal/deliveries/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -296,7 +296,7 @@ spring:
         - id: geo-api
           uri: ${GEO_SERVICE_URL:http://localhost:8095}
           predicates:
-            - Path=/api/admin/geo-zones/**,/internal/geo-zones/**
+            - Path=/api/admin/geo-zones/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter

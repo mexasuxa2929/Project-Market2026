@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 internal data class LoginRequestBody(
     @SerialName("usernameOrEmail") val username: String,
     val password: String,
+    val deviceId: String? = DeviceId.value,
 )
 
 @Serializable
@@ -17,6 +18,12 @@ internal data class RegisterRequestBody(
     val username: String,
     val email: String,
     val password: String,
+)
+
+@Serializable
+internal data class GoogleAuthRequestBody(
+    val idToken: String,
+    val deviceId: String? = DeviceId.value,
 )
 
 @Serializable
@@ -51,6 +58,7 @@ internal data class ResetPasswordRequestBody(
 @Serializable
 internal data class RefreshTokenRequestBody(
     val refreshToken: String,
+    val deviceId: String? = DeviceId.value,
 )
 
 @Serializable
@@ -111,3 +119,16 @@ internal data class ApiErrorPayload(
 
 internal fun JsonObject.stringField(key: String): String? =
     (this[key] as? JsonPrimitive)?.content
+
+/**
+ * GET /api/auth/sessions javobidagi bitta faol sessiya (qurilma).
+ * [current] — shu sessiya joriy qurilmaniki (refresh cookie yoki AuthSession.sessionId bo'yicha).
+ */
+data class DeviceSessionItem(
+    val id: String,
+    val deviceInfo: String?,
+    val ipAddress: String?,
+    val createdAt: String?,
+    val lastUsedAt: String?,
+    val current: Boolean,
+)

@@ -32,7 +32,7 @@ public class GeoApiClient {
 
     public GeoApiClient(
             @Value("${GEO_SERVICE_URL:http://geo-service:8095}") String baseUrl,
-            @Value("${APP_INTERNAL_SECRET:change-me-internal}") String internalSecret
+            @Value("${app.internal.secret}") String internalSecret
     ) {
         String base = baseUrl == null ? "http://geo-service:8095" : baseUrl.trim();
         if (base.endsWith("/")) {

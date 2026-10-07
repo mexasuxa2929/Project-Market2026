@@ -53,6 +53,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
     var loading       by remember { mutableStateOf(true) }
     var error         by remember { mutableStateOf<String?>(null) }
     var page          by remember { mutableStateOf(0) }
+    var pageSize      by remember { mutableStateOf(20) }
     var totalElements by remember { mutableStateOf(0L) }
     var totalPages    by remember { mutableStateOf(1) }
     var refreshKey    by remember { mutableStateOf(0) }
@@ -84,11 +86,11 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
     var deleteError   by remember { mutableStateOf<String?>(null) }
 
     // ── Load ──────────────────────────────────────────────────────────────────
-    LaunchedEffect(page, refreshKey) {
+    LaunchedEffect(page, pageSize, refreshKey) {
         loading = true; error = null
         runCatching {
             withContext(Dispatchers.IO) {
-                val text = ApiClient.get("/api/shops/admin/reviews?page=$page&size=20")
+                val text = ApiClient.get("/api/shops/admin/reviews?page=$page&size=$pageSize")
                 val root = ApiClient.parseJsonObject(text)
                 val data = root?.get("data") as? JsonObject
                 val arr  = data?.get("content") as? JsonArray
@@ -239,27 +241,18 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // Pagination
-        if (!loading && totalPages > 1) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment     = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(
-                    onClick = { if (page > 0) page-- },
-                    enabled = page > 0,
-                    shape   = RoundedCornerShape(8.dp),
-                ) { Text("← Oldingi") }
-                Spacer(Modifier.width(12.dp))
-                Text("${page + 1} / $totalPages", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.width(12.dp))
-                OutlinedButton(
-                    onClick = { if (page < totalPages - 1) page++ },
-                    enabled = page < totalPages - 1,
-                    shape   = RoundedCornerShape(8.dp),
-                ) { Text("Keyingi →") }
-            }
+        // Pagination (umumiy andoza: PaginationBar)
+        if (!loading) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
+            PaginationBar(
+                page = page,
+                pageSize = pageSize,
+                totalElements = totalElements.toInt(),
+                totalPages = totalPages,
+                infoText = "$totalElements ta sharh",
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
 
         Spacer(Modifier.height(8.dp))

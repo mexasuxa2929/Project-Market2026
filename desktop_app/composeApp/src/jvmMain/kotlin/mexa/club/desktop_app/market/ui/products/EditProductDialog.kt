@@ -1128,14 +1128,14 @@ fun EditProductDialog(
                                                 }
                                             }
                                             if (startPickerOpen) {
-                                                DiscountDatePickerDialog(
+                                                SimpleDatePickerDialog(
                                                     current = discountStart,
                                                     onConfirm = { discountStart = it },
                                                     onDismiss = { startPickerOpen = false },
                                                 )
                                             }
                                             if (endPickerOpen) {
-                                                DiscountDatePickerDialog(
+                                                SimpleDatePickerDialog(
                                                     current = discountEnd,
                                                     onConfirm = { discountEnd = it },
                                                     onDismiss = { endPickerOpen = false },
@@ -1674,7 +1674,7 @@ private fun StatusBadge(text: String, bg: Color, fg: Color) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DiscountDatePickerDialog(
+fun SimpleDatePickerDialog(
     current: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,

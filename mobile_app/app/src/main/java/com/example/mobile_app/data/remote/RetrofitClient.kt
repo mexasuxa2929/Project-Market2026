@@ -1,7 +1,7 @@
 package com.example.mobile_app.data.remote
 
 import android.content.Context
-import android.os.Build
+import com.example.mobile_app.BuildConfig
 import com.example.mobile_app.MexaMarketApp
 import okhttp3.Cache
 import okhttp3.CacheControl
@@ -14,8 +14,9 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // Lokal (kompyuter-server): gateway orqali — Emulator: 10.0.2.2 | Real qurilma: WiFi IP
-    const val BASE_URL = "http://192.168.1.9:8080/"
+    val BASE_URL: String =
+        if (BuildConfig.API_BASE_URL.endsWith("/")) BuildConfig.API_BASE_URL
+        else "${BuildConfig.API_BASE_URL}/"
 
     private val context: Context get() = MexaMarketApp.instance
 

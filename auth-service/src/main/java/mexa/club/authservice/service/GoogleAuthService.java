@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -41,11 +42,34 @@ public class GoogleAuthService {
     @Transactional
     public RefreshTokenService.TokenPair authenticate(String idToken, String deviceInfo, String ipAddress, String deviceId) {
         GoogleTokenVerifier.GooglePrincipal principal = googleTokenVerifier.verify(idToken);
-        User user = userRepository.findByGoogleId(principal.googleId())
-                .orElseGet(() -> userRepository.findByEmail(principal.email())
-                        .map(existing -> linkExistingUser(existing, principal))
-                        .orElseGet(() -> createGoogleUser(principal)));
+        User user;
+        Optional<User> byGoogleId = userRepository.findByGoogleId(principal.googleId());
+        if (byGoogleId.isPresent()) {
+            // Google orqali yaratilgan (yoki avval Google'ga ulangan) hisob — desktop admin kirishi uchun admin rol kafolatlanadi.
+            user = ensureAdminRole(byGoogleId.get());
+        } else {
+            user = userRepository.findByEmail(principal.email())
+                    .map(existing -> linkExistingUser(existing, principal))
+                    .orElseGet(() -> createGoogleUser(principal));
+        }
         return refreshTokenService.issueForUsername(user.getUsername(), deviceInfo, ipAddress, deviceId);
+    }
+
+    /** Google hisobda admin rol yo'q bo'lsa qo'shadi (local hisob ulanishida kuchaytirilmaydi). */
+    private User ensureAdminRole(User user) {
+        boolean hasAdmin = user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(r -> "ROLE_ADMIN".equals(r.getName()) || "ROLE_SUPER_ADMIN".equals(r.getName()));
+        if (hasAdmin) {
+            return user;
+        }
+        Role admin = roleRepository.findByName("ROLE_ADMIN").orElse(null);
+        if (admin == null) {
+            return user;
+        }
+        Set<Role> roles = user.getRoles() != null ? new HashSet<>(user.getRoles()) : new HashSet<>();
+        roles.add(admin);
+        user.setRoles(roles);
+        return userRepository.save(user);
     }
 
     private User linkExistingUser(User user, GoogleTokenVerifier.GooglePrincipal principal) {
@@ -78,11 +102,16 @@ public class GoogleAuthService {
         user.setEnabled(true);
         user.setVerified(true);
         user.setUsername(generateUniqueUsername(principal.email()));
-        user.setRoles(defaultUserRole());
+        user.setRoles(googleDefaultRoles());
         return userRepository.save(user);
     }
 
-    private Set<Role> defaultUserRole() {
+    /** Google orqali ro'yxatdan o'tgan yangi hisoblar admin panel uchun ROLE_ADMIN oladi. */
+    private Set<Role> googleDefaultRoles() {
+        Role roleAdmin = roleRepository.findByName("ROLE_ADMIN").orElse(null);
+        if (roleAdmin != null) {
+            return new HashSet<>(Set.of(roleAdmin));
+        }
         Role roleUser = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new NoSuchElementException("ROLE_USER not configured"));
         return new HashSet<>(Set.of(roleUser));

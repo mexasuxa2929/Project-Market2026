@@ -19,5 +19,8 @@ fun realtimeMutationAffectsSuperAdminDashboard(envelopeJson: String): Boolean {
         || p.contains("/stock")
         || p.contains("/purchase")
         || p.contains("/inventory")
+        || p.contains("/returns")
+        || p.contains("/couriers")
+        || p.contains("/admins")
         || p.contains("/users")
 }

@@ -1,11 +1,13 @@
 package mexa.club.deliveryservice.client;
 
 import mexa.club.deliveryservice.client.payload.ApiResponseEnvelope;
+import mexa.club.deliveryservice.client.payload.DeliveryFailedRequest;
 import mexa.club.deliveryservice.client.payload.OrderInternalData;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.UUID;
 
@@ -21,4 +23,7 @@ public interface OrderInternalClient {
 
     @PostMapping("/internal/orders/{id}/delivered")
     ApiResponseEnvelope<OrderInternalData> markDelivered(@PathVariable("id") UUID id);
+
+    @PostMapping("/internal/orders/{id}/delivery-failed")
+    ApiResponseEnvelope<OrderInternalData> deliveryFailed(@PathVariable("id") UUID id, @RequestBody DeliveryFailedRequest body);
 }

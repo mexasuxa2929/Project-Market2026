@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -61,6 +62,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import java.math.BigDecimal
 import java.time.OffsetDateTime
@@ -156,6 +158,8 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
     var paymentFilter by remember { mutableStateOf("Barcha to'lovlar") }
     var paymentExpanded by remember { mutableStateOf(false) }
     var selectedOrder by remember { mutableStateOf<OrderRow?>(null) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
 
     suspend fun fetchOrders(): List<OrderRow> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/orders?page=0&size=100")
@@ -232,6 +236,10 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
         val matchPayment = paymentFilter == "Barcha to'lovlar" || o.paymentStatus.equals(paymentFilter, ignoreCase = true)
         matchSearch && matchStatus && matchPayment
     }
+    // Client paging (umumiy andoza)
+    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier
@@ -289,7 +297,7 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { searchQuery = it; page = 0 },
                 placeholder = { Text("Buyurtma raqami yoki foydalanuvchi ID...", fontSize = 14.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.weight(1f),
@@ -310,7 +318,7 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                     statusOptions.forEach { opt ->
                         DropdownMenuItem(
                             text = { Text(if (opt == "Barcha holatlar") opt else orderStatusLabel(opt)) },
-                            onClick = { statusFilter = opt; statusExpanded = false },
+                            onClick = { statusFilter = opt; statusExpanded = false; page = 0 },
                         )
                     }
                 }
@@ -342,7 +350,7 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                         }
                         DropdownMenuItem(
                             text = { Text(label) },
-                            onClick = { paymentFilter = opt; paymentExpanded = false },
+                            onClick = { paymentFilter = opt; paymentExpanded = false; page = 0 },
                         )
                     }
                 }
@@ -385,7 +393,24 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                 Text("Buyurtmalar topilmadi", color = MexaWarehouseColors.textMuted)
             }
 
-            else -> OrdersTable(orders = filtered, onRowClick = { selectedOrder = it })
+            else -> OrdersTable(orders = paged, onRowClick = { selectedOrder = it })
+        }
+
+        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        if (!loading && error == null && filtered.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = filtered.size,
+                infoText = run {
+                    val from = safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, filtered.size)
+                    "$from - $to / ${filtered.size} ta buyurtma"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

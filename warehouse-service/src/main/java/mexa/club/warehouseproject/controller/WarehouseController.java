@@ -108,6 +108,15 @@ public class WarehouseController {
         return ResponseEntity.ok(mexa.club.warehouseproject.api.ApiResponse.ok(warehouseService.getAllAssignedAdminUserIds()));
     }
 
+    @Operation(summary = "User biriktirilgan omborlar", description = "Rol almashtirishdan oldin tekshiruv uchun: user admin bo'lgan omborlar ro'yxati.")
+    @GetMapping("/by-admin")
+    @PreAuthorize("hasAuthority('WAREHOUSE_VIEW')")
+    public ResponseEntity<mexa.club.warehouseproject.api.ApiResponse<List<java.util.Map<String, String>>>> getByAdmin(
+            @Parameter(description = "User UUID", required = true) @RequestParam UUID userId
+    ) {
+        return ResponseEntity.ok(mexa.club.warehouseproject.api.ApiResponse.ok(warehouseService.warehousesByAdmin(userId)));
+    }
+
     @Operation(summary = "Set warehouse admins", description = "Replaces the entire admin list for a warehouse. Requires WAREHOUSE_MANAGE authority.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Admins updated successfully"),

@@ -30,14 +30,27 @@ class RealtimeEventService(
             .build()
 
         thread = Thread {
-            val request = Request.Builder()
-                .url("${baseUrl}api/realtime/stream")
-                .header("Accept", "text/event-stream")
-                .build()
-
             while (running) {
+                // Har qayta ulanishda joriy token olinadi (u refresh bo'lishi mumkin).
+                // Gateway /api/realtime/** ni JWT bilan himoyalaydi.
+                val token = com.example.mobile_app.data.local.TokenManager.accessToken
+                if (token.isNullOrBlank()) {
+                    Thread.sleep(10_000)
+                    continue
+                }
+                val request = Request.Builder()
+                    .url("${baseUrl}api/realtime/stream")
+                    .header("Accept", "text/event-stream")
+                    .header("Authorization", "Bearer $token")
+                    .build()
+
                 try {
                     val response = client!!.newCall(request).execute()
+                    if (response.code == 401 || response.code == 403) {
+                        response.close()
+                        Thread.sleep(10_000)
+                        continue
+                    }
                     val reader = BufferedReader(InputStreamReader(response.body!!.byteStream()))
 
                     var eventType = ""

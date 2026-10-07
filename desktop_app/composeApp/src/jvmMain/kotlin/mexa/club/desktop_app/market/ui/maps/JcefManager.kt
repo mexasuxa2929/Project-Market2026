@@ -25,6 +25,9 @@ object JcefManager {
                 val builder = CefAppBuilder()
                 builder.setInstallDir(File("jcef-bundle"))
                 builder.setProgressHandler(ConsoleProgressHandler())
+                // Xaritalar va Android Studio JCEF bilan to'qnashuvni oldini olish
+                builder.cefSettings.root_cache_path = File("/tmp/mexa-jcef-cache").absolutePath
+                builder.cefSettings.cache_path = File("/tmp/mexa-jcef-cache").absolutePath
                 builder.addJcefArgs("--allow-file-access-from-files", "--no-proxy-server")
                 // Google Maps barqaror renderi uchun software GL:
                 // - disable-dev-shm-usage: /dev/shm kichikligida renderer crash/miltillashni oldini oladi

@@ -52,8 +52,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.LocalPlatformContext
 import com.example.mobile_app.ui.components.ProductImage
 import com.example.mobile_app.data.model.cart.CartLineResponse
+import com.example.mobile_app.data.remote.RetrofitClient
 import com.example.mobile_app.data.model.order.CreateOrderItemRequest
 import com.example.mobile_app.data.model.order.CreateOrderRequest
+import com.example.mobile_app.data.model.order.OrderPreviewData
 import com.example.mobile_app.ui.state.UiState
 import com.example.mobile_app.ui.theme.Background
 import com.example.mobile_app.ui.theme.Primary
@@ -62,9 +64,13 @@ import com.example.mobile_app.ui.viewmodel.CartViewModel
 import com.example.mobile_app.ui.viewmodel.OrderViewModel
 import com.example.mobile_app.ui.viewmodel.AddressViewModel
 import com.example.mobile_app.util.tr
+import com.example.mobile_app.util.trNow
 import com.example.mobile_app.util.formatPrice
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +132,48 @@ fun CheckoutScreen(
         recheckServiceability(selectedAddressId)
     }
 
+    val cartLines = (cartState as? UiState.Success)?.data?.lines
+    var previewData by remember { mutableStateOf<OrderPreviewData?>(null) }
+    var previewLoading by remember { mutableStateOf(false) }
+    var previewError by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(cartLines, selectedAddressId, address, discountCode.trim()) {
+        previewData = null
+        previewError = null
+        previewLoading = true
+        if (cartLines.isNullOrEmpty()) {
+            previewLoading = false
+            return@LaunchedEffect
+        }
+        try {
+            val response = withContext(Dispatchers.IO) {
+                RetrofitClient.orderApiService.preview(
+                    CreateOrderRequest(
+                        deliveryAddressId = selectedAddressId,
+                        deliveryAddress = address.trim().ifBlank { null },
+                        note = note.trim().ifBlank { null },
+                        discountCode = discountCode.trim().ifBlank { null },
+                        paymentMethod = paymentMethod,
+                        items = cartLines.map {
+                            CreateOrderItemRequest(productId = it.productId, quantity = it.quantity)
+                        }
+                    )
+                )
+            }
+            val body = response.body()
+            val data = if (response.isSuccessful && body?.success == true) body.data else null
+            previewData = data
+            if (data == null) previewError = trNow("checkout_preview_failed")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            previewData = null
+            previewError = trNow("checkout_preview_failed")
+        }
+        previewLoading = false
+    }
+    val preview = previewData
+    val incentiveMessage = preview?.incentiveMessage
+
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         containerColor = Background,
@@ -152,7 +200,6 @@ fun CheckoutScreen(
         bottomBar = {
             val state = cartState
             if (state is UiState.Success && state.data.lines.isNotEmpty()) {
-                val subtotal = state.data.lines.sumOf { it.quantity * (it.unitPrice ?: 0.0) }
                 Card(
                     shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -177,7 +224,7 @@ fun CheckoutScreen(
                                 }
                             )
                         },
-                        enabled = !placing && hasAddress && addressServed != false,
+                        enabled = !placing && hasAddress && addressServed != false && preview != null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
@@ -193,7 +240,10 @@ fun CheckoutScreen(
                             )
                         } else {
                             Text(
-                                text = "${tr("checkout_place_order")} · ${formatPrice(subtotal)}",
+                                text = if (preview != null)
+                                    "${tr("checkout_place_order")} · ${formatPrice(preview.totalAmount)}"
+                                else
+                                    "${tr("checkout_place_order")} · ${tr("checkout_fee_calculating")}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White
@@ -554,11 +604,32 @@ fun CheckoutScreen(
                                         color = TextSecondary
                                     )
                                     Text(
-                                        text = "${formatPrice(subtotal)}",
+                                        text = "${formatPrice(preview?.subtotal ?: subtotal)}",
                                         fontSize = 14.sp,
                                         color = Color(0xFF1F2937),
                                         fontWeight = FontWeight.Medium
                                     )
+                                }
+
+                                if (preview != null && preview.discountAmount > 0.0) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = tr("checkout_discount"),
+                                            fontSize = 14.sp,
+                                            color = TextSecondary
+                                        )
+                                        Text(
+                                            text = "-" + formatPrice(preview.discountAmount),
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF10B981),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -573,9 +644,19 @@ fun CheckoutScreen(
                                         color = TextSecondary
                                     )
                                     Text(
-                                        text = tr("checkout_free"),
+                                        text = when {
+                                            previewError != null -> tr("checkout_preview_failed")
+                                            previewLoading || preview == null -> tr("checkout_fee_calculating")
+                                            preview.freeDelivery -> tr("checkout_free")
+                                            else -> formatPrice(preview.deliveryFee)
+                                        },
                                         fontSize = 14.sp,
-                                        color = Color(0xFF10B981),
+                                        color = when {
+                                            previewError != null -> MaterialTheme.colorScheme.error
+                                            preview != null && !preview.freeDelivery && preview.deliveryFee > 0.0 ->
+                                                Color(0xFF1F2937)
+                                            else -> Color(0xFF10B981)
+                                        },
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -598,10 +679,39 @@ fun CheckoutScreen(
                                         color = Color(0xFF1F2937)
                                     )
                                     Text(
-                                        text = "${formatPrice(subtotal)}",
+                                        text = when {
+                                            previewError != null -> tr("checkout_preview_failed")
+                                            preview == null -> tr("checkout_fee_calculating")
+                                            else -> formatPrice(preview.totalAmount)
+                                        },
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Primary
+                                        color = if (previewError != null) MaterialTheme.colorScheme.error else Primary
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!incentiveMessage.isNullOrBlank()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)),
+                                elevation = CardDefaults.cardElevation(0.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = tr("checkout_incentive_title"),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF059669)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = incentiveMessage,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF047857),
+                                        lineHeight = 18.sp
                                     )
                                 }
                             }

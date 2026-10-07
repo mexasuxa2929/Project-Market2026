@@ -138,6 +138,15 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("FORBIDDEN", "Insufficient permissions"));
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> missingParam(
+            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        log.warn("Missing request parameter: {}", ex.getParameterName());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail("BAD_REQUEST", "Missing required parameter: " + ex.getParameterName()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> fallback(Exception ex) throws Exception {
         // Actuator/Security ichki exceptionlarini Spring o'zi hal qilsin.

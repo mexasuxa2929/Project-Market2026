@@ -18,12 +18,15 @@ public class GeoServiceClient {
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
+    private final String internalSecret;
 
     public GeoServiceClient(
             @Qualifier("geoServiceRestTemplate") RestTemplate restTemplate,
-            @Value("${services.geo.url:${GEO_SERVICE_URL:http://localhost:8095}}") String baseUrl
+            @Value("${services.geo.url:${GEO_SERVICE_URL:http://localhost:8095}}") String baseUrl,
+            @Value("${app.internal-secret}") String internalSecret
     ) {
         this.restTemplate = restTemplate;
+        this.internalSecret = internalSecret;
         String base = baseUrl == null ? "" : baseUrl.trim();
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
@@ -35,6 +38,7 @@ public class GeoServiceClient {
         if (warehouseId == null || baseUrl.isEmpty()) return;
         try {
             HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Secret", internalSecret);
             String auth = currentAuthorizationHeader();
             if (auth != null && !auth.isBlank()) {
                 headers.set(HttpHeaders.AUTHORIZATION, auth);

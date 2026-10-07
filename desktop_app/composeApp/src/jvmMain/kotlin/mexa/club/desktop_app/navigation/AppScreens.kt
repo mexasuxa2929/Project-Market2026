@@ -53,6 +53,7 @@ data object RegisterAppScreen : Screen {
             onRegistered = { email, username, password ->
                 navigator.push(VerifyEmailAppScreen(VerifyEmailArgs(email, username, password)))
             },
+            onGoogleLoginSuccess = { navigator.replaceAll(DashboardAppScreen) },
             onNavigateToLogin = { navigator.pop() },
         )
     }

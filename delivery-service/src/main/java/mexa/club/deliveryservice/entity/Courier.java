@@ -27,6 +27,9 @@ public class Courier {
     private String phone;
     @Column(nullable = false, length = 128)
     private String region;
+    /** Qaysi omborga biriktirilgan (warehouse-service ID). NULL = biriktirilmagan. */
+    @Column(name = "warehouse_id")
+    private UUID warehouseId;
     @Column(nullable = false)
     private boolean active = true;
     @Column(nullable = false)

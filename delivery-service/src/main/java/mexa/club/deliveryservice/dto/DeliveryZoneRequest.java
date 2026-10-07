@@ -9,5 +9,11 @@ public record DeliveryZoneRequest(
         @NotBlank String region,
         @NotBlank String district,
         @NotNull @PositiveOrZero BigDecimal fee,
+        @PositiveOrZero BigDecimal perKmFee,
+        @PositiveOrZero BigDecimal perKgFee,
+        @PositiveOrZero BigDecimal freeAbove,
+        @PositiveOrZero BigDecimal minFee,
+        @PositiveOrZero BigDecimal maxFee,
+        Integer priority,
         @NotNull Integer estimatedDays
 ) {}

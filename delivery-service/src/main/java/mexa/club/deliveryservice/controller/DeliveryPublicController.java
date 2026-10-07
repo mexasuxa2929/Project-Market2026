@@ -72,4 +72,19 @@ public class DeliveryPublicController {
             @RequestParam String district) {
         return ApiResponse.ok(deliveryService.calculateFee(region, district));
     }
+
+    @Operation(
+        summary = "Quote delivery fee with breakdown",
+        description = "fee = baseFee + distanceKm*perKmFee + weightKg*perKgFee; subtotal >= freeAbove bo'lsa bepul (0). " +
+            "Checkout'da manzil + savat og'irligi + subtotal bo'yicha aniq narx uchun."
+    )
+    @GetMapping("/api/delivery/fee/quote")
+    public ApiResponse<mexa.club.deliveryservice.dto.DeliveryFeeQuoteResponse> quote(
+            @RequestParam String region,
+            @RequestParam String district,
+            @RequestParam(required = false) Double distanceKm,
+            @RequestParam(required = false) Double weightKg,
+            @RequestParam(required = false) java.math.BigDecimal subtotal) {
+        return ApiResponse.ok(deliveryService.quote(region, district, distanceKm, weightKg, subtotal));
+    }
 }

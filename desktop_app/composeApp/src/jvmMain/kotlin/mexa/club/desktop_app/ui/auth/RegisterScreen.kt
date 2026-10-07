@@ -66,6 +66,7 @@ import mexa.club.desktop_app.theme.WarehousePalette
 fun RegisterScreen(
     modifier: Modifier = Modifier,
     onRegistered: (email: String, username: String, password: String) -> Unit,
+    onGoogleLoginSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
 ) {
     val lang = appLanguage()
@@ -312,6 +313,16 @@ fun RegisterScreen(
                             Spacer(Modifier.width(8.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, Modifier.size(18.dp))
                         }
+
+                        Spacer(Modifier.height(20.dp))
+                        GoogleSignInButton(
+                            lang = lang,
+                            api = api,
+                            rememberMe = true,
+                            onFeedback = { registerFeedback = it },
+                            onSuccess = onGoogleLoginSuccess,
+                            height = 48.dp,
+                        )
 
                         Spacer(Modifier.height(40.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {

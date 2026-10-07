@@ -81,6 +81,7 @@ import mexa.club.desktop_app.auth.AuthSession
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 // ─── Data models ───────────────────────────────────────────────────────────────
@@ -802,108 +803,20 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                     }
                 }
 
-                // ── Pagination ────────────────────────────────────────────────
+                // ── Pagination (umumiy andoza: PaginationBar) ─────────────────────
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                run {
                     val from = if (totalElements == 0) 0 else page * pageSize + 1
-                    val to   = minOf((page + 1) * pageSize, totalElements)
-                    Text(
-                        "$from - $to / $totalElements ta mahsulot",
-                        fontSize = 13.sp,
-                        color = MexaWarehouseColors.textMuted,
+                    val to = minOf((page + 1) * pageSize, totalElements)
+                    PaginationBar(
+                        page = page,
+                        pageSize = pageSize,
+                        totalElements = totalElements,
+                        totalPages = totalPages,
+                        infoText = "$from - $to / $totalElements ta mahsulot",
+                        onPageChange = { page = it },
+                        onPageSizeChange = { pageSize = it; page = 0 },
                     )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        // Page size selector
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                "QATORLAR:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MexaWarehouseColors.textMuted,
-                            )
-                            Box {
-                                Surface(
-                                    onClick = { pageSizeExpanded = true },
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
-                                    color = MexaWarehouseColors.surfaceLowest,
-                                    modifier = Modifier.height(34.dp),
-                                ) {
-                                    Row(
-                                        Modifier.padding(horizontal = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Text(
-                                            pageSize.toString(),
-                                            fontSize = 13.sp,
-                                            color = MexaWarehouseColors.textPrimary,
-                                            fontWeight = FontWeight.Medium,
-                                        )
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MexaWarehouseColors.textMuted,
-                                        )
-                                    }
-                                }
-                                DropdownMenu(
-                                    expanded = pageSizeExpanded,
-                                    onDismissRequest = { pageSizeExpanded = false },
-                                ) {
-                                    listOf(10, 20, 50, 100).forEach { s ->
-                                        DropdownMenuItem(
-                                            text = { Text(s.toString(), fontSize = 13.sp) },
-                                            onClick = { pageSize = s; page = 0; pageSizeExpanded = false },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Page nav
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            PageNavBtn("⏮", page > 0) { page = 0 }
-                            PageNavBtn("‹", page > 0) { page-- }
-
-                            // Visible page numbers (window of 5)
-                            val half  = 2
-                            val start = (page - half).coerceAtLeast(0)
-                            val end   = (page + half).coerceAtMost(totalPages - 1)
-
-                            if (start > 0) {
-                                PageNumBtn(1, page == 0) { page = 0 }
-                                if (start > 1) EllipsisLabel()
-                            }
-                            for (p in start..end) {
-                                PageNumBtn(p + 1, p == page) { page = p }
-                            }
-                            if (end < totalPages - 1) {
-                                if (end < totalPages - 2) EllipsisLabel()
-                                PageNumBtn(totalPages, page == totalPages - 1) { page = totalPages - 1 }
-                            }
-
-                            PageNavBtn("›", page < totalPages - 1) { page++ }
-                            PageNavBtn("⏭", page < totalPages - 1) { page = totalPages - 1 }
-                        }
-                    }
                 }
             }
         }
@@ -1084,66 +997,6 @@ private fun TagBadge(tag: String) {
     ) {
         Text(tag, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = fg)
     }
-}
-
-// ─── Pagination helpers ─────────────────────────────────────────────────────────
-
-@Composable
-private fun PageNavBtn(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .border(
-                1.dp,
-                if (enabled) MexaWarehouseColors.outlineVariant else MexaWarehouseColors.borderSubtle,
-                RoundedCornerShape(6.dp),
-            )
-            .background(MexaWarehouseColors.surfaceLowest, RoundedCornerShape(6.dp))
-            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            fontSize = 13.sp,
-            color = if (enabled) MexaWarehouseColors.textPrimary else MexaWarehouseColors.textMuted,
-        )
-    }
-}
-
-@Composable
-private fun PageNumBtn(number: Int, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .background(
-                if (selected) MexaWarehouseColors.primary else MexaWarehouseColors.surfaceLowest,
-                RoundedCornerShape(6.dp),
-            )
-            .border(
-                1.dp,
-                if (selected) MexaWarehouseColors.primary else MexaWarehouseColors.outlineVariant,
-                RoundedCornerShape(6.dp),
-            )
-            .then(if (!selected) Modifier.clickable(onClick = onClick) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            number.toString(),
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else MexaWarehouseColors.textPrimary,
-        )
-    }
-}
-
-@Composable
-private fun EllipsisLabel() {
-    Text(
-        "…",
-        fontSize = 13.sp,
-        color = MexaWarehouseColors.textMuted,
-        modifier = Modifier.padding(horizontal = 2.dp),
-    )
 }
 
 // ─── Product image ─────────────────────────────────────────────────────────────

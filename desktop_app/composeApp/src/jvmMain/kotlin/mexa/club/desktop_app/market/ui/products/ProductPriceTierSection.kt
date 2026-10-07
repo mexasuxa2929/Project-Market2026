@@ -258,18 +258,48 @@ fun ProductPriceTierSection(
                         CircularProgressIndicator(modifier = Modifier.size(22.dp), color = PrimaryColor)
                     }
                 } else if (tiers.isEmpty()) {
-                    Surface(
-                        shape  = RoundedCornerShape(10.dp),
-                        color  = MexaWarehouseColors.backgroundPage,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.borderSubtle),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Box(Modifier.padding(horizontal = 14.dp, vertical = 20.dp)) {
-                            Text(
-                                "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing.",
-                                fontSize = 12.sp, color = MexaWarehouseColors.textMuted,
-                                lineHeight = 18.sp,
-                            )
+                    // UX fix: agar flat narx (salePrice/tier1Price) mavjud bo'lib, tierlar bo'sh bo'lsa,
+                    // bo'sh placeholder o'rniga asosiy narxni 1+ dona uchun ko'rsatilgan tier sifatida ko'rsatamiz.
+                    // Sabab: EditProductDialog da salePrice = 15 500 000 mavjud, lekin price-tiers jadvali bo'sh bo'lsa
+                    // foydalanuvchi "nega narx boru lekin ko'rinmayapti" deb o'ylaydi — flat narx tier emas.
+                    if (basePriceForDisplay != null && basePriceForDisplay > BigDecimal.ZERO) {
+                        val baseTier = PriceTierItem(
+                            id = "base",
+                            minQty = 1,
+                            maxQty = null,
+                            price = basePriceForDisplay,
+                            currency = "UZS",
+                            priceType = "RETAIL",
+                            rangeLabel = "1+",
+                        )
+                        TierCard(
+                            tier = baseTier,
+                            index = 1,
+                            color = PrimaryColor,
+                            isEditing = false,
+                            enabled = false,
+                            onEdit = {},
+                            onDelete = {},
+                        )
+                        Text(
+                            "Bu — asosiy (flat) narx. Miqdorga qarab turli narx belgilash uchun pastdagi tugma orqali qo'shimcha bosqich qo'shing.",
+                            fontSize = 11.sp, color = MexaWarehouseColors.textMuted, lineHeight = 16.sp,
+                            modifier = Modifier.padding(top = 2.dp, start = 2.dp, end = 2.dp)
+                        )
+                    } else {
+                        Surface(
+                            shape  = RoundedCornerShape(10.dp),
+                            color  = MexaWarehouseColors.backgroundPage,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.borderSubtle),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Box(Modifier.padding(horizontal = 14.dp, vertical = 20.dp)) {
+                                Text(
+                                    "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing.",
+                                    fontSize = 12.sp, color = MexaWarehouseColors.textMuted,
+                                    lineHeight = 18.sp,
+                                )
+                            }
                         }
                     }
                 } else {
@@ -286,10 +316,17 @@ fun ProductPriceTierSection(
                     }
                 }
 
-                // Add tier tugmasi — faqat forma yopiq bo'lganda
+                // Add tier tugmasi — faqat forma yopiq bo'lganda; agar asosiy narx bor va tier yo'q bo'lsa, formni o'sha narx bilan oldindan to'ldiramiz
                 if (enabled && !showForm) {
                     OutlinedButton(
-                        onClick  = { resetForm(); showForm = true },
+                        onClick  = {
+                            resetForm()
+                            if (tiers.isEmpty() && basePriceForDisplay != null && basePriceForDisplay > BigDecimal.ZERO) {
+                                fPrice = basePriceForDisplay.toPlainString()
+                                fMinQty = "1"
+                            }
+                            showForm = true
+                        },
                         shape    = RoundedCornerShape(10.dp),
                         colors   = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryColor),
                         border   = androidx.compose.foundation.BorderStroke(1.5.dp, PrimaryColor),

@@ -125,9 +125,47 @@ public class UserSessionService {
         return userSessionRepository.findByRefreshTokenHashAndActiveTrue(refreshTokenHash);
     }
 
+    /**
+     * Qayta kirish (token recreate) yangi qurilma sifatida hisoblanmasligi uchun:
+     * agar shu foydalanuvchining shu deviceId bilan faol sessiyasi bo'lsa, u sessiya
+     * qayta ishlatiladi (yangi refresh token ulanadi), yangi qator yaratilmaydi.
+     */
+    @Transactional(readOnly = true)
+    public Optional<UserSession> findActiveByUserAndDevice(UUID userId, String deviceId) {
+        if (userId == null || deviceId == null || deviceId.isBlank()) {
+            return Optional.empty();
+        }
+        return userSessionRepository.findFirstByUserIdAndDeviceIdAndActiveTrueOrderByLastUsedAtDesc(userId, deviceId.trim());
+    }
+
+    /** Mavjud sessiyani yangi login uchun qayta ishlatadi (eski refresh token hash almashadi). */
+    @Transactional
+    public UserSession reuse(
+            UserSession session,
+            String refreshTokenHash,
+            LocalDateTime expiresAt,
+            String deviceInfo,
+            String ipAddress
+    ) {
+        session.setRefreshTokenHash(refreshTokenHash);
+        if (deviceInfo != null && !deviceInfo.isBlank()) {
+            session.setDeviceInfo(trim(deviceInfo, 512));
+        }
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            session.setIpAddress(trim(ipAddress, 128));
+        }
+        session.setLastUsedAt(LocalDateTime.now(ZoneOffset.UTC));
+        session.setExpiresAt(expiresAt);
+        session.setActive(true);
+        return userSessionRepository.save(session);
+    }
+
     @Transactional(readOnly = true)
     public List<UserSessionResponse> listActiveByUser(UUID userId, UUID currentSessionId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         return userSessionRepository.findByUserIdAndActiveTrueOrderByLastUsedAtDesc(userId).stream()
+                // Muddati o'tgan sessiya "faol qurilma" deb ko'rsatilmaydi.
+                .filter(s -> s.getExpiresAt() == null || s.getExpiresAt().isAfter(now))
                 .map(s -> UserSessionResponse.fromEntity(s, currentSessionId))
                 .toList();
     }

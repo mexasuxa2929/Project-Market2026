@@ -151,6 +151,47 @@ object AppStrings {
         AppLanguage.RU -> "Регистрация"
     }
 
+    // --- Google sign-in ---
+    fun googleContinue(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Google bilan davom etish"
+        AppLanguage.RU -> "Продолжить с Google"
+    }
+
+    fun googleSigningIn(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Google orqali kirilmoqda…"
+        AppLanguage.RU -> "Вход через Google…"
+    }
+
+    fun googleErrorTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Google bilan kirish"
+        AppLanguage.RU -> "Вход через Google"
+    }
+
+    fun googlePortBusy(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "45123-port band. Boshqa ilovani yopib, qayta urinib ko'ring."
+        AppLanguage.RU -> "Порт 45123 занят. Закройте другое приложение и попробуйте снова."
+    }
+
+    fun googleBrowserError(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Brauzer ochilmadi. Qayta urinib ko'ring."
+        AppLanguage.RU -> "Не удалось открыть браузер. Попробуйте ещё раз."
+    }
+
+    fun googleTimeout(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "So'rov vaqti tugadi (3 daqiqa). Qayta urinib ko'ring."
+        AppLanguage.RU -> "Время ожидания истекло (3 минуты). Попробуйте ещё раз."
+    }
+
+    fun googleDenied(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Ruxsat bekor qilindi."
+        AppLanguage.RU -> "Доступ отклонён."
+    }
+
+    fun googleUnexpected(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Noma'lum xato yuz berdi. Qayta urinib ko'ring."
+        AppLanguage.RU -> "Произошла неизвестная ошибка. Попробуйте ещё раз."
+    }
+
     fun copyright(lang: AppLanguage) = when (lang) {
         AppLanguage.UZ -> "© 2024 WAREHOUSE MANAGEMENT SYSTEM"
         AppLanguage.RU -> "© 2024 WAREHOUSE MANAGEMENT SYSTEM"
@@ -1285,6 +1326,107 @@ object AppStrings {
     fun deleteUserSubmit(lang: AppLanguage) = when (lang) {
         AppLanguage.UZ -> "O'chirish"
         AppLanguage.RU -> "Удалить"
+    }
+
+    // ── Qurilmalar (faol sessiyalar) ─────────────────────────────────────
+    fun devicesTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Qurilmalar"
+        AppLanguage.RU -> "Устройства"
+    }
+
+    fun devicesSubtitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Hisobingizga kirgan faol qurilmalar"
+        AppLanguage.RU -> "Активные устройства, вошедшие в аккаунт"
+    }
+
+    fun devicesCount(lang: AppLanguage, count: Int) = when (lang) {
+        AppLanguage.UZ -> "$count ta faol qurilma"
+        AppLanguage.RU -> "$count активных устройств"
+    }
+
+    fun devicesHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Joriy qurilmadan chiqish mumkin emas. Boshqa qurilmadagi sessiyani yopsangiz, u kirishdan chiqariladi va qayta kirishi kerak bo'ladi."
+        AppLanguage.RU -> "С текущего устройства выйти нельзя. Если закрыть сессию на другом устройстве, оно будет выведено из системы и потребуется войти заново."
+    }
+
+    fun devicesColDevice(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "QURILMA"
+        AppLanguage.RU -> "УСТРОЙСТВО"
+    }
+
+    fun devicesColIp(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "IP MANZIL"
+        AppLanguage.RU -> "IP-АДРЕС"
+    }
+
+    fun devicesColLoggedIn(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "KIRILGAN"
+        AppLanguage.RU -> "ВОШЁЛ"
+    }
+
+    fun devicesColLastActive(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "OXIRGI FAOLLIK"
+        AppLanguage.RU -> "ПОСЛЕДНЯЯ АКТИВНОСТЬ"
+    }
+
+    fun devicesColStatus(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "HOLAT"
+        AppLanguage.RU -> "СТАТУС"
+    }
+
+    fun devicesColAction(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "AMAL"
+        AppLanguage.RU -> "ДЕЙСТВИЕ"
+    }
+
+    fun devicesCurrentBadge(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Joriy qurilma"
+        AppLanguage.RU -> "Текущее устройство"
+    }
+
+    fun devicesActiveBadge(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Faol"
+        AppLanguage.RU -> "Активно"
+    }
+
+    fun devicesClose(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Chiqish"
+        AppLanguage.RU -> "Выйти"
+    }
+
+    fun devicesCloseTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Qurilmadan chiqish"
+        AppLanguage.RU -> "Выйти с устройства"
+    }
+
+    fun devicesCloseMessage(lang: AppLanguage, device: String) = when (lang) {
+        AppLanguage.UZ -> "«$device» sessiyasi yopiladi. Ushbu qurilma tizimga qayta kirishi kerak bo'ladi. Davom etasizmi?"
+        AppLanguage.RU -> "Сессия «$device» будет закрыта. С этого устройства потребуется войти заново. Продолжить?"
+    }
+
+    fun devicesClosed(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Sessiya yopildi"
+        AppLanguage.RU -> "Сессия закрыта"
+    }
+
+    fun devicesEmpty(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Faol qurilmalar topilmadi"
+        AppLanguage.RU -> "Активные устройства не найдены"
+    }
+
+    fun devicesLoadError(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Ro'yxatni yuklab bo'lmadi"
+        AppLanguage.RU -> "Не удалось загрузить список"
+    }
+
+    fun devicesRefresh(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "Yangilash"
+        AppLanguage.RU -> "Обновить"
+    }
+
+    fun devicesCurrentHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.UZ -> "—"
+        AppLanguage.RU -> "—"
     }
 }
 

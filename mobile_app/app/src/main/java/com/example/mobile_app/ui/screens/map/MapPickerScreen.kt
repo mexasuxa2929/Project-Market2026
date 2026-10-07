@@ -18,14 +18,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -118,8 +120,23 @@ fun MapPickerScreen(
         }
     }
 
+    // Xarita turi — Normal da ichki yo'llar/uylar, Satellite da hammasini aniq ko'rish uchun.
+    var mapType by remember { mutableStateOf(com.google.maps.android.compose.MapType.NORMAL) }
+
     // Tanlangan nuqta biror xizmat hududi ichidami? Hudud yo'q bo'lsa — cheklov yo'q.
     val pickedInside = picked?.let { p -> zones.isEmpty() || zones.any { isInside(p, it.points) } } ?: false
+
+    // Toast — dastur theme siga mos, iconsiz.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val loadingText = tr("map_picker_loading_zones")
+    val outsideText = tr("map_picker_outside")
+    LaunchedEffect(picked, pickedInside, zonesLoaded) {
+        if (!zonesLoaded) {
+            snackbarHostState.showSnackbar(loadingText)
+        } else if (picked != null && !pickedInside) {
+            snackbarHostState.showSnackbar(outsideText)
+        }
+    }
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
@@ -129,7 +146,7 @@ fun MapPickerScreen(
     }
     // Kamera avtomatik yaqinlashuvi (faqat 1 marta — user harakatiga aralashmaydi).
     // Ustuvorlik: tanlangan nuqta > user joylashuvi > birinchi hudud.
-    // Nuqta uchun 15x, hudud sharhi uchun 12x.
+    // Nuqta uchun 15x (detalniy), hudud sharhi uchun 12x.
     var autoZoomDone by remember { mutableStateOf(false) }
     LaunchedEffect(userPos, zonesLoaded) {
         if (autoZoomDone || picked != null) return@LaunchedEffect
@@ -150,7 +167,20 @@ fun MapPickerScreen(
 
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-        containerColor = Color.White
+        containerColor = Color.White,
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = 90.dp)
+            ) { data ->
+                androidx.compose.material3.Snackbar(
+                    snackbarData = data,
+                    containerColor = Primary,
+                    contentColor = Color.White,
+                    dismissActionContentColor = Color.White
+                )
+            }
+        }
     ) { padding ->
         // Xarita to'liq edge-to-edge: tepada status-bar ostigacha, pastda
         // bottom-sheet ostigacha kiradi (orqa fonda ko'rinadi).
@@ -162,15 +192,21 @@ fun MapPickerScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                onMapClick = { latLng -> picked = latLng }
+                onMapClick = { latLng -> picked = latLng },
+                properties = com.google.maps.android.compose.MapProperties(
+                    mapType = mapType,
+                    isBuildingEnabled = true,
+                    isIndoorEnabled = true
+                ),
+                uiSettings = com.google.maps.android.compose.MapUiSettings(zoomControlsEnabled = true, compassEnabled = true, mapToolbarEnabled = true)
             ) {
-                // Xizmat hududlari — HAMMASI bir xil binafsha rangda.
+                // Xizmat hududlari — yupqa chiziq va och fill, ichki yo'llar/uylar to'silmaydi.
                 zones.forEach { zone ->
                     Polygon(
                         points = zone.points,
-                        fillColor = Primary.copy(alpha = 0.15f),
+                        fillColor = Primary.copy(alpha = if (mapType == com.google.maps.android.compose.MapType.NORMAL) 0.06f else 0.10f),
                         strokeColor = Primary,
-                        strokeWidth = 5f
+                        strokeWidth = 2f
                     )
                 }
                 picked?.let {
@@ -194,6 +230,28 @@ fun MapPickerScreen(
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color(0xFF0F172A))
             }
+            // Xarita turi — Normal ↔︎ Satellite (uykar/ichki yo'llar aniq ko'rinishi uchun).
+            Card(
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(4.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(12.dp)
+                    .size(44.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        mapType = if (mapType == com.google.maps.android.compose.MapType.NORMAL)
+                            com.google.maps.android.compose.MapType.HYBRID
+                        else com.google.maps.android.compose.MapType.NORMAL
+                    },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(Icons.Default.Layers, contentDescription = "Xarita turi", tint = Primary, modifier = Modifier.size(22.dp))
+                }
+            }
 
             // Pastki karta — xarita ustiga chiqadi (xarita uning tagigacha kiradi).
             Card(
@@ -208,37 +266,6 @@ fun MapPickerScreen(
                         .navigationBarsPadding()
                         .padding(16.dp)
                 ) {
-                    if (!zonesLoaded) {
-                        androidx.compose.foundation.layout.Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(
-                                color = Primary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = tr("map_picker_loading_zones"),
-                                fontSize = 13.sp,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
-                    } else if (picked != null && !pickedInside) {
-                        Text(
-                            text = tr("map_picker_outside"),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFEF4444)
-                        )
-                    } else {
-                        Text(
-                            text = picked?.let { "${it.latitude}, ${it.longitude}" } ?: tr("map_picker_hint"),
-                            fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
-                        )
-                    }
-                    Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = {
                             picked?.let { onConfirm(it.latitude, it.longitude) }

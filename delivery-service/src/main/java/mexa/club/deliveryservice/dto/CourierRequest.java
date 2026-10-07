@@ -10,5 +10,10 @@ public record CourierRequest(
         @NotBlank String name,
         @NotBlank String phone,
         @NotBlank String region,
-        boolean active
-) {}
+        boolean active,
+        UUID warehouseId
+) {
+    public CourierRequest(UUID userId, String name, String phone, String region, boolean active) {
+        this(userId, name, phone, region, active, null);
+    }
+}

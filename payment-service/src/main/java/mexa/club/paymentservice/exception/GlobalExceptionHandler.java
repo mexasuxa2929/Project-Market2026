@@ -13,6 +13,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<Map<String, Object>> handlePayment(PaymentException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                "success", false,
+                "code", ex.getCode(),
+                "message", ex.getMessage()));
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Object badJson(HttpMessageNotReadableException ex, jakarta.servlet.http.HttpServletRequest req) {
         String uri = req.getRequestURI();

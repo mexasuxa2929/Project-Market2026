@@ -16,6 +16,9 @@ object AuthSession {
     @Volatile var roles: List<String> = emptyList()
         private set
 
+    @Volatile var userId: String? = null
+        private set
+
     @Volatile var username: String? = null
         private set
 
@@ -57,6 +60,7 @@ object AuthSession {
         refreshToken = null
         sessionId = null
         roles = emptyList()
+        userId = null
         username = null
         TokenStore.clear()
     }
@@ -85,6 +89,8 @@ object AuthSession {
                 ?: emptyList()
             val usernameMatch = Regex(""""(?:sub|username)"\s*:\s*"([^"]+)"""").find(json)
             username = usernameMatch?.groupValues?.get(1)
+            val userIdMatch = Regex(""""userId"\s*:\s*"([^"]+)"""").find(json)
+            userId = userIdMatch?.groupValues?.get(1)
         } catch (_: Exception) {
         }
     }

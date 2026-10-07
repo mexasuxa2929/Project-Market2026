@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +60,7 @@ import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.jsonString
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 private data class InventoryItemRow(
@@ -84,19 +86,28 @@ private data class InventorySessionRow(
 }
 
 @Composable
-internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
+internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int = 0) {
     val scope = rememberCoroutineScope()
     var sessions by remember { mutableStateOf<List<InventorySessionRow>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableStateOf(0) }
+    var initialized by remember { mutableStateOf(false) }
 
     var showStartDialog by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<InventorySessionRow?>(null) }
+    var completingSession by remember { mutableStateOf<InventorySessionRow?>(null) }
+    var actionError by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
 
-    LaunchedEffect(refreshKey) {
-        loading = true
-        error = null
+    // syncKey: ombor bo'limidagi boshqa qismlardagi o'zgarishlar (SSE/pfon) shu tabga
+    // ham yetib kelganda ro'yxat jim yangilanadi. Birinchi yuklashda spinner chiqadi.
+    LaunchedEffect(refreshKey, syncKey) {
+        if (!initialized) {
+            loading = true
+            error = null
+        }
         runCatching {
             withContext(Dispatchers.IO) {
                 val text = ApiClient.get("/api/warehouses/$warehouseId/inventory?page=0&size=50")
@@ -126,8 +137,13 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
                     )
                 }
             }
-        }.onSuccess { sessions = it }
-            .onFailure { error = it.message ?: "Xatolik yuz berdi" }
+        }.onSuccess {
+            sessions = it
+            initialized = true
+        }.onFailure {
+            // Fon (SSE/polling) yangilashida xatolik → eski ro'yxat saqlanadi
+            if (!initialized) error = it.message ?: "Xatolik yuz berdi"
+        }
         loading = false
     }
 
@@ -156,6 +172,57 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
         )
     }
 
+    completingSession?.let { session ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { completingSession = null },
+            title = { Text("Sessiyani yakunlash", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Sanagan farqlar stokga qo'llanadi. Davom etasizmi?",
+                    color = MexaWarehouseColors.textMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    completingSession = null
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching {
+                                ApiClient.post("/api/warehouses/$warehouseId/inventory/${session.id}/complete", "{}")
+                            }
+                        }
+                        result.onSuccess {
+                            refreshKey++
+                            onChanged()
+                        }.onFailure { e ->
+                            actionError = e.message ?: "Yakunlashda xatolik yuz berdi"
+                        }
+                    }
+                }) {
+                    Text("Yakunlash", color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { completingSession = null }) {
+                    Text("Orqaga", color = MexaWarehouseColors.textMuted)
+                }
+            },
+        )
+    }
+
+    actionError?.let { msg ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { actionError = null },
+            title = { Text("Xatolik", fontWeight = FontWeight.Bold) },
+            text = { Text(msg, color = MexaWarehouseColors.textMuted) },
+            confirmButton = {
+                TextButton(onClick = { actionError = null }) {
+                    Text("OK", fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
+                }
+            },
+        )
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -177,6 +244,10 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
             }
         }
 
+        val totalPages = if (sessions.isEmpty()) 1 else (sessions.size + pageSize - 1) / pageSize
+        val safePage = page.coerceIn(0, totalPages - 1)
+        val pagedSessions = sessions.drop(safePage * pageSize).take(pageSize)
+
         Surface(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -192,6 +263,7 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
                     Text("IZOH", Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("SANALDI", Modifier.width(80.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("HOLATI", Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text("AMALLAR", Modifier.width(70.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                 }
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
@@ -211,7 +283,7 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
                         }
                     }
 
-                    else -> sessions.forEachIndexed { index, session ->
+                    else -> pagedSessions.forEachIndexed { index, session ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -229,11 +301,36 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit) {
                                 fontWeight = FontWeight.Medium,
                             )
                             SessionStatusBadge(session.status, Modifier.width(110.dp))
+                            Row(Modifier.width(70.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                IconButton(onClick = { selectedSession = session }, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Filled.Visibility, "Sessiyani ko'rish", tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(15.dp))
+                                }
+                                if (session.isOpen) {
+                                    IconButton(onClick = { completingSession = session }, modifier = Modifier.size(28.dp)) {
+                                        Icon(Icons.Filled.CheckCircle, "Yakunlash", tint = MexaWarehouseColors.statusActiveFg, modifier = Modifier.size(15.dp))
+                                    }
+                                }
+                            }
                         }
-                        if (index < sessions.lastIndex) {
+                        if (index < pagedSessions.lastIndex) {
                             HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
                         }
                     }
+                }
+                if (!loading && error == null && sessions.isNotEmpty()) {
+                    HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+                    PaginationBar(
+                        page = safePage,
+                        pageSize = pageSize,
+                        totalElements = sessions.size,
+                        infoText = run {
+                            val from = safePage * pageSize + 1
+                            val to = minOf((safePage + 1) * pageSize, sessions.size)
+                            "$from - $to / ${sessions.size} ta sessiya"
+                        },
+                        onPageChange = { page = it },
+                        onPageSizeChange = { pageSize = it; page = 0 },
+                    )
                 }
             }
         }
@@ -338,6 +435,8 @@ private fun InventorySessionDialog(
     var error by remember { mutableStateOf<String?>(null) }
     var confirmingAction by remember { mutableStateOf<String?>(null) }
     val countedInputs = remember { mutableStateOf<MutableMap<String, String>>(mutableMapOf()) }
+    var itemsPage by remember(session.id) { mutableStateOf(0) }
+    var itemsPageSize by remember { mutableStateOf(20) }
 
     fun refresh() {
         scope.launch {
@@ -458,7 +557,10 @@ private fun InventorySessionDialog(
                                 Text("Ma'lumot yo'q", fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
                             }
                         } else {
-                            current.items.forEachIndexed { index, item ->
+                            val itemsTotalPages = (current.items.size + itemsPageSize - 1) / itemsPageSize
+                            val itemsSafePage = itemsPage.coerceIn(0, itemsTotalPages - 1)
+                            val pagedItems = current.items.drop(itemsSafePage * itemsPageSize).take(itemsPageSize)
+                            pagedItems.forEachIndexed { index, item ->
                                 Row(
                                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -503,7 +605,7 @@ private fun InventorySessionDialog(
                                         color = MexaWarehouseColors.textMuted,
                                     )
                                 }
-                                if (index < current.items.lastIndex) {
+                                if (index < pagedItems.lastIndex) {
                                     HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f), thickness = 1.dp)
                                 }
                             }
@@ -539,6 +641,18 @@ private fun InventorySessionDialog(
                                     }
                                 }
                             }
+
+                            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+                            val fromIdx = itemsSafePage * itemsPageSize + 1
+                            val toIdx = minOf((itemsSafePage + 1) * itemsPageSize, current.items.size)
+                            PaginationBar(
+                                page = itemsSafePage,
+                                pageSize = itemsPageSize,
+                                totalElements = current.items.size,
+                                infoText = "$fromIdx - $toIdx / ${current.items.size} ta mahsulot",
+                                onPageChange = { itemsPage = it },
+                                onPageSizeChange = { s -> itemsPageSize = s; itemsPage = 0 },
+                            )
                         }
                     }
                 }

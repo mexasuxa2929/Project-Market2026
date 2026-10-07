@@ -17,7 +17,7 @@ import com.example.mobile_app.data.remote.AuthApiService
 class AuthRepository(private val authApiService: AuthApiService) {
 
     suspend fun login(username: String, password: String): Result<AuthResponse> = try {
-        val response = authApiService.login(LoginRequest(usernameOrEmail = username, password = password))
+        val response = authApiService.login(LoginRequest(usernameOrEmail = username, password = password, deviceId = TokenManager.deviceId))
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.success == true && body.data != null) {
@@ -112,7 +112,7 @@ class AuthRepository(private val authApiService: AuthApiService) {
     suspend fun refreshToken(): Result<AuthResponse> = try {
         val refreshTok = TokenManager.refreshToken
             ?: return Result.failure(Exception("No refresh token"))
-        val response = authApiService.refreshToken(RefreshTokenRequest(refreshTok))
+        val response = authApiService.refreshToken(RefreshTokenRequest(refreshTok, deviceId = TokenManager.deviceId))
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.success == true && body.data != null) {
@@ -131,7 +131,7 @@ class AuthRepository(private val authApiService: AuthApiService) {
     }
 
     suspend fun loginWithGoogle(idToken: String): Result<AuthResponse> = try {
-        val response = authApiService.loginWithGoogle(GoogleAuthRequest(idToken))
+        val response = authApiService.loginWithGoogle(GoogleAuthRequest(idToken, deviceId = TokenManager.deviceId))
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.success == true && body.data != null) {

@@ -52,6 +52,22 @@ public class OrderController {
         return ApiResponse.ok(orderService.create(userId(authentication), request));
     }
 
+    @PostMapping("/preview")
+    @Operation(
+            summary = "Preview order totals",
+            description = "Calculates subtotal, discount, delivery fee and total for the given order inputs WITHOUT creating an order. "
+                    + "Uses the same price/discount/delivery-pricing logic as order creation so checkout displays match the amount finally written to the order."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Preview calculated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request body or validation failure"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "JWT token is missing or invalid")
+    })
+    public ApiResponse<mexa.club.orderservice.dto.OrderPreviewResponse> preview(
+            @Valid @RequestBody CreateOrderRequest request, Authentication authentication) {
+        return ApiResponse.ok(orderService.preview(userId(authentication), request));
+    }
+
     @GetMapping
     @Operation(
             summary = "List my orders",

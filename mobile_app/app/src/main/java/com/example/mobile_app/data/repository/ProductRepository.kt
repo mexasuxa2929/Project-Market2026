@@ -4,6 +4,7 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.paging.filter
 import androidx.paging.map
 import com.example.mobile_app.data.local.CatalogProductDao
 import com.example.mobile_app.data.model.Brand
@@ -28,14 +29,31 @@ data class ProductPage(
     val nextCursor: String?
 )
 
-private fun Product.localize(lang: Language): Product = copy(
-    name = nameTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: name,
-    description = descriptionTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: description,
-    shortDescription = shortDescriptionTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: shortDescription,
-    material = materialTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: material,
-    countryOfOrigin = countryOfOriginTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: countryOfOrigin,
-    manufacturerName = manufacturerNameTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: manufacturerName
-)
+private fun Product.isValid(): Boolean = try {
+    val idVal = id as String?
+    val nameVal = name as String?
+    !idVal.isNullOrBlank() && !nameVal.isNullOrBlank()
+} catch (_: Exception) {
+    false
+}
+
+private fun Product.safeLocalize(lang: Language): Product? {
+    return try {
+        if (!isValid()) null
+        else copy(
+            name = nameTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: name,
+            description = descriptionTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: description,
+            shortDescription = shortDescriptionTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: shortDescription,
+            material = materialTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: material,
+            countryOfOrigin = countryOfOriginTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: countryOfOrigin,
+            manufacturerName = manufacturerNameTranslations?.get(lang.code)?.takeIf { it.isNotBlank() } ?: manufacturerName
+        )
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun Product.localize(lang: Language): Product = safeLocalize(lang) ?: this
 
 class ProductRepository(
     private val apiService: ApiService,
@@ -44,15 +62,32 @@ class ProductRepository(
 
     private val gson = Gson()
 
-    private fun Product.withAbsoluteUrls() = copy(
-        imageUrls = imageUrls?.map { RetrofitClient.toAbsoluteUrl(it) ?: it }
-    )
+    private fun Product.withAbsoluteUrls(): Product? {
+        return try {
+            if (!isValid()) null
+            else copy(
+                imageUrls = imageUrls?.map { RetrofitClient.toAbsoluteUrl(it) ?: it }
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun List<Product>.filterValidAndLocalize(lang: Language): List<Product> =
+        mapNotNull { p ->
+            try {
+                if (!p.isValid()) return@mapNotNull null
+                p.withAbsoluteUrls()?.safeLocalize(lang)
+            } catch (_: Exception) {
+                null
+            }
+        }
 
     fun getProducts(search: String? = null): Flow<Result<List<Product>>> = flow {
         try {
             val page = apiService.getProducts(search = search)
             val lang = AppLanguage.current
-            emit(Result.success(page.content.map { it.withAbsoluteUrls().localize(lang) }))
+            emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
@@ -62,7 +97,7 @@ class ProductRepository(
         try {
             val page = apiService.getProducts(size = 10)
             val lang = AppLanguage.current
-            emit(Result.success(page.content.map { it.withAbsoluteUrls().localize(lang) }))
+            emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
@@ -72,7 +107,7 @@ class ProductRepository(
         try {
             val response = apiService.getProducts(search = search, cursor = cursor, size = size)
             val lang = AppLanguage.current
-            val products = response.content.map { it.withAbsoluteUrls().localize(lang) }
+            val products = response.content.filterValidAndLocalize(lang)
             emit(Result.success(ProductPage(products, response.hasMore, response.nextCursor)))
         } catch (e: Exception) {
             emit(Result.failure(e))
@@ -89,9 +124,12 @@ class ProductRepository(
                 ?: throw IllegalStateException("Bo'sh javob")
             val lang = AppLanguage.current
             emit(Result.success(bundle.copy(
-                trending = bundle.trending.map { it.withAbsoluteUrls().localize(lang) },
-                recommended = bundle.recommended.map {
-                    it.copy(thumbnail = RetrofitClient.toAbsoluteUrl(it.thumbnail))
+                trending = bundle.trending.filterValidAndLocalize(lang),
+                recommended = bundle.recommended.mapNotNull {
+                    try {
+                        if (it.productId.isBlank()) null
+                        else it.copy(thumbnail = RetrofitClient.toAbsoluteUrl(it.thumbnail))
+                    } catch (_: Exception) { null }
                 },
                 brands = bundle.brands.map {
                     it.copy(logoUrl = RetrofitClient.toAbsoluteUrl(it.logoUrl))
@@ -107,7 +145,12 @@ class ProductRepository(
     fun getProductById(id: String): Flow<Result<Product>> = flow {
         try {
             val lang = AppLanguage.current
-            val product = apiService.getProductById(id).withAbsoluteUrls().localize(lang)
+            val raw = apiService.getProductById(id)
+            if (!raw.isValid()) {
+                val rawId = try { raw.javaClass.getDeclaredField("id").apply { isAccessible = true }.get(raw) as String? } catch (_: Exception) { "unknown" }
+                throw IllegalStateException("Noto'g'ri mahsulot (id=$rawId, so'ralgan=$id)")
+            }
+            val product = raw.withAbsoluteUrls()?.safeLocalize(lang) ?: throw IllegalStateException("Noto'g'ri mahsulot (so'ralgan=$id)")
             emit(Result.success(product))
         } catch (e: Exception) {
             emit(Result.failure(e))
@@ -118,7 +161,7 @@ class ProductRepository(
         try {
             val page = apiService.getProducts(search = query)
             val lang = AppLanguage.current
-            emit(Result.success(page.content.map { it.withAbsoluteUrls().localize(lang) }))
+            emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
@@ -148,10 +191,17 @@ class ProductRepository(
         }
             .flow
             .map { pagingData ->
-                pagingData.map { entity ->
-                    gson.fromJson(entity.json, Product::class.java)
-                        .withAbsoluteUrls()
-                        .localize(lang)
+                pagingData.filter { entity ->
+                    try {
+                        val p = gson.fromJson(entity.json, Product::class.java)
+                        p.isValid()
+                    } catch (_: Exception) {
+                        false
+                    }
+                }.map { entity ->
+                    val p = gson.fromJson(entity.json, Product::class.java)
+                    // valid ekanligi filter da tekshirilgan — withAbsoluteUrls null qaytarmaydi
+                    p.withAbsoluteUrls()!!.safeLocalize(lang)!!
                 }
             }
     }

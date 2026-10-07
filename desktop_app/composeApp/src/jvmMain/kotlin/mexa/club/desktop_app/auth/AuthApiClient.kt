@@ -151,22 +151,34 @@ class AuthApiClient(
             val body = json.encodeToString(LoginRequestBody(username.trim(), password))
             when (val r = postJson("/api/auth/login", body)) {
                 is AuthApiResult.Err -> r
-                is AuthApiResult.Ok -> {
-                    val data = r.value.data.obj() ?: return@withContext AuthApiResult.Err(net.emptyResponse)
-                    val token = data.stringField("token") ?: return@withContext AuthApiResult.Err(net.tokenMissing)
-                    AuthApiResult.Ok(
-                        LoginTokens(
-                            accessToken = token,
-                            refreshToken = data.stringField("refreshToken"),
-                            sessionId = data.stringField("sessionId"),
-                            expiresInSeconds = data["expiresIn"]
-                                ?.let { (it as? JsonPrimitive)?.content?.toLongOrNull() }
-                                ?: 900L,
-                        ),
-                    )
-                }
+                is AuthApiResult.Ok -> parseTokenEnvelope(r.value)
             }
         }
+
+    /** Google OAuth id_token'ini backendga yuboradi va sessiya tokenlarini oladi. */
+    suspend fun loginWithGoogle(idToken: String): AuthApiResult<LoginTokens> =
+        withContext(Dispatchers.IO) {
+            val body = json.encodeToString(GoogleAuthRequestBody(idToken = idToken))
+            when (val r = postJson("/api/auth/google", body)) {
+                is AuthApiResult.Err -> r
+                is AuthApiResult.Ok -> parseTokenEnvelope(r.value)
+            }
+        }
+
+    private fun parseTokenEnvelope(envelope: ApiEnvelope): AuthApiResult<LoginTokens> {
+        val data = envelope.data.obj() ?: return AuthApiResult.Err(net.emptyResponse)
+        val token = data.stringField("token") ?: return AuthApiResult.Err(net.tokenMissing)
+        return AuthApiResult.Ok(
+            LoginTokens(
+                accessToken = token,
+                refreshToken = data.stringField("refreshToken"),
+                sessionId = data.stringField("sessionId"),
+                expiresInSeconds = data["expiresIn"]
+                    ?.let { (it as? JsonPrimitive)?.content?.toLongOrNull() }
+                    ?: 900L,
+            ),
+        )
+    }
 
     suspend fun listAdminUsers(
         accessToken: String,
@@ -528,6 +540,46 @@ class AuthApiClient(
             postJsonWithBearer("/api/auth/logout", body, accessToken).toUnit()
         }
 
+    /**
+     * Joriy userning faol sessiyalarini (qurilmalar) ro'yxati.
+     * Backend `current` belgisini refresh cookie orqali belgilaydi — desktop esa o'z
+     * [AuthSession.sessionId] bilan mos kelishini qo'shimcha tekshiradi.
+     * Aynan shu sessiya ro'yxatda "joriy" deb belgilansin deb refresh token Cookie sifatida yuboriladi.
+     */
+    suspend fun listSessions(): AuthApiResult<List<DeviceSessionItem>> =
+        withContext(Dispatchers.IO) {
+            val token = ensureFreshAccessToken() ?: AuthSession.accessToken
+                ?: return@withContext AuthApiResult.Err(net.tokenMissing)
+            when (val r = getRawJsonWithBearer("/api/auth/sessions", token)) {
+                is AuthApiResult.Err -> r
+                is AuthApiResult.Ok -> {
+                    val arr = runCatching { json.parseToJsonElement(r.value) as? JsonArray }.getOrNull()
+                        ?: return@withContext AuthApiResult.Err(net.emptyResponse)
+                    AuthApiResult.Ok(arr.mapNotNull { el ->
+                        val o = el as? JsonObject ?: return@mapNotNull null
+                        val id = o.stringField("id") ?: return@mapNotNull null
+                        DeviceSessionItem(
+                            id = id,
+                            deviceInfo = o.stringField("deviceInfo"),
+                            ipAddress = o.stringField("ipAddress"),
+                            createdAt = o.stringField("createdAt"),
+                            lastUsedAt = o.stringField("lastUsedAt"),
+                            current = (o["current"] as? JsonPrimitive)?.content == "true" ||
+                                id == AuthSession.sessionId?.toString(),
+                        )
+                    })
+                }
+            }
+        }
+
+    /** Bitta sessiyani (qurilmani) yopadi — u qurilma refresh tokensiz qoladi. */
+    suspend fun closeSession(sessionId: String): AuthApiResult<Unit> =
+        withContext(Dispatchers.IO) {
+            val token = ensureFreshAccessToken() ?: AuthSession.accessToken
+                ?: return@withContext AuthApiResult.Err(net.tokenMissing)
+            deleteJsonWithBearer("/api/auth/sessions/$sessionId", token).toUnit()
+        }
+
     suspend fun register(username: String, email: String, password: String): AuthApiResult<Unit> =
         withContext(Dispatchers.IO) {
             val body = json.encodeToString(RegisterRequestBody(username.trim(), email.trim(), password))
@@ -642,6 +694,48 @@ class AuthApiClient(
         }
     }
 
+    /**
+     * Oddiy GET (envelope'siz javoblar uchun). GET /api/auth/sessions **bare JSON array**
+     * qaytaradi, shuning uchun ApiEnvelope parse'i ishlamaydi — xato holatigina envelope tekshiriladi.
+     * Joriy sessiya cookie orqali belgilansin deb refresh token Cookie header'ida yuboriladi.
+     */
+    private suspend fun getRawJsonWithBearer(path: String, bearerToken: String): AuthApiResult<String> {
+        val first = doRawGet(path, bearerToken)
+        if (first is AuthApiResult.Err && first.httpStatus == 401) {
+            val newToken = tryRefreshAccessToken()
+            if (newToken != null) return doRawGet(path, newToken)
+        }
+        return first
+    }
+
+    private fun doRawGet(path: String, bearerToken: String): AuthApiResult<String> {
+        val uri = URI.create(baseUrl + path)
+        val builder = HttpRequest.newBuilder(uri)
+            .timeout(Duration.ofSeconds(60))
+            .header("Authorization", "Bearer $bearerToken")
+        AuthSession.refreshToken?.takeIf { it.isNotBlank() }?.let {
+            builder.header("Cookie", "$REFRESH_COOKIE_NAME=$it")
+        }
+        val request = builder.GET().build()
+        return try {
+            val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+            val status = response.statusCode()
+            val text = response.body() ?: ""
+            if (status in 200..299) {
+                AuthApiResult.Ok(text)
+            } else {
+                val envelope = runCatching { json.decodeFromString<ApiEnvelope>(text) }.getOrNull()
+                AuthApiResult.Err(
+                    envelope?.error?.message ?: parseRoughError(status, text),
+                    envelope?.error?.code,
+                    status,
+                )
+            }
+        } catch (e: Exception) {
+            AuthApiResult.Err(e.message ?: net.networkError)
+        }
+    }
+
     private suspend fun postJsonWithBearer(
         path: String,
         jsonBody: String,
@@ -721,6 +815,9 @@ class AuthApiClient(
         return trimmed.ifBlank { net.unknownError }
     }
 }
+
+/** Backend refresh-token cookie nomi (auth-service application.yml: APP_REFRESH_TOKEN_COOKIE_NAME). */
+private const val REFRESH_COOKIE_NAME = "refreshToken"
 
 private fun AuthApiResult<ApiEnvelope>.toUnit(): AuthApiResult<Unit> =
     when (this) {

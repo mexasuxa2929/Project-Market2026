@@ -522,6 +522,64 @@ public class WarehouseStockService {
         warehouseStockRepository.save(line);
     }
 
+    /**
+     * Bitta lotni o'chirish (masalan Tuzatish orqali yaratilgan, purchase'siz lotlar).
+     * Lot miqdori stok qatoridan qaytariladi, Harakat tarixiga LOT_DELETE yoziladi (kim o'chirgan ko'rinadi).
+     * O'chirish sababi (reason) majburiy — u movement tarixiga va audit logga yoziladi.
+     */
+    @Transactional
+    public void deleteLot(UUID warehouseId, UUID lotId, String reason) {
+        String deletionReason = requireReason(reason);
+        warehouseAccessService.requireCanManageWarehouse(warehouseId);
+        StockLot lot = stockLotRepository.findById(lotId)
+                .orElseThrow(() -> new ResourceNotFoundException("Stock lot", String.valueOf(lotId)));
+        if (!warehouseId.equals(lot.getWarehouseId())) {
+            throw new ResourceNotFoundException("Stock lot", String.valueOf(lotId));
+        }
+        BigDecimal qty = lot.getQuantity() != null ? lot.getQuantity() : BigDecimal.ZERO;
+        if (qty.compareTo(BigDecimal.ZERO) > 0) {
+            WarehouseStock line = warehouseStockRepository
+                    .findByWarehouse_IdAndProductId(warehouseId, lot.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Warehouse stock line",
+                            "warehouseId=" + warehouseId + ", productId=" + lot.getProductId()));
+            BigDecimal reserved = line.getReservedQuantity() != null ? line.getReservedQuantity() : BigDecimal.ZERO;
+            BigDecimal newQty = line.getQuantity().subtract(qty);
+            if (newQty.compareTo(BigDecimal.ZERO) < 0) {
+                throw new ResourceConflictException("Insufficient quantity for product " + lot.getProductId());
+            }
+            if (newQty.compareTo(reserved) < 0) {
+                throw new ResourceConflictException("Resulting quantity would be below reserved quantity for product " + lot.getProductId());
+            }
+            line.setQuantity(newQty);
+            warehouseStockRepository.save(line);
+        }
+        stockLotRepository.delete(lot);
+        stockMovementService.log(
+                warehouseId,
+                lot.getProductId(),
+                MovementType.LOT_DELETE,
+                qty.abs().negate(),
+                lotId,
+                "LOT",
+                deletionReason
+        );
+        auditLogService.log(
+                "LOT_DELETE",
+                "STOCK_LOT",
+                String.valueOf(lotId),
+                warehouseId,
+                "Deleted lot, rolled back " + qty + " for product " + lot.getProductId() + ". Reason: " + deletionReason
+        );
+    }
+
+    public static String requireReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Deletion reason is required");
+        }
+        return reason.trim();
+    }
+
     @Transactional
     public void deleteStockLine(UUID warehouseId, UUID productId) {
         warehouseAccessService.requireCanManageWarehouse(warehouseId);
@@ -660,13 +718,14 @@ public class WarehouseStockService {
             MovementType movementType,
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
+            String search,
             Pageable pageable
     ) {
         warehouseAccessService.requireCanViewWarehouseOperations(warehouseId);
         if (!warehouseRepository.existsById(warehouseId)) {
             throw new ResourceNotFoundException("Warehouse", String.valueOf(warehouseId));
         }
-        return stockMovementService.history(warehouseId, productId, movementType, dateFrom, dateTo, pageable);
+        return stockMovementService.history(warehouseId, productId, movementType, dateFrom, dateTo, search, pageable);
     }
 
     @Transactional(readOnly = true)

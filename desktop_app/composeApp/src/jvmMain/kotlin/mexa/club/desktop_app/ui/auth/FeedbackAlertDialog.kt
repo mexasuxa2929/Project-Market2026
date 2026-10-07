@@ -30,7 +30,13 @@ fun FeedbackAlertDialog(
 ) {
     val s = state ?: return
     AlertDialog(
-        onDismissRequest = onDismissState,
+        // Tashqariga bosish yoki Esc — OK bilan bir xil: onConfirm ham chaqiriladi.
+        // Aks holda sessiya ochilib qoladi, lekin navigatsiya bo'lmaydi va
+        // foydalanuvchi login ekranida qolib ketadi.
+        onDismissRequest = {
+            onDismissState()
+            s.onConfirm()
+        },
         icon = {
             Icon(
                 imageVector = if (s.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Error,

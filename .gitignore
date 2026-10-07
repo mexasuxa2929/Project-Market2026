@@ -61,3 +61,6 @@ create-10-products.ps1
 create-100-products-curl.ps1
 create-100-products.ps1
 paseo.json
+
+# Kotlin daemon sessionlari (build junk)
+.kotlin/

@@ -126,14 +126,14 @@ public class AdminOrderController {
     }
 
     @PostMapping("/{id}/refund")
-    @Operation(summary = "Refund an order", description = "Refunds a DELIVERED order: changes status to REFUNDED, reverses stock, cancels discount.")
+    @Operation(summary = "Refund an order", description = "Refunds a paid order: performs the actual money refund through payment-service (Payme), then changes status to REFUNDED, reverses stock and cancels discount.")
     public ApiResponse<OrderResponse> refund(
             @PathVariable UUID id,
             @RequestBody(required = false) RefundRequest request,
             Authentication authentication
     ) {
         String reason = request != null ? request.reason() : null;
-        return ApiResponse.ok(orderService.refundOrder(id, userId(authentication), reason));
+        return ApiResponse.ok(orderService.refund(id, userId(authentication), reason));
     }
 
     @DeleteMapping("/{id}")

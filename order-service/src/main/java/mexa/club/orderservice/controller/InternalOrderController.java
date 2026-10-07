@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import mexa.club.orderservice.dto.ApiResponse;
+import mexa.club.orderservice.dto.DeliveryFailedRequest;
 import mexa.club.orderservice.dto.InternalOrderStatsResponse;
 import mexa.club.orderservice.dto.OrderResponse;
 import mexa.club.orderservice.dto.ProductUsageCheckResponse;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -88,6 +90,25 @@ public class InternalOrderController {
     ) {
         ensureInternalSecret(secret);
         return ApiResponse.ok(orderService.markDelivered(id));
+    }
+
+    @PostMapping("/{id}/delivery-failed")
+    @Operation(
+            summary = "Mark order delivery as failed (internal)",
+            description = "Called by the delivery service when delivery fails or the order is returned. Transitions the order to CANCELLED, restocks items and releases the discount (unless the order is already in a terminal state). Requires the X-Internal-Secret header."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Delivery failure recorded and order updated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "X-Internal-Secret header is missing or incorrect"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    public ApiResponse<OrderResponse> deliveryFailed(
+            @Parameter(description = "Unique identifier of the order", required = true) @PathVariable UUID id,
+            @Parameter(description = "Failure reason reported by the delivery service") @RequestBody(required = false) DeliveryFailedRequest body,
+            @Parameter(description = "Shared internal secret for service-to-service authentication", required = true) @RequestHeader("X-Internal-Secret") String secret
+    ) {
+        ensureInternalSecret(secret);
+        return ApiResponse.ok(orderService.deliveryFailed(id, body != null ? body.reason() : null));
     }
 
     @GetMapping("/stats")

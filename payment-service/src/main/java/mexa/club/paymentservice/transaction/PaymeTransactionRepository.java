@@ -25,5 +25,7 @@ public interface PaymeTransactionRepository extends JpaRepository<PaymeTransacti
             @Param("excludePaycomId") String excludePaycomId,
             @Param("states") Collection<Short> states);
 
+    List<PaymeTransaction> findByOrderId(Long orderId);
+
     List<PaymeTransaction> findByCreateTimeBetween(Long fromInclusive, Long toInclusive);
 }

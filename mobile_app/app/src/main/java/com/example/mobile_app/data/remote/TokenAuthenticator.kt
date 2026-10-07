@@ -92,6 +92,7 @@ class TokenAuthenticator : Authenticator {
 
             val json = JSONObject().apply {
                 put("refreshToken", refreshToken)
+                put("deviceId", com.example.mobile_app.data.local.TokenManager.deviceId)
             }.toString()
 
             val body = json.toRequestBody("application/json".toMediaType())

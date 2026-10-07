@@ -169,9 +169,10 @@ public class WarehousePurchaseController {
         ));
     }
 
-    @Operation(summary = "Delete purchase order", description = "Deletes an entire purchase order and reverses all stock additions associated with it. Requires STOCK_MANAGE authority.")
+    @Operation(summary = "Delete purchase order", description = "Deletes an entire purchase order and reverses all stock additions associated with it. A non-blank deletion reason is required. Requires STOCK_MANAGE authority.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Purchase order deleted and stock reversed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Missing or blank deletion reason"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient authority — STOCK_MANAGE required"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Warehouse or purchase not found")
@@ -180,9 +181,10 @@ public class WarehousePurchaseController {
     @PreAuthorize("hasAuthority('STOCK_MANAGE')")
     public ResponseEntity<Void> deletePurchase(
             @Parameter(description = "UUID of the warehouse", required = true) @PathVariable UUID warehouseId,
-            @Parameter(description = "UUID of the purchase order to delete", required = true) @PathVariable UUID purchaseId
+            @Parameter(description = "UUID of the purchase order to delete", required = true) @PathVariable UUID purchaseId,
+            @Parameter(description = "Reason for deletion (required, non-blank)", required = true) @RequestParam String reason
     ) {
-        purchaseService.deletePurchase(warehouseId, purchaseId);
+        purchaseService.deletePurchase(warehouseId, purchaseId, reason);
         return ResponseEntity.noContent().build();
     }
 

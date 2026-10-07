@@ -73,6 +73,8 @@ class AuthControllerWebMvcTest {
     @MockBean
     private JwtSessionProperties jwtSessionProperties;
     @MockBean
+    private mexa.club.authservice.service.LoginAttemptService loginAttemptService;
+    @MockBean
     private JwtRequestFilter jwtRequestFilter;
     @MockBean
     private SwaggerAccessFilter swaggerAccessFilter;
@@ -80,7 +82,7 @@ class AuthControllerWebMvcTest {
     @Test
     void login_returnsAccessAndRefreshTokens_andSetsCookie() throws Exception {
         LoginRequest req = new LoginRequest();
-        req.setUsername("admin");
+        req.setUsernameOrEmail("admin");
         req.setPassword("password");
 
         Authentication auth = new UsernamePasswordAuthenticationToken(

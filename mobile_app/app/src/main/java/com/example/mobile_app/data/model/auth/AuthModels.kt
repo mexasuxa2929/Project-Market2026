@@ -2,7 +2,8 @@ package com.example.mobile_app.data.model.auth
 
 data class LoginRequest(
     val usernameOrEmail: String,
-    val password: String
+    val password: String,
+    val deviceId: String? = null
 )
 
 data class RegisterRequest(
@@ -17,10 +18,11 @@ data class VerifyEmailRequest(
 )
 
 data class RefreshTokenRequest(
-    val refreshToken: String
+    val refreshToken: String,
+    val deviceId: String? = null
 )
 
-data class GoogleAuthRequest(val idToken: String)
+data class GoogleAuthRequest(val idToken: String, val deviceId: String? = null)
 
 data class ForgotPasswordRequest(
     val email: String

@@ -33,6 +33,9 @@ services:
   order:
     url: ${ORDER_SERVICE_URL:http://localhost:8085}
 
+jwt:
+  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+
 app:
   internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
   realtime:
@@ -47,6 +50,7 @@ payme:
   checkout-url: ${PAYME_CHECKOUT_URL:https://checkout.paycom.uz/}
   callback-path: ${PAYME_CALLBACK_PATH:/payment/payme/callback}
   timeout-ms: ${PAYME_TIMEOUT_MS:12000}
+  api-url: ${PAYME_API_URL:https://checkout.paycom.uz/api}
 
 springdoc:
   api-docs:

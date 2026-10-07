@@ -12,6 +12,11 @@ object TokenManager {
     private const val KEY_EMAIL = "email"
     private const val KEY_FULL_NAME = "full_name"
     private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"  // Unix ms
+    private const val KEY_DEVICE_ID = "device_id"
+
+    /** Logout ham o'chirmasligi kerak: qurilma identifikatori o'rnatilishga tegishli. */
+    private val devicePrefs
+        get() = MexaMarketApp.instance.getSharedPreferences("mexa_device_prefs", Context.MODE_PRIVATE)
 
     private val prefs
         get() = MexaMarketApp.instance.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -40,6 +45,15 @@ object TokenManager {
     var tokenExpiresAt: Long
         get() = prefs.getLong(KEY_TOKEN_EXPIRES_AT, 0L)
         set(value) = prefs.edit { putLong(KEY_TOKEN_EXPIRES_AT, value) }
+
+    /**
+     * Ushbu qurilma uchun barqaror identifikator (bir marta yaratiladi, saqlanadi).
+     * Login/refresh so'rovlariga yuboriladi: backend shu deviceId bilan faol sessiya topsa,
+     * token qayta yaratilganda (recreate) yangi qurilma sifatida hisoblamaydi.
+     */
+    val deviceId: String
+        get() = devicePrefs.getString(KEY_DEVICE_ID, null)?.takeIf { it.isNotBlank() }
+            ?: java.util.UUID.randomUUID().toString().also { devicePrefs.edit { putString(KEY_DEVICE_ID, it) } }
 
     val isLoggedIn: Boolean
         get() = accessToken != null

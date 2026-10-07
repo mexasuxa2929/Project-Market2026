@@ -21,6 +21,9 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
 
     Optional<UserSession> findByRefreshTokenHashAndActiveTrue(String refreshTokenHash);
 
+    /** Bir xil qurilmaga (deviceId) bog'langan eng so'nggi faol sessiya. */
+    Optional<UserSession> findFirstByUserIdAndDeviceIdAndActiveTrueOrderByLastUsedAtDesc(UUID userId, String deviceId);
+
     long deleteByExpiresAtBefore(LocalDateTime threshold);
 
     /** Barcha (tizim bo'yicha) muddati o'tmagan faol sessiyalar soni. */

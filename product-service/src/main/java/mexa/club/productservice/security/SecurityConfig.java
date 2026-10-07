@@ -38,6 +38,8 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Error dispatch (sendError → /error) — aks holda 400/404 o'rniga 403
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -58,7 +60,8 @@ public class SecurityConfig {
                                 "/api/brands/**",
                                 "/api/manufacturers/**"
                         ).authenticated()
-                        .anyRequest().permitAll()
+                        // Yangi endpointlar default-ochiq bo'lmasin: qolgan hammasi JWT talab qiladi
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 

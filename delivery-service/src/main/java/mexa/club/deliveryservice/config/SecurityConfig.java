@@ -26,12 +26,16 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Error dispatch (sendError → /error) xavfsizlikdan o'tishi shunday:
+                        // aks holda 400/404 o'rniga tushirilmagan 403 chiqadi
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
                         .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/api/deliveries/track/**").permitAll()
+                        .requestMatchers("/api/delivery/pricing/**").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("DELIVERY_MANAGE")
                         .requestMatchers("/api/courier/**").hasAuthority("DELIVERY_STATUS_UPDATE")
-                        .requestMatchers("/api/deliveries/**", "/api/delivery/fee").authenticated()
+                        .requestMatchers("/api/deliveries/**", "/api/delivery/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)

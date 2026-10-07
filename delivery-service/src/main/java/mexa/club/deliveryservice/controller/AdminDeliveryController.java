@@ -162,6 +162,12 @@ public class AdminDeliveryController {
         return ApiResponse.ok(deliveryService.getCourierById(id));
     }
 
+    @GetMapping("/couriers/by-user")
+    @Operation(summary = "Kuryerni user ID bo'yicha topish (rol tekshiruvi uchun)")
+    public ApiResponse<Courier> getCourierByUser(@RequestParam UUID userId) {
+        return ApiResponse.ok(deliveryService.getCourierByUserId(userId));
+    }
+
     @DeleteMapping("/couriers/{id}")
     public ApiResponse<Void> deleteCourier(@PathVariable UUID id) {
         deliveryService.deleteCourier(id);
@@ -171,6 +177,68 @@ public class AdminDeliveryController {
     @GetMapping("/couriers/stats")
     public ApiResponse<?> courierStats() {
         return ApiResponse.ok(deliveryService.courierStats());
+    }
+
+    @GetMapping("/couriers/by-warehouse")
+    @Operation(summary = "Omborga biriktirilgan kuryerlar (warehouseId bo'yicha, chalkashmaydi)")
+    public ApiResponse<List<Courier>> couriersByWarehouse(@RequestParam UUID warehouseId) {
+        return ApiResponse.ok(deliveryService.warehouseCouriers(warehouseId));
+    }
+
+    @GetMapping("/couriers/stats/by-warehouse")
+    @Operation(summary = "Ombor kuryerlari yetkazmalar statistikasi",
+            description = "Har bir kuryer uchun jami/faol/yetkazilgan/muvaffaqiyatsiz/qaytarilgan/bugungi yetkazmalar soni")
+    public ApiResponse<List<mexa.club.deliveryservice.dto.CourierWarehouseStatsResponse>> courierStatsByWarehouse(
+            @RequestParam UUID warehouseId) {
+        return ApiResponse.ok(deliveryService.courierStatsByWarehouse(warehouseId));
+    }
+
+    @GetMapping("/couriers/unassigned")
+    @Operation(summary = "Hech qaysi omborga biriktirilmagan kuryerlar")
+    public ApiResponse<List<Courier>> unassignedCouriers() {
+        return ApiResponse.ok(deliveryService.unassignedCouriers());
+    }
+
+    @PutMapping("/couriers/{id}/warehouse")
+    @Operation(summary = "Kuryerni omborga biriktirish (ID orqali)")
+    public ApiResponse<Courier> assignCourierToWarehouse(
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, UUID> body) {
+        UUID warehouseId = body != null ? body.get("warehouseId") : null;
+        if (warehouseId == null) {
+            throw new mexa.club.deliveryservice.exception.DeliveryException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "VALIDATION", "warehouseId majburiy");
+        }
+        return ApiResponse.ok(deliveryService.assignCourierToWarehouse(id, warehouseId));
+    }
+
+    @DeleteMapping("/couriers/{id}/warehouse")
+    @Operation(summary = "Kuryerni ombordan bo'shatish")
+    public ApiResponse<Courier> unassignCourierFromWarehouse(@PathVariable UUID id) {
+        return ApiResponse.ok(deliveryService.unassignCourierFromWarehouse(id));
+    }
+
+    @GetMapping("/couriers/{id}/deliveries")
+    @Operation(summary = "Kuryerning barcha yetkazmalari va holatlari")
+    public ApiResponse<List<DeliveryResponse>> courierDeliveries(@PathVariable UUID id) {
+        return ApiResponse.ok(deliveryService.courierDeliveriesById(id));
+    }
+
+    @PostMapping("/deliveries/{id}/unassign")
+    @Operation(summary = "Buyurtmani kuryerdan olib tashlash (PENDING'ga qaytaradi)")
+    public ApiResponse<DeliveryResponse> unassignDelivery(
+            @PathVariable UUID id,
+            @RequestBody(required = false) DeliveryNoteRequest request) {
+        return ApiResponse.ok(deliveryService.unassignDelivery(
+                id, request != null ? request.note() : null));
+    }
+
+    @GetMapping("/courier-actions")
+    @Operation(summary = "Kuryer amallari tarixi (kim/qachon/nima — admin/superadmin)")
+    public ApiResponse<List<mexa.club.deliveryservice.entity.CourierActionAudit>> courierActions(
+            @RequestParam(required = false) UUID courierId,
+            @RequestParam(required = false) UUID actorId) {
+        return ApiResponse.ok(deliveryService.courierAudit(courierId, actorId));
     }
 
     @GetMapping("/couriers/export")
@@ -207,6 +275,21 @@ public class AdminDeliveryController {
     public ApiResponse<Void> deleteZone(@PathVariable UUID id) {
         deliveryService.deleteZone(id);
         return ApiResponse.ok(null);
+    }
+
+    @GetMapping("/delivery-zones/audit")
+    @Operation(summary = "Zona o'zgarishlar tarixi (audit)")
+    public ApiResponse<List<mexa.club.deliveryservice.entity.DeliveryZoneAudit>> zoneAudit(
+            @RequestParam(required = false) UUID zoneId) {
+        return ApiResponse.ok(deliveryService.zoneAudit(zoneId));
+    }
+
+    @PostMapping("/delivery-zones/apply-defaults")
+    @Operation(summary = "Global standartni barcha zonalarga qo'llash")
+    public ApiResponse<java.util.Map<String, Object>> applyDefaults(
+            @Valid @RequestBody DeliveryZoneRequest request) {
+        int updated = deliveryService.applyDefaultsToAll(request);
+        return ApiResponse.ok(java.util.Map.of("updated", updated));
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────

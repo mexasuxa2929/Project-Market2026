@@ -75,6 +75,8 @@ services:
     url: ${AUTH_SERVICE_URL:http://localhost:8081}
   delivery:
     url: ${DELIVERY_SERVICE_URL:http://localhost:8088}
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8091}
 
 springdoc:
   api-docs:

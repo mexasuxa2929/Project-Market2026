@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,10 +39,17 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import mexa.club.desktop_app.market.api.ApiClient
+import mexa.club.desktop_app.market.api.stringField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,6 +99,68 @@ fun EditRoleDialog(
     // O'z-o'zini himoya qilish: joriy foydalanuvchi SUPER_ADMIN bo'lsa va yangi rol SUPER_ADMIN emas
     val isSelfSuperAdmin = isCurrentUser && user.rawRoleNames.contains("ROLE_SUPER_ADMIN")
     val selfDemote = isSelfSuperAdmin && selectedRole != null && selectedRole!!.name != "ROLE_SUPER_ADMIN"
+
+    // ── Biriktirma tekshiruvi ──────────────────────────────────────────
+    // Rol almashtirishdan oldin: user qaysidir rolda qayerdadir biriktirilganmi?
+    val currentCode = remember(user.id) {
+        user.rawRoleNames.firstOrNull() ?: user.roles.firstOrNull()?.let { roleToCode(it) }
+    }
+    var bindingsLoading by remember(user.id) { mutableStateOf(true) }
+    var bindingsFailed by remember(user.id) { mutableStateOf(false) }
+    var courierName by remember(user.id) { mutableStateOf<String?>(null) }
+    var courierWarehouse by remember(user.id) { mutableStateOf<String?>(null) }
+    var courierActiveDeliveries by remember(user.id) { mutableStateOf(0) }
+    var adminWarehouses by remember(user.id) { mutableStateOf<List<String>>(emptyList()) }
+
+    LaunchedEffect(user.id) {
+        bindingsLoading = true
+        bindingsFailed = false
+        runCatching {
+            withContext(Dispatchers.IO) {
+                // 1) Kuryer biriktirmasi
+                val courierData = runCatching {
+                    val text = ApiClient.get("/api/admin/couriers/by-user?userId=${user.id}")
+                    ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) } as? JsonObject
+                }.getOrNull()
+                if (courierData != null) {
+                    courierName = courierData.stringField("name").ifEmpty { null }
+                    val activeCount = courierData.stringField("currentDeliveries").toIntOrNull() ?: 0
+                    courierActiveDeliveries = activeCount
+                    val warehouseId = courierData.stringField("warehouseId")
+                    courierWarehouse = if (warehouseId.isNotBlank()) {
+                        // Ombor nomini aniqlaymiz (topilmasa ID qisqartmasi)
+                        runCatching {
+                            val whText = ApiClient.get("/api/warehouses?page=0&size=100")
+                            val whData = ApiClient.parseJsonObject(whText)?.let { ApiClient.dataObject(it) }
+                            val items = (whData?.get("items") as? JsonArray)
+                                ?: (whData?.get("content") as? JsonArray)
+                                ?: JsonArray(emptyList())
+                            items.mapNotNull { it as? JsonObject }
+                                .firstOrNull { it.stringField("id") == warehouseId }
+                                ?.stringField("name")?.ifEmpty { null }
+                        }.getOrNull() ?: warehouseId.take(8)
+                    } else null
+                }
+                // 2) Admin biriktirmalari (omborlar)
+                val adminText = runCatching {
+                    ApiClient.get("/api/warehouses/by-admin?userId=${user.id}")
+                }.getOrNull()
+                val adminArr = adminText?.let { ApiClient.parseJsonObject(it)?.get("data") as? JsonArray }
+                    ?: JsonArray(emptyList())
+                adminWarehouses = adminArr.mapNotNull { el ->
+                    (el as? JsonObject)?.stringField("name")?.ifEmpty { null }
+                }
+            }
+        }.onFailure { bindingsFailed = true }
+        bindingsLoading = false
+    }
+
+    val roleChanged = selectedRole != null && selectedRole!!.name != currentCode
+    val courierRisk = roleChanged && currentCode == "ROLE_COURIER" && courierName != null
+    val adminRisk = roleChanged && adminWarehouses.isNotEmpty()
+    val hasRisk = courierRisk || adminRisk
+    // Rol tanlovi o'zgarsa tasdiq qayta so'raladi
+    var acknowledged by remember(user.id, selectedRole) { mutableStateOf(false) }
 
     // Backenddan kelgan real permission kodlari ko'rsatiladi (masalan "USER_VIEW").
     // Local fake catalog fallback ishlatilmaydi — rolga ruxsat bo'lmasa bo'sh blok ko'rsatiladi.
@@ -344,6 +415,88 @@ fun EditRoleDialog(
                         }
                     }
 
+                    // ── Biriktirma ogohlantirishi ─────────────────────────
+                    if (bindingsLoading) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MexaWarehouseColors.textMuted,
+                            )
+                            Text(
+                                "Biriktirmalar tekshirilmoqda...",
+                                fontSize = 12.sp,
+                                color = MexaWarehouseColors.textMuted,
+                            )
+                        }
+                    } else if (bindingsFailed) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Biriktirmalarni tekshirib bo'lmadi — rolni ehtiyotkorlik bilan almashtiring",
+                            fontSize = 12.sp,
+                            color = MexaWarehouseColors.textMuted,
+                        )
+                    } else if (hasRisk) {
+                        Spacer(Modifier.height(12.dp))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFFEF3C7), RoundedCornerShape(10.dp))
+                                .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(10.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                "⚠ Diqqat: biriktirma topildi",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E),
+                            )
+                            if (courierRisk) {
+                                Text(
+                                    "Bu foydalanuvchi “${courierName}” sifatida " +
+                                        (if (courierWarehouse != null) "“$courierWarehouse” omboriga kuryer qilib biriktirilgan" else "kuryer qilingan") + ". " +
+                                        if (courierActiveDeliveries > 0) "Hozir ${courierActiveDeliveries} ta faol buyurtmasi bor — avval ularni Kuryerlar bo'limidan boshqa kuryerga o'tkazing yoki kuryerdan oling. " else "",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF92400E),
+                                    lineHeight = 17.sp,
+                                )
+                            }
+                            if (adminRisk) {
+                                Text(
+                                    "Bu foydalanuvchi admin sifatida omborga biriktirilgan: ${adminWarehouses.joinToString(", ")}. " +
+                                        "Rol almashtirilsa, ombor nazoratsiz qolishi mumkin — avval Warehouses bo'limidan adminlikdan bo'shating.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF92400E),
+                                    lineHeight = 17.sp,
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(top = 4.dp),
+                            ) {
+                                androidx.compose.material3.Checkbox(
+                                    checked = acknowledged,
+                                    onCheckedChange = { if (!isSaving) acknowledged = it },
+                                    colors = androidx.compose.material3.CheckboxDefaults.colors(
+                                        checkedColor = MexaWarehouseColors.indigoAccent,
+                                    ),
+                                )
+                                Text(
+                                    "Tushundim, baribir almashtirish",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF92400E),
+                                )
+                            }
+                        }
+                    }
+
                     // ── Self-demote warning ─────────────────────────────────
                     if (selfDemote) {
                         Spacer(Modifier.height(8.dp))
@@ -386,9 +539,10 @@ fun EditRoleDialog(
                         onClick = {
                             val role = selectedRole ?: return@Button
                             if (selfDemote) return@Button
+                            if (hasRisk && !acknowledged) return@Button
                             onSave(role.id)   // UUID ni to'g'ridan-to'g'ri uzatamiz
                         },
-                        enabled = !isSaving && selectedRole != null && availableRoles.isNotEmpty() && !selfDemote,
+                        enabled = !isSaving && selectedRole != null && availableRoles.isNotEmpty() && !selfDemote && (!hasRisk || acknowledged),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MexaWarehouseColors.indigoAccent,
                         ),

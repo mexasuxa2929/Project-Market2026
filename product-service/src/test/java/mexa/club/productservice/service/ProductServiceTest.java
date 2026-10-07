@@ -1,10 +1,18 @@
 package mexa.club.productservice.service;
 
+import mexa.club.productservice.client.OrderUsageClient;
+import mexa.club.productservice.client.ShopReviewClient;
+import mexa.club.productservice.client.WarehouseStockClient;
+import mexa.club.productservice.client.WarehouseVariantStockClient;
 import mexa.club.productservice.dto.ProductRequest;
 import mexa.club.productservice.dto.ProductResponse;
 import mexa.club.productservice.entity.Product;
 import mexa.club.productservice.exception.ResourceNotFoundException;
+import mexa.club.productservice.realtime.RealtimeEventPublisher;
+import mexa.club.productservice.repository.ProductPriceRepository;
+import mexa.club.productservice.repository.ProductPriceTierRepository;
 import mexa.club.productservice.repository.ProductRepository;
+import mexa.club.productservice.repository.ProductTagRepository;
 import mexa.club.productservice.storage.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,11 +20,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ProductServiceTest {
 
     @Mock
@@ -35,6 +47,22 @@ class ProductServiceTest {
     private StorageService storageService;
     @Mock
     private ReferenceDataService referenceDataService;
+    @Mock
+    private ProductPriceRepository productPriceRepository;
+    @Mock
+    private ProductPriceTierRepository productPriceTierRepository;
+    @Mock
+    private ProductTagRepository productTagRepository;
+    @Mock
+    private WarehouseStockClient warehouseStockClient;
+    @Mock
+    private WarehouseVariantStockClient warehouseProductStockClient;
+    @Mock
+    private OrderUsageClient orderUsageClient;
+    @Mock
+    private ShopReviewClient shopReviewClient;
+    @Mock
+    private RealtimeEventPublisher realtimeEventPublisher;
 
     @InjectMocks
     private ProductService productService;
@@ -81,6 +109,7 @@ class ProductServiceTest {
         when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(p)));
         when(storageService.toPublicUrl(any())).thenAnswer(inv -> "/api/files/" + inv.getArgument(0, String.class));
+        when(warehouseProductStockClient.fetchTotalStockBatch(any())).thenReturn(Map.of());
 
         var page = productService.findProducts(PageRequest.of(0, 10), null, "key", null, null, null, null, null, null, null, null, null);
 
@@ -91,7 +120,7 @@ class ProductServiceTest {
     @Test
     void deleteProduct_whenExists_deletesEntity() throws IOException {
         UUID id = UUID.randomUUID();
-        when(productRepository.existsById(id)).thenReturn(true);
+        when(productRepository.findById(id)).thenReturn(Optional.of(productEntity()));
         org.mockito.Mockito.doNothing().when(productRepository).deleteById(id);
 
         productService.deleteProduct(id);

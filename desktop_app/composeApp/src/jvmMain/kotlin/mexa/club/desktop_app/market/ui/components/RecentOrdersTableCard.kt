@@ -268,161 +268,18 @@ fun RecentOrdersTableCard(
             }
         }
         HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        run {
             val from = if (totalElements == 0) 0 else page * pageSize + 1
-            val to = min((page + 1) * pageSize, totalElements)
-            Text(
-                "$from - $to / $totalElements ta buyurtma",
-                fontSize = 13.sp,
-                color = MexaWarehouseColors.textMuted,
+            val to = minOf((page + 1) * pageSize, totalElements)
+            PaginationBar(
+                page = page,
+                pageSize = pageSize,
+                totalElements = totalElements,
+                pageSizeOptions = listOf(5, 10, 20, 50),
+                infoText = "$from - $to / $totalElements ta buyurtma",
+                onPageChange = onPageChange,
+                onPageSizeChange = onPageSizeChange,
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // Page size selector — boshqa jadvallar bilan bir xil (QATORLAR: 5/10/20/50)
-                var sizeExpanded by remember { mutableStateOf(false) }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        "QATORLAR:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MexaWarehouseColors.textMuted,
-                    )
-                    Box {
-                        Surface(
-                            onClick = { sizeExpanded = true },
-                            shape = RoundedCornerShape(6.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
-                            color = MexaWarehouseColors.surfaceLowest,
-                            modifier = Modifier.height(34.dp),
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    pageSize.toString(),
-                                    fontSize = 13.sp,
-                                    color = MexaWarehouseColors.textPrimary,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Icon(
-                                    Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = MexaWarehouseColors.textMuted,
-                                )
-                            }
-                        }
-                        DropdownMenu(
-                            expanded = sizeExpanded,
-                            onDismissRequest = { sizeExpanded = false },
-                        ) {
-                            listOf(5, 10, 20, 50).forEach { s ->
-                                DropdownMenuItem(
-                                    text = { Text(s.toString(), fontSize = 13.sp) },
-                                    onClick = { onPageSizeChange(s); sizeExpanded = false },
-                                )
-                            }
-                        }
-                    }
-                }
-                // Page nav — Warehouses/Products dagi andoza (⏮ ‹ 1 2 3 › ⏭)
-                val totalPages = if (totalElements == 0) 1 else (totalElements + pageSize - 1) / pageSize
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PageNavBtn("⏮", page > 0) { onPageChange(0) }
-                    PageNavBtn("‹", page > 0) { onPageChange(page - 1) }
-                    val half = 2
-                    val start = (page - half).coerceAtLeast(0)
-                    val end = (page + half).coerceAtMost(totalPages - 1)
-                    if (start > 0) {
-                        PageNumBtn(1, page == 0) { onPageChange(0) }
-                        if (start > 1) EllipsisLabel()
-                    }
-                    for (p in start..end) {
-                        PageNumBtn(p + 1, p == page) { onPageChange(p) }
-                    }
-                    if (end < totalPages - 1) {
-                        if (end < totalPages - 2) EllipsisLabel()
-                        PageNumBtn(totalPages, page == totalPages - 1) { onPageChange(totalPages - 1) }
-                    }
-                    PageNavBtn("›", page < totalPages - 1) { onPageChange(page + 1) }
-                    PageNavBtn("⏭", page < totalPages - 1) { onPageChange(totalPages - 1) }
-                }
-            }
         }
     }
-}
-
-@Composable
-private fun PageNavBtn(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .border(
-                1.dp,
-                if (enabled) MexaWarehouseColors.outlineVariant else MexaWarehouseColors.borderSubtle,
-                RoundedCornerShape(6.dp),
-            )
-            .background(MexaWarehouseColors.surfaceLowest, RoundedCornerShape(6.dp))
-            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (enabled) MexaWarehouseColors.textPrimary else MexaWarehouseColors.textMuted.copy(alpha = 0.4f),
-        )
-    }
-}
-
-@Composable
-private fun PageNumBtn(number: Int, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .background(
-                if (selected) MexaWarehouseColors.primary else MexaWarehouseColors.surfaceLowest,
-                RoundedCornerShape(6.dp),
-            )
-            .border(
-                1.dp,
-                if (selected) MexaWarehouseColors.primary else MexaWarehouseColors.outlineVariant,
-                RoundedCornerShape(6.dp),
-            )
-            .then(if (!selected) Modifier.clickable(onClick = onClick) else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            number.toString(),
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else MexaWarehouseColors.textPrimary,
-        )
-    }
-}
-
-@Composable
-private fun EllipsisLabel() {
-    Text(
-        "…",
-        fontSize = 13.sp,
-        color = MexaWarehouseColors.textMuted,
-        modifier = Modifier.padding(horizontal = 2.dp),
-    )
 }

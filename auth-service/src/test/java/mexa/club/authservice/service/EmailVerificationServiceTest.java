@@ -170,7 +170,8 @@ class EmailVerificationServiceTest {
                 LocalDateTime.now(ZoneOffset.UTC),
                 LocalDateTime.now(ZoneOffset.UTC).plusMinutes(2)
         );
-        Role roleUser = new Role(UUID.randomUUID(), "ROLE_USER", Set.of());
+        Role roleUser = new Role(UUID.randomUUID(), "ROLE_USER", "User", null,
+                false, null, null, null, Set.of(), Set.of());
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
         when(otpRepository.findTopByEmailOrderByCreatedAtDesc(email)).thenReturn(Optional.of(otp));

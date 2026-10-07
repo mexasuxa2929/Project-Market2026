@@ -118,10 +118,20 @@ public class StockMovementService {
             MovementType movementType,
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
+            String search,
             Pageable pageable
     ) {
+        String searchQ = search == null ? "" : search.trim();
+        java.util.Collection<UUID> searchProductIds = null;
+        if (!searchQ.isEmpty()) {
+            try {
+                searchProductIds = productReferenceService.searchProductIds(searchQ);
+            } catch (Exception e) {
+                searchProductIds = java.util.List.of();
+            }
+        }
         var page = stockMovementRepository.findAll(
-                stockMovementRepository.filterSpec(warehouseId, productId, movementType, dateFrom, dateTo),
+                stockMovementRepository.filterSpec(warehouseId, productId, movementType, dateFrom, dateTo, searchQ.isEmpty() ? null : searchQ, searchProductIds),
                 pageable);
 
         Map<UUID, ProductReferenceService.VariantSnapshot> products;

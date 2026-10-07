@@ -13,14 +13,15 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PriceChange
 import androidx.compose.material.icons.filled.RateReview
-import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -51,8 +52,9 @@ import mexa.club.desktop_app.market.ui.components.SuperAdminTopBar
 import mexa.club.desktop_app.market.ui.roles.RolesScreen
 import mexa.club.desktop_app.market.ui.products.ProductsScreen
 import mexa.club.desktop_app.market.ui.orders.OrdersScreen
-import mexa.club.desktop_app.market.ui.couriers.CouriersScreen
+import mexa.club.desktop_app.market.ui.delivery.DeliveryPricingScreen
 import mexa.club.desktop_app.market.ui.delivery.DeliveryScreen
+import mexa.club.desktop_app.market.ui.couriers.CouriersScreen
 import mexa.club.desktop_app.market.ui.notifications.NotificationsScreen
 import mexa.club.desktop_app.market.ui.templates.TemplatesScreen
 import mexa.club.desktop_app.market.ui.reports.ReportsScreen
@@ -106,8 +108,9 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
         AdminSidebarItem("Warehouses", AdminNavScreen.Warehouses, Icons.Filled.Warehouse),
         AdminSidebarItem("Products", AdminNavScreen.Products, Icons.Filled.Inventory2),
         AdminSidebarItem("Orders", AdminNavScreen.Orders, Icons.Filled.ShoppingCart),
-        AdminSidebarItem("Delivery", AdminNavScreen.Delivery, Icons.Filled.LocalShipping),
+        AdminSidebarItem("Deliveries", AdminNavScreen.Deliveries, Icons.Filled.LocalShipping),
         AdminSidebarItem("Couriers", AdminNavScreen.Couriers, Icons.Filled.DeliveryDining),
+        AdminSidebarItem("Delivery Pricing", AdminNavScreen.Delivery, Icons.Filled.PriceChange),
         AdminSidebarItem("Notifications", AdminNavScreen.Notifications, Icons.Filled.Notifications),
         AdminSidebarItem("Templates", AdminNavScreen.Templates, Icons.Filled.Description),
         AdminSidebarItem("Reports", AdminNavScreen.Reports, Icons.Filled.Assessment),
@@ -158,8 +161,9 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                         AdminNavScreen.Warehouses    -> WarehousesScreen()
                         AdminNavScreen.Products      -> ProductsScreen()
                         AdminNavScreen.Orders        -> OrdersScreen()
-                        AdminNavScreen.Delivery      -> DeliveryScreen()
+                        AdminNavScreen.Deliveries    -> DeliveryScreen()
                         AdminNavScreen.Couriers      -> CouriersScreen()
+                        AdminNavScreen.Delivery      -> DeliveryPricingScreen()
                         AdminNavScreen.Notifications -> NotificationsScreen()
                         AdminNavScreen.Templates     -> TemplatesScreen()
                         AdminNavScreen.Reports       -> ReportsScreen()

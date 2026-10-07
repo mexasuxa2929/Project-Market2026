@@ -28,7 +28,31 @@ object GatewayRealtimeHub {
     @Volatile
     private var lastDashboardRefreshEmitMs: Long = 0L
 
+    private var trailingRefreshJob: Job? = null
+
     private const val DASHBOARD_REFRESH_DEBOUNCE_MS = 3_000L
+
+    /**
+     * Kamida [DASHBOARD_REFRESH_DEBOUNCE_MS] oral bilan emit qiladi (cheklovsiz
+     * refresh bo'lmasligi uchun). Lekin oynaga tushgan oxirgi hodisa tashlab
+     * yuborilmaydi: oyna yopilgandan so'ng yana bir marta emit bo'ladi (trailing),
+     * shu bilan hech qaysi mutatsiya yo'qolmaydi.
+     */
+    private fun emitRefreshThrottled() {
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastDashboardRefreshEmitMs
+        if (elapsed >= DASHBOARD_REFRESH_DEBOUNCE_MS) {
+            lastDashboardRefreshEmitMs = now
+            scope.launch { _dashboardRefresh.emit(Unit) }
+        } else if (trailingRefreshJob == null) {
+            trailingRefreshJob = scope.launch {
+                delay(DASHBOARD_REFRESH_DEBOUNCE_MS - elapsed)
+                lastDashboardRefreshEmitMs = System.currentTimeMillis()
+                _dashboardRefresh.emit(Unit)
+                trailingRefreshJob = null
+            }
+        }
+    }
 
     fun start() {
         if (listenerJob?.isActive == true) return
@@ -42,13 +66,8 @@ object GatewayRealtimeHub {
                 }
                 try {
                     ApiClient.consumeServerSentEvents("/api/realtime/stream") { raw ->
-                        val affects = realtimeMutationAffectsSuperAdminDashboard(raw)
-                        if (affects) {
-                            val now = System.currentTimeMillis()
-                            if (now - lastDashboardRefreshEmitMs >= DASHBOARD_REFRESH_DEBOUNCE_MS) {
-                                lastDashboardRefreshEmitMs = now
-                                scope.launch { _dashboardRefresh.emit(Unit) }
-                            }
+                        if (realtimeMutationAffectsSuperAdminDashboard(raw)) {
+                            emitRefreshThrottled()
                         }
                     }
                 } catch (e: CancellationException) {

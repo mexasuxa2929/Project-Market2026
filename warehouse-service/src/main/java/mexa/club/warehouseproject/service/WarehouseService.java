@@ -252,6 +252,16 @@ public class WarehouseService {
         return warehouseAdminRepository.findAllDistinctUserIds();
     }
 
+    /** Rol almashtirishdan oldin tekshiruv: user qaysi omborlarga admin qilib biriktirilgan. */
+    @Transactional(readOnly = true)
+    public List<Map<String, String>> warehousesByAdmin(UUID userId) {
+        return warehouseAdminRepository.findByUserId(userId).stream()
+                .map(a -> Map.of(
+                        "id", a.getWarehouse().getId().toString(),
+                        "name", a.getWarehouse().getName()))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<UUID> listWarehouseAdmins(UUID warehouseId) {
         Warehouse w = warehouseRepository.findDetailById(warehouseId)

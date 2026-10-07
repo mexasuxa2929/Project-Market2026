@@ -21,6 +21,10 @@ import java.util.UUID;
 public interface StockMovementRepository extends JpaRepository<StockMovement, UUID>, JpaSpecificationExecutor<StockMovement> {
 
     default Specification<StockMovement> filterSpec(UUID warehouseId, UUID productId, MovementType movementType, LocalDateTime dateFrom, LocalDateTime dateTo) {
+        return filterSpec(warehouseId, productId, movementType, dateFrom, dateTo, null, null);
+    }
+
+    default Specification<StockMovement> filterSpec(UUID warehouseId, UUID productId, MovementType movementType, LocalDateTime dateFrom, LocalDateTime dateTo, String search, java.util.Collection<UUID> searchProductIds) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("warehouseId"), warehouseId));
@@ -28,6 +32,16 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
             if (movementType != null) predicates.add(cb.equal(root.get("movementType"), movementType));
             if (dateFrom != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), dateFrom));
             if (dateTo != null) predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), dateTo));
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim().toLowerCase(java.util.Locale.ROOT) + "%";
+                List<Predicate> searchPredicates = new ArrayList<>();
+                if (searchProductIds != null) {
+                    searchPredicates.add(root.get("productId").in(searchProductIds));
+                }
+                searchPredicates.add(cb.like(cb.lower(root.<String>get("actorUsername")), like));
+                searchPredicates.add(cb.like(cb.lower(root.<String>get("reason")), like));
+                predicates.add(cb.or(searchPredicates.toArray(new Predicate[0])));
+            }
             query.orderBy(cb.desc(root.get("createdAt")));
             return cb.and(predicates.toArray(new Predicate[0]));
         };

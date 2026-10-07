@@ -63,6 +63,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import org.jetbrains.skia.Image as SkiaImage
 
@@ -133,6 +134,13 @@ fun CategoriesManageDialog(
     var confirmItem      by remember { mutableStateOf<CategoryItem?>(null) }
     var editItem         by remember { mutableStateOf<CategoryItem?>(null) }
     var showAddCategory  by remember { mutableStateOf(false) }
+    var listPage         by remember { mutableStateOf(0) }
+    var listPageSize     by remember { mutableStateOf(20) }
+
+    val sortedCats = remember(categories) { categories.filter { it.parentId.isEmpty() } + categories.filter { it.parentId.isNotEmpty() } }
+    val catTotalPages = if (sortedCats.isEmpty()) 1 else (sortedCats.size + listPageSize - 1) / listPageSize
+    val catSafePage = listPage.coerceIn(0, catTotalPages - 1)
+    val pagedCats = sortedCats.drop(catSafePage * listPageSize).take(listPageSize)
 
     fun load() {
         scope.launch {
@@ -307,12 +315,8 @@ fun CategoriesManageDialog(
                             }
                         }
                         else -> {
-                            val roots    = categories.filter { it.parentId.isEmpty() }
-                            val children = categories.filter { it.parentId.isNotEmpty() }
-                            val sorted   = roots + children
-
                             Column(Modifier.verticalScroll(rememberScrollState())) {
-                                sorted.forEachIndexed { index, cat ->
+                                pagedCats.forEachIndexed { index, cat ->
                                     val isChild = cat.parentId.isNotEmpty()
                                     Row(
                                         Modifier
@@ -381,13 +385,26 @@ fun CategoriesManageDialog(
                                             }
                                         }
                                     }
-                                    if (index < sorted.lastIndex) {
+                                    if (index < pagedCats.lastIndex) {
                                         HorizontalDivider(color = MexaWarehouseColors.borderSubtle.copy(alpha = 0.5f))
                                     }
                                 }
                             }
                         }
                     }
+                }
+
+                if (!loading && error == null && sortedCats.isNotEmpty()) {
+                    val fromIdx = catSafePage * listPageSize + 1
+                    val toIdx = minOf((catSafePage + 1) * listPageSize, sortedCats.size)
+                    PaginationBar(
+                        page = catSafePage,
+                        pageSize = listPageSize,
+                        totalElements = sortedCats.size,
+                        infoText = "$fromIdx - $toIdx / ${sortedCats.size} ta kategoriya",
+                        onPageChange = { listPage = it },
+                        onPageSizeChange = { s -> listPageSize = s; listPage = 0 },
+                    )
                 }
 
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle)

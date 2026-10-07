@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warehouse
@@ -35,6 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -57,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,6 +72,7 @@ import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.api.totalElementsString
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 // ─── Model ─────────────────────────────────────────────────────────────────────
@@ -104,6 +108,9 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
     var gridView by remember { mutableStateOf(true) }
     var statusExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var editTarget by remember { mutableStateOf<WarehouseCardData?>(null) }
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
     var selectedWarehouse by remember { mutableStateOf<WarehouseCardData?>(null) }
     val isSuperAdmin = AuthSession.isSuperAdmin
 
@@ -171,8 +178,17 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) {
         reload()
+        // Real-time: boshqa klient/mutatsiya → SSE → jim yangilash (spinner chiqmaydi)
         GatewayRealtimeHub.dashboardRefresh.drop(1).collect {
-            reload()
+            refreshAfterEdit()
+        }
+    }
+
+    // SSE uzilib qolsa ham ro'yxat yangi qolsin: 30 soniyada bir jim fon yangilashi.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            refreshAfterEdit()
         }
     }
 
@@ -181,6 +197,20 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
             onDismiss = { showAddDialog = false },
             onSaved = {
                 showAddDialog = false
+                reload()
+            },
+        )
+    }
+
+    editTarget?.let { target ->
+        EditWarehouseDialog(
+            warehouseId = target.id,
+            initialName = target.name,
+            initialCapacity = target.capacity,
+            initialActive = target.isActive,
+            onDismiss = { editTarget = null },
+            onSaved = {
+                editTarget = null
                 reload()
             },
         )
@@ -198,6 +228,10 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
         }
         matchSearch && matchStatus
     }
+
+    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val safePage = page.coerceIn(0, totalPages - 1)
+    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     // Stats
     val totalCount = warehouses.size
@@ -335,7 +369,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { searchQuery = it; page = 0 },
                 placeholder = { Text("Ombor nomi bo'yicha...", fontSize = 14.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.weight(1f),
@@ -354,7 +388,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
                     statusOptions.forEach { opt ->
-                        DropdownMenuItem(text = { Text(opt) }, onClick = { statusFilter = opt; statusExpanded = false })
+                        DropdownMenuItem(text = { Text(opt) }, onClick = { statusFilter = opt; statusExpanded = false; page = 0 })
                     }
                 }
             }
@@ -365,7 +399,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                     .background(MexaWarehouseColors.surfaceLowest, RoundedCornerShape(8.dp)),
             ) {
                 IconButton(
-                    onClick = { gridView = true },
+                    onClick = { gridView = true; page = 0 },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (gridView) MexaWarehouseColors.indigoAccent else Color.Transparent,
                     ),
@@ -379,7 +413,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                     )
                 }
                 IconButton(
-                    onClick = { gridView = false },
+                    onClick = { gridView = false; page = 0 },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (!gridView) MexaWarehouseColors.indigoAccent else Color.Transparent,
                     ),
@@ -411,17 +445,36 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
 
             else -> if (gridView) {
                 WarehousesGrid(
-                    warehouses = filtered,
+                    warehouses = paged,
                     onCardClick = { selectedWarehouse = it },
                     onAddClick = { showAddDialog = true },
                     showAddCard = isSuperAdmin,
+                    onEditClick = { editTarget = it },
                 )
             } else {
                 WarehousesList(
-                    warehouses = filtered,
+                    warehouses = paged,
                     onRowClick = { selectedWarehouse = it },
+                    onEditClick = { editTarget = it },
                 )
             }
+        }
+
+        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        if (!loading && error == null && filtered.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = safePage,
+                pageSize = pageSize,
+                totalElements = filtered.size,
+                infoText = run {
+                    val from = safePage * pageSize + 1
+                    val to = minOf((safePage + 1) * pageSize, filtered.size)
+                    "$from - $to / ${filtered.size} ta ombor"
+                },
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }
@@ -434,6 +487,7 @@ private fun WarehousesGrid(
     onCardClick: (WarehouseCardData) -> Unit,
     onAddClick: () -> Unit,
     showAddCard: Boolean = true,
+    onEditClick: (WarehouseCardData) -> Unit = {},
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         // 1 column < 600dp, 2 columns < 1000dp, 3 columns otherwise
@@ -449,7 +503,7 @@ private fun WarehousesGrid(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     rowItems.forEach { w ->
                         if (w != null) {
-                            WarehouseCard(w, onClick = { onCardClick(w) }, modifier = Modifier.weight(1f))
+                            WarehouseCard(w, onClick = { onCardClick(w) }, modifier = Modifier.weight(1f), onEditClick = { onEditClick(w) })
                         } else {
                             AddWarehouseCard(onClick = onAddClick, modifier = Modifier.weight(1f))
                         }
@@ -470,6 +524,7 @@ private fun WarehousesGrid(
 private fun WarehousesList(
     warehouses: List<WarehouseCardData>,
     onRowClick: (WarehouseCardData) -> Unit,
+    onEditClick: (WarehouseCardData) -> Unit = {},
 ) {
     Surface(
         Modifier
@@ -492,6 +547,7 @@ private fun WarehousesList(
                 Text("Mahsulotlar", Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Text("Bugungi kirim", Modifier.weight(0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Text("Kam qolgan", Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
+                Spacer(Modifier.width(32.dp))
             }
             warehouses.forEachIndexed { index, w ->
                 Row(
@@ -553,6 +609,9 @@ private fun WarehousesList(
                         fontWeight = FontWeight.SemiBold,
                         color = if (w.lowStockCount > 0) Color(0xFFDC2626) else MexaWarehouseColors.textMuted,
                     )
+                    IconButton(onClick = { onEditClick(w) }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Tahrirlash", tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
@@ -562,7 +621,12 @@ private fun WarehousesList(
 // ─── Warehouse card ───────────────────────────────────────────────────────────
 
 @Composable
-private fun WarehouseCard(w: WarehouseCardData, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun WarehouseCard(
+    w: WarehouseCardData,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onEditClick: (WarehouseCardData) -> Unit = {},
+) {
     Surface(
         modifier = modifier
             .border(1.dp, MexaWarehouseColors.borderSubtle, RoundedCornerShape(12.dp))
@@ -593,6 +657,9 @@ private fun WarehouseCard(w: WarehouseCardData, onClick: () -> Unit, modifier: M
                             Text("• ${w.adminCount} admin", fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
                         }
                     }
+                }
+                IconButton(onClick = { onEditClick(w) }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = "Tahrirlash", tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(16.dp))
                 }
             }
 

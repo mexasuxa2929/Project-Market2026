@@ -312,10 +312,30 @@ public class WarehouseStockController {
             @Parameter(description = "Filter by movement type (e.g. PURCHASE, SALES_OUT, ADJUSTMENT, TRANSFER_IN, TRANSFER_OUT)") @RequestParam(required = false) MovementType movementType,
             @Parameter(description = "Filter movements created at or after this timestamp (ISO-8601)") @RequestParam(required = false) LocalDateTime dateFrom,
             @Parameter(description = "Filter movements created at or before this timestamp (ISO-8601)") @RequestParam(required = false) LocalDateTime dateTo,
+            @Parameter(description = "Free-text search across product name, actor username and reason") @RequestParam(required = false) String search,
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable
     ) {
-        var page = warehouseStockService.stockHistory(warehouseId, productVariantId, movementType, dateFrom, dateTo, pageable);
+        var page = warehouseStockService.stockHistory(warehouseId, productVariantId, movementType, dateFrom, dateTo, search, pageable);
         return ResponseEntity.ok(ApiResponse.ok(PagePayload.of(page)));
+    }
+
+    @Operation(summary = "Delete stock lot", description = "Deletes a single lot (e.g. created via adjustment, without a purchase) and rolls back its quantity from the stock line. A non-blank deletion reason is required. Requires STOCK_MANAGE authority.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Lot deleted and stock rolled back"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Missing or blank deletion reason"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient authority — STOCK_MANAGE required"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Warehouse or lot not found")
+    })
+    @DeleteMapping("/lots/{lotId}")
+    @PreAuthorize("hasAuthority('STOCK_MANAGE')")
+    public ResponseEntity<Void> deleteLot(
+            @Parameter(description = "UUID of the warehouse", required = true) @PathVariable UUID warehouseId,
+            @Parameter(description = "UUID of the lot to delete", required = true) @PathVariable UUID lotId,
+            @Parameter(description = "Reason for deletion (required, non-blank)", required = true) @RequestParam String reason
+    ) {
+        warehouseStockService.deleteLot(warehouseId, lotId, reason);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "List stock lots", description = "Returns the FIFO lots for a warehouse, optionally filtered by product. Each lot carries its own unit cost from the originating purchase. Requires STOCK_VIEW authority.")

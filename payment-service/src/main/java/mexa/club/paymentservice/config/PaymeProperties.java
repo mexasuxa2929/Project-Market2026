@@ -15,6 +15,8 @@ public class PaymeProperties {
     private String checkoutUrl = "https://checkout.paycom.uz/";
     private String callbackPath = "/payment/payme/callback";
     private long timeoutMs = 12_000L;
+    /** Merchant API (outbound: CancelTransaction va h.k.) */
+    private String apiUrl = "https://checkout.paycom.uz/api";
 
     public String currentKey() {
         return "prod".equalsIgnoreCase(activeKey) ? prodKey : testKey;

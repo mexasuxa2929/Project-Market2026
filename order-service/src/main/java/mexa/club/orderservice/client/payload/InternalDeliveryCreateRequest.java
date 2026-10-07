@@ -10,6 +10,14 @@ public record InternalDeliveryCreateRequest(
         String recipientName,
         String recipientPhone,
         String region,
-        String district
+        String district,
+        Double weightKg,
+        java.math.BigDecimal orderSubtotal
 ) {
+    public InternalDeliveryCreateRequest(
+            UUID orderId, UUID warehouseId, String address,
+            String recipientName, String recipientPhone,
+            String region, String district) {
+        this(orderId, warehouseId, address, recipientName, recipientPhone, region, district, null, null);
+    }
 }

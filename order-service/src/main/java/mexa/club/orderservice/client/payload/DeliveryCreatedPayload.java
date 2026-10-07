@@ -6,6 +6,7 @@ import java.util.UUID;
 public record DeliveryCreatedPayload(
         UUID id,
         String trackingCode,
-        String status
+        String status,
+        java.math.BigDecimal deliveryFee
 ) {
 }

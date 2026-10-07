@@ -54,7 +54,7 @@ import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
-private data class ZoneRow(
+private data class DeliveryZoneItem(
     val id: String,
     val region: String,
     val district: String,
@@ -65,19 +65,19 @@ private data class ZoneRow(
 @Composable
 fun DeliveryZonesDialog(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var zones by remember { mutableStateOf<List<ZoneRow>>(emptyList()) }
+    var zones by remember { mutableStateOf<List<DeliveryZoneItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var showForm by remember { mutableStateOf(false) }
-    var editZone by remember { mutableStateOf<ZoneRow?>(null) }
+    var editZone by remember { mutableStateOf<DeliveryZoneItem?>(null) }
 
-    suspend fun fetchZones(): List<ZoneRow> = withContext(Dispatchers.IO) {
+    suspend fun fetchZones(): List<DeliveryZoneItem> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/delivery-zones")
         val root = ApiClient.parseJsonObject(text)
         val arr = (root?.get("data") as? JsonArray) ?: JsonArray(emptyList())
         arr.mapNotNull { el ->
             val z = el as? JsonObject ?: return@mapNotNull null
             val id = z.stringField("id").ifEmpty { return@mapNotNull null }
-            ZoneRow(
+            DeliveryZoneItem(
                 id = id,
                 region = z.stringField("region"),
                 district = z.stringField("district"),
