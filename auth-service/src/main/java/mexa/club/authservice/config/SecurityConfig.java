@@ -73,6 +73,8 @@ public class SecurityConfig {
 
                 // ── Preflight ──────────────────────────────────────────────────
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Error dispatch (sendError/exception) xato statusini to'g'ri qaytarsin
+                .requestMatchers("/error").permitAll()
 
                 // ── Swagger / OpenAPI / Actuator ───────────────────────────────
                 .requestMatchers(

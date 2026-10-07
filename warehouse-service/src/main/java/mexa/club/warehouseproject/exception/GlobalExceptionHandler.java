@@ -147,6 +147,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("BAD_REQUEST", "Missing required parameter: " + ex.getParameterName()));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail("NOT_FOUND", "Endpoint not found"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> fallback(Exception ex) throws Exception {
         // Actuator/Security ichki exceptionlarini Spring o'zi hal qilsin.
