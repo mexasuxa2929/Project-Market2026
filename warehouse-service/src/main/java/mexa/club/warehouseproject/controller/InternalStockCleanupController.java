@@ -30,7 +30,7 @@ public class InternalStockCleanupController {
 
     public InternalStockCleanupController(
             WarehouseStockService warehouseStockService,
-            @Value("${app.internal-api.key:change-me-internal}") String internalApiKey
+            @Value("${app.internal-api.key:dev-only-insecure-internal-api-key-0123456789}") String internalApiKey
     ) {
         this.warehouseStockService = warehouseStockService;
         this.internalApiKey = internalApiKey;

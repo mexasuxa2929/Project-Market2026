@@ -4,6 +4,8 @@ import mexa.club.searchservice.client.ProductServiceClient;
 import mexa.club.searchservice.controller.InternalSearchController;
 import mexa.club.searchservice.dto.ProductIndexRequest;
 import mexa.club.searchservice.service.SearchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,8 @@ import java.util.Map;
 @Component
 @ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "true", matchIfMissing = true)
 public class ScheduledReindexJob {
+    private static final Logger log = LoggerFactory.getLogger(ScheduledReindexJob.class);
+
     private final ProductServiceClient productServiceClient;
     private final SearchService searchService;
 
@@ -23,26 +27,33 @@ public class ScheduledReindexJob {
         this.searchService = searchService;
     }
 
-    @Scheduled(cron = "0 0 2 * * *")
-    public void reindexNightly() {
-        List<Map<String, Object>> products = extractContent(productServiceClient.products(0, 1000).data());
-        for (Map<String, Object> p : products) {
-            searchService.index(new ProductIndexRequest(
-                    String.valueOf(p.get("id")),
-                    String.valueOf(p.get("name")),
-                    String.valueOf(p.getOrDefault("barcode", "")),
-                    String.valueOf(p.getOrDefault("description", "")),
-                    String.valueOf(p.getOrDefault("categoryId", "")),
-                    String.valueOf(p.getOrDefault("categoryName", "")),
-                    String.valueOf(p.getOrDefault("brandId", "")),
-                    String.valueOf(p.getOrDefault("brandName", "")),
-                    List.of(),
-                    parseDouble(p.get("salePrice")),
-                    Boolean.TRUE.equals(p.get("active")),
-                    String.valueOf(p.getOrDefault("imageUrl", "")),
-                    true,
-                    LocalDateTime.now()
-            ));
+    @Scheduled(
+            fixedDelayString = "${app.search.reindex-interval-ms:600000}",
+            initialDelayString = "${app.search.reindex-initial-delay-ms:30000}")
+    public void reindex() {
+        try {
+            List<Map<String, Object>> products = extractContent(productServiceClient.products(0, 1000).data());
+            for (Map<String, Object> p : products) {
+                searchService.index(new ProductIndexRequest(
+                        String.valueOf(p.get("id")),
+                        String.valueOf(p.get("name")),
+                        String.valueOf(p.getOrDefault("barcode", "")),
+                        String.valueOf(p.getOrDefault("description", "")),
+                        String.valueOf(p.getOrDefault("categoryId", "")),
+                        String.valueOf(p.getOrDefault("categoryName", "")),
+                        String.valueOf(p.getOrDefault("brandId", "")),
+                        String.valueOf(p.getOrDefault("brandName", "")),
+                        List.of(),
+                        parseDouble(p.get("salePrice")),
+                        Boolean.TRUE.equals(p.get("active")),
+                        String.valueOf(p.getOrDefault("imageUrl", "")),
+                        true,
+                        LocalDateTime.now()
+                ));
+            }
+            log.debug("Search reindex completed: {} products", products.size());
+        } catch (Exception e) {
+            log.warn("Search reindex failed: {}", e.getMessage());
         }
     }
 

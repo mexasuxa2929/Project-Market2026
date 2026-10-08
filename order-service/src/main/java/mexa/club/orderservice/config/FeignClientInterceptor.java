@@ -25,7 +25,7 @@ public class FeignClientInterceptor implements RequestInterceptor {
 
     public FeignClientInterceptor(
             @Value("${app.internal-secret}") String internalSecret,
-            @Value("${app.shop.internal-api-key:change-me-internal}") String shopInternalApiKey
+            @Value("${app.shop.internal-api-key:dev-only-insecure-internal-api-key-0123456789}") String shopInternalApiKey
     ) {
         this.internalSecret = internalSecret;
         this.shopInternalApiKey = shopInternalApiKey;

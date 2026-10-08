@@ -49,24 +49,24 @@ logging:
     org.hibernate.orm.core: WARN
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
   jwt:
     access-token-ttl: ${APP_JWT_ACCESS_TOKEN_TTL:900}
     refresh-token-ttl: ${APP_JWT_REFRESH_TOKEN_TTL:604800}
   swagger:
     username: ${APP_SWAGGER_USERNAME:swagger}
-    password: ${APP_SWAGGER_PASSWORD:change-me-now}
+    password: ${APP_SWAGGER_PASSWORD:dev-only-swagger-password}
     basic-auth:
       enabled: ${APP_SWAGGER_BASIC_AUTH_ENABLED:false}
   email-otp:
     ttl-seconds: ${EMAIL_OTP_TTL_SECONDS:300}
     resend-min-interval-seconds: ${EMAIL_OTP_RESEND_MIN_INTERVAL_SECONDS:60}
     max-attempts: ${EMAIL_OTP_MAX_ATTEMPTS:5}
-    hash-secret: ${EMAIL_OTP_HASH_SECRET:change-me}
+    hash-secret: ${EMAIL_OTP_HASH_SECRET:dev-only-otp-hash-secret}
   mail:
     from: ${MAIL_FROM:no-reply@example.com}
   cleanup:

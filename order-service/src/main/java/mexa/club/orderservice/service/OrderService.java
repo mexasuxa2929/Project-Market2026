@@ -455,48 +455,90 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         order.setClosedAt(LocalDateTime.now());
         order.setCancelReason(reason == null || reason.isBlank() ? "Cancelled by user" : reason);
-        try {
-            reverseSalesOut(order);
-        } catch (Exception ex) {
-            // Zaxira qaytarish ishlamasa ham buyurtma bekor qilinadi — faqat log
-            log.warn("Reverse sales-out failed for order {}, cancellation continues: {}", order.getId(), ex.getMessage());
-        }
-        if (order.getDiscountCode() != null) {
-            try {
-                discountClient.cancel(order.getId());
-            } catch (FeignException ex) {
-                // do not block cancellation
-            }
-        }
+        applyCancellationSideEffects(order, order.getCancelReason());
         saveStatusHistory(order.getId(), prev, OrderStatus.CANCELLED, userId, order.getCancelReason());
         Order savedCancel = orderRepository.save(order);
         realtimePublisher.orderStatusChanged(savedCancel.getId(), savedCancel.getUserId(), savedCancel.getStatus().name());
         return orderMapper.toResponse(savedCancel);
     }
 
+    /**
+     * H10: ruxsat etilgan holatlar jadvali — ma'nosi yo'q kechishlar
+     * (masalan DELIVERED → SHIPPED, CANCELLED → CONFIRMED) oldini oladi.
+     */
+    private static final Map<OrderStatus, java.util.Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+            OrderStatus.PENDING, java.util.EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.CANCELLED),
+            OrderStatus.CONFIRMED, java.util.EnumSet.of(OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.CANCELLED),
+            OrderStatus.PROCESSING, java.util.EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED),
+            OrderStatus.SHIPPED, java.util.EnumSet.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED),
+            OrderStatus.DELIVERED, java.util.EnumSet.of(OrderStatus.REFUNDED),
+            OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class),
+            OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class)
+    );
+
     @Transactional
     public OrderResponse updateStatus(UUID id, UUID changedBy, UpdateOrderStatusRequest request) {
         Order order = getOrder(id);
         OrderStatus prev = order.getStatus();
-        order.setStatus(request.status());
-        if (request.status() == OrderStatus.REFUNDED) {
+        OrderStatus next = request.status();
+        // Idempotent: bir xil holatni qayta yuborish xato emas.
+        if (next == prev) {
+            return orderMapper.toResponse(order);
+        }
+        java.util.Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.get(prev);
+        if (allowed == null || !allowed.contains(next)) {
+            throw new OrderServiceException(HttpStatus.BAD_REQUEST, "INVALID_TRANSITION",
+                    "Order holatini " + prev + " → " + next + " o'zgartirib bo'lmaydi");
+        }
+        order.setStatus(next);
+        if (next == OrderStatus.REFUNDED) {
             order.setPaymentStatus(PaymentStatus.REFUNDED);
         }
         // Yopilish holatlari: daromad yopilish sanasiga bog'lanadi
-        if (isClosedStatus(request.status())) {
+        if (isClosedStatus(next)) {
             if (order.getClosedAt() == null) {
                 order.setClosedAt(LocalDateTime.now());
             }
         } else {
             order.setClosedAt(null);
         }
-        saveStatusHistory(order.getId(), prev, request.status(), changedBy, request.reason());
+        saveStatusHistory(order.getId(), prev, next, changedBy, request.reason());
         Order saved = orderRepository.save(order);
         realtimePublisher.orderStatusChanged(saved.getId(), saved.getUserId(), saved.getStatus().name());
-        if (request.status() == OrderStatus.CONFIRMED && prev != OrderStatus.CONFIRMED) {
+        if (next == OrderStatus.CONFIRMED && prev != OrderStatus.CONFIRMED) {
             scheduleDeliveryCreation(saved);
         }
+        // H10: bekor qilinish yon ta'sirlari — zaxira qaytarish, chegirma va delivery.
+        if (next == OrderStatus.CANCELLED) {
+            applyCancellationSideEffects(saved, request.reason());
+        }
         return orderMapper.toResponse(saved);
+    }
+
+    /**
+     * Buyurtma bekor qilinganda bajariladigan yon ta'sirlar (H10):
+     * 1) warehouse zaxirasi qaytariladi, 2) chegirma bekor qilinadi,
+     * 3) delivery bekor qilinadi (delivery-service ichki endpoint).
+     * Har biri mustaqil — biri ishlamasa qolganlari ham bajariladi.
+     */
+    private void applyCancellationSideEffects(Order order, String reason) {
+        try {
+            reverseSalesOut(order);
+        } catch (Exception ex) {
+            log.warn("Reverse sales-out failed for cancelled order {}: {}", order.getId(), ex.getMessage());
+        }
+        if (order.getDiscountCode() != null) {
+            try {
+                discountClient.cancel(order.getId());
+            } catch (FeignException ex) {
+                log.warn("Discount cancel failed for order {}: {}", order.getId(), ex.getMessage());
+            }
+        }
+        try {
+            deliveryClient.cancelByOrderId(order.getId());
+        } catch (Exception ex) {
+            log.warn("Delivery cancel failed for order {}: {}", order.getId(), ex.getMessage());
+        }
     }
 
     private static boolean isClosedStatus(OrderStatus status) {
@@ -581,10 +623,12 @@ public class OrderService {
             // (fee = baza + km + kg; subtotal >= freeAbove bo'lsa bepul).
             BigDecimal orderSubtotal = orderRepository.findById(orderId)
                     .map(Order::getSubtotal).orElse(null);
+            // D-H1: ombor ↔ manzil masofasi (Haversine) — narx engine'da perKm uchun.
+            Double distanceKm = resolveDistanceKm(warehouseId, address);
             DeliveryCreatedPayload created = deliveryClient
                     .createDelivery(new InternalDeliveryCreateRequest(
                             orderId, warehouseId, fullAddress, recipientName, phone,
-                            region, district, null, orderSubtotal))
+                            region, district, null, orderSubtotal, distanceKm))
                     .data();
             log.info("Delivery created for order {}: trackingCode={}", orderId, created != null ? created.trackingCode() : "n/a");
             // Hisoblangan fee'ni order totaliga yozamiz: total = subtotal + fee - discount.
@@ -594,6 +638,43 @@ public class OrderService {
         } catch (Exception ex) {
             log.warn("Delivery creation failed for order {}: {}", orderId, ex.getMessage());
         }
+    }
+
+    /**
+     * D-H1: ombor pozitsiyasi (geo-service) ↔ mijoz manzili (shop address lat/lng)
+     * orasidagi Haversine masofasi, km. Qaysidir taraf topilmasa null — narx
+     * engine masofasiz (0 km) hisoblaydi, delivery yaratish to'xtamaydi.
+     */
+    private Double resolveDistanceKm(UUID warehouseId, InternalAddressPayload address) {
+        try {
+            if (warehouseId == null || address == null
+                    || address.latitude() == null || address.longitude() == null) {
+                return null;
+            }
+            GeoZoneClient.GeoPositionEnvelope env = geoZoneClient.warehousePosition(warehouseId);
+            if (env == null || !env.success() || env.data() == null
+                    || env.data().latitude() == null || env.data().longitude() == null) {
+                return null;
+            }
+            return haversineKm(env.data().latitude(), env.data().longitude(),
+                    address.latitude(), address.longitude());
+        } catch (Exception ex) {
+            log.warn("Distance calc failed for warehouse {}: {}", warehouseId, ex.getMessage());
+            return null;
+        }
+    }
+
+    static Double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double km = r * c;
+        // 0.1 km aniqligi yetarli (narx hisobi uchun).
+        return Math.round(km * 10.0) / 10.0;
     }
 
     /**

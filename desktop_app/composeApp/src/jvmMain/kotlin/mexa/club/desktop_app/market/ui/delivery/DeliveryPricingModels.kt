@@ -182,6 +182,8 @@ data class SurchargeRow(
     val deliveryType: String,
     val priority: Int,
     val active: Boolean,
+    val startAt: String,
+    val endAt: String,
 )
 
 fun JsonObject.toSurcharge() = SurchargeRow(
@@ -199,6 +201,8 @@ fun JsonObject.toSurcharge() = SurchargeRow(
     deliveryType = str("deliveryType"),
     priority = int("priority"),
     active = bool("active"),
+    startAt = str("startAt"),
+    endAt = str("endAt"),
 )
 
 data class TypeRow(

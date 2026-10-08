@@ -68,21 +68,30 @@ public class DeliveryPricingService {
     private final PricingSettingsRepository settingsRepository;
     private final PricingEventRepository eventRepository;
 
-    /** Asosiy hisoblash. */
-    @Transactional
+    /** Asosiy hisoblash (D-H6: read-only — event repository'ning o'z tranzaksiyasida yoziladi). */
     public PricingQuote calculate(PricingRequest req) {
         LocalDateTime time = req.time() != null ? req.time() : LocalDateTime.now();
         DeliveryZone zone = resolveZone(req);
         DeliveryType type = req.deliveryType() == null || req.deliveryType().isBlank()
                 ? null
-                : deliveryTypeRepository.findByNameIgnoreCase(req.deliveryType().trim()).orElse(null);
+                : deliveryTypeRepository.findByNameIgnoreCase(req.deliveryType().trim())
+                        // D-H9: o'chirilgan (active=false) delivery type narxga ta'sir qilmaydi.
+                        .filter(t -> Boolean.TRUE.equals(t.getActive()))
+                        .orElse(null);
+        // D-H6: har bir jadval quote ichida bir marta o'qiladi (takroriy to'liq skan yo'q).
+        List<FreeDeliveryRule> freeRules = freeDeliveryRuleRepository.findAllByOrderByMinOrderAsc();
+        List<CartIncentiveRule> incentiveRules = incentiveRuleRepository.findAllByOrderByThresholdAmountAsc();
+        List<PricingRule> allRules = ruleRepository.findAllByOrderByPriorityDescCreatedAtDesc();
+        List<DeliverySurcharge> allSurcharges = sortedSurcharges();
+        PricingSettings settings = settingsRepository.findById(PricingSettings.DEFAULT_ID)
+                .orElseGet(() -> settingsRepository.findAll().stream().findFirst().orElse(null));
 
         double km = req.distanceKm() != null && req.distanceKm() > 0 ? req.distanceKm() : 0.0;
         double kg = req.weightKg() != null && req.weightKg() > 0 ? req.weightKg() : 0.0;
         BigDecimal orderValue = req.orderValue();
 
         // ── 1. Base formula ────────────────────────────────────────────────
-        PricingRule rule = pickRule(zone, type, time);
+        PricingRule rule = pickRule(zone, type, time, allRules);
         BigDecimal base = pick(rule != null ? rule.getBaseFee() : null, zone != null ? zone.getFee() : null, DEFAULT_BASE);
         BigDecimal perKm = pick(rule != null ? rule.getPricePerKm() : null, zone != null ? zone.getPerKmFee() : null, DEFAULT_PER_KM);
         BigDecimal perKg = pick(rule != null ? rule.getPricePerKg() : null, zone != null ? zone.getPerKgFee() : null, DEFAULT_PER_KG);
@@ -110,7 +119,8 @@ public class DeliveryPricingService {
         }
 
         // ── 3. Surcharges ─────────────────────────────────────────────────
-        for (DeliverySurcharge s : sortedSurcharges()) {
+        List<String> appliedSurchargeNames = new ArrayList<>();
+        for (DeliverySurcharge s : allSurcharges) {
             if (!matches(s, req, km, kg, orderValue, type, time)) continue;
             BigDecimal amount = "PERCENT".equalsIgnoreCase(s.getFeeType())
                     ? fee.multiply(s.getFee()).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
@@ -118,6 +128,7 @@ public class DeliveryPricingService {
             if (amount.signum() <= 0) continue;
             surchargeLines.add(new SurchargeLine(s.getName(), s.getConditionType(), amount));
             surchargeTotal = surchargeTotal.add(amount);
+            if (s.getName() != null) appliedSurchargeNames.add(s.getName());
         }
 
         BigDecimal beforeDiscount = fee.add(surchargeTotal);
@@ -129,9 +140,11 @@ public class DeliveryPricingService {
         FreeDeliveryRule applicableFree = null;
         CartIncentiveRule applicableIncentive = null;
 
-        // ── 4. Free delivery threshold ────────────────────────────────────
+        // ── 4. Free delivery: zona chegarasi (D-H10) yoki free-delivery qoidasi ──
+        boolean zoneFree = zone != null && zone.getFreeAbove() != null && orderValue != null
+                && orderValue.compareTo(zone.getFreeAbove()) >= 0;
         if (orderValue != null) {
-            applicableFree = freeDeliveryRuleRepository.findAllByOrderByMinOrderAsc().stream()
+            applicableFree = freeRules.stream()
                     .filter(r -> activeAt(r.getActive(), r.getStartAt(), r.getEndAt(), time))
                     .filter(r -> matchesZone(r.getZoneId(), zone))
                     .filter(r -> matchesType(r.getDeliveryType(), req.deliveryType()))
@@ -139,16 +152,20 @@ public class DeliveryPricingService {
                     .max(Comparator.comparing(FreeDeliveryRule::getMinOrder))
                     .orElse(null);
         }
-        if (applicableFree != null) {
+        if (zoneFree || applicableFree != null) {
             free = true;
-            freeRuleName = applicableFree.getName();
-            BigDecimal target = round(applicableFree.getDeliveryFee())
-                    .max(BigDecimal.ZERO).min(beforeDiscount);
+            freeRuleName = applicableFree != null ? applicableFree.getName()
+                    : "Zona: " + zone.getRegion() + "/" + zone.getDistrict() + " (bepul chegarasi)";
+            BigDecimal target = BigDecimal.ZERO;
+            if (!zoneFree && applicableFree != null) {
+                target = round(applicableFree.getDeliveryFee())
+                        .max(BigDecimal.ZERO).min(beforeDiscount);
+            }
             fee = target;
             discount = beforeDiscount.subtract(target);
         } else if (orderValue != null) {
             // ── 5. Cart incentive reward (AMOUNT / PERCENT / FREE) ────────
-            applicableIncentive = incentiveRuleRepository.findAllByOrderByThresholdAmountAsc().stream()
+            applicableIncentive = incentiveRules.stream()
                     .filter(r -> activeAt(r.getActive(), r.getStartAt(), r.getEndAt(), time))
                     .filter(r -> orderValue.compareTo(r.getThresholdAmount()) >= 0)
                     .max(Comparator.comparing(CartIncentiveRule::getThresholdAmount))
@@ -170,8 +187,6 @@ public class DeliveryPricingService {
         if (discount.signum() < 0) discount = BigDecimal.ZERO;
 
         // ── 6. Real cost va margin ────────────────────────────────────────
-        PricingSettings settings = settingsRepository.findById(PricingSettings.DEFAULT_ID)
-                .orElseGet(() -> settingsRepository.findAll().stream().findFirst().orElse(null));
         BigDecimal cost = BigDecimal.ZERO;
         if (settings != null) {
             cost = settings.getBaseCost().add(settings.getPerKmCost().multiply(BigDecimal.valueOf(km)))
@@ -181,13 +196,18 @@ public class DeliveryPricingService {
         BigDecimal margin = fee.subtract(cost);
 
         // ── 7. Cart incentive tavsiyasi ───────────────────────────────────
-        IncentiveInfo incentive = buildIncentive(orderValue, fee, time, zone, req.deliveryType());
+        IncentiveInfo incentive = buildIncentive(orderValue, fee, time, zone, req.deliveryType(),
+                freeRules, incentiveRules);
 
         // ── 8. Analytics event ────────────────────────────────────────────
         if (req.recordEvent()) {
-            recordEvent(req, zone, type, base, distanceFee, weightFee, surchargeTotal, discount, fee, cost, margin,
-                    free, applicableFree != null ? applicableFree.getMinOrder()
-                            : (applicableIncentive != null ? applicableIncentive.getThresholdAmount() : null));
+            // D-H4: thresholdAmount — event qaysi threshold'ga exposed bo'lgani
+            // (qoida hali bajarilmagan bo'lsa keyingi threshold).
+            BigDecimal threshold = applicableFree != null ? applicableFree.getMinOrder()
+                    : (applicableIncentive != null ? applicableIncentive.getThresholdAmount()
+                    : (incentive != null ? incentive.nextThreshold() : null));
+            recordEvent(req, zone, type, rule, base, distanceFee, weightFee, surchargeTotal, discount, fee, cost, margin,
+                    free, threshold, req.source(), String.join(", ", appliedSurchargeNames));
         }
 
         Integer minutes = type != null ? type.getEstimatedMinutes() : null;
@@ -208,24 +228,26 @@ public class DeliveryPricingService {
     /** Faqat narx + taxminiy kun (eski /api/delivery/fee endpointlari uchun). */
     public PricingQuote quote(String region, String district, Double distanceKm, Double weightKg, BigDecimal orderValue) {
         return calculate(new PricingRequest(null, region, district, distanceKm, weightKg, orderValue, null,
-                LocalDateTime.now(), null, false));
+                LocalDateTime.now(), null, false, "QUOTE"));
     }
 
     // ─── Incentive ─────────────────────────────────────────────────────────
 
     private IncentiveInfo buildIncentive(BigDecimal orderValue, BigDecimal currentFee, LocalDateTime time,
-                                          DeliveryZone zone, String deliveryType) {
+                                          DeliveryZone zone, String deliveryType,
+                                          List<FreeDeliveryRule> freeRules,
+                                          List<CartIncentiveRule> incentiveRules) {
         if (orderValue == null) return null;
         record Threshold(String name, BigDecimal amount, String rewardType, BigDecimal rewardValue, String template) {}
 
         List<Threshold> thresholds = new ArrayList<>();
-        for (FreeDeliveryRule r : freeDeliveryRuleRepository.findAllByOrderByMinOrderAsc()) {
+        for (FreeDeliveryRule r : freeRules) {
             if (!activeAt(r.getActive(), r.getStartAt(), r.getEndAt(), time)) continue;
             if (!matchesZone(r.getZoneId(), zone) || !matchesType(r.getDeliveryType(), deliveryType)) continue;
             thresholds.add(new Threshold(r.getName(), r.getMinOrder(), "FREE", BigDecimal.ZERO,
                     "Yana {remaining} so'mlik mahsulot qo'shing va bepul yetkazib berishdan foydalaning."));
         }
-        for (CartIncentiveRule r : incentiveRuleRepository.findAllByOrderByThresholdAmountAsc()) {
+        for (CartIncentiveRule r : incentiveRules) {
             if (!activeAt(r.getActive(), r.getStartAt(), r.getEndAt(), time)) continue;
             thresholds.add(new Threshold(r.getName(), r.getThresholdAmount(), r.getRewardType(), r.getRewardValue(),
                     r.getMessageTemplate()));
@@ -271,8 +293,8 @@ public class DeliveryPricingService {
         return null;
     }
 
-    private PricingRule pickRule(DeliveryZone zone, DeliveryType type, LocalDateTime time) {
-        return ruleRepository.findAllByOrderByPriorityDescCreatedAtDesc().stream()
+    private PricingRule pickRule(DeliveryZone zone, DeliveryType type, LocalDateTime time, List<PricingRule> allRules) {
+        return allRules.stream()
                 .filter(r -> activeAt(r.getActive(), r.getStartAt(), r.getEndAt(), time))
                 .filter(r -> r.getZoneId() == null || (zone != null && r.getZoneId().equals(zone.getId())))
                 .filter(r -> r.getDeliveryType() == null || r.getDeliveryType().isBlank()
@@ -300,7 +322,12 @@ public class DeliveryPricingService {
     private boolean matches(DeliverySurcharge s, PricingRequest req, double km, double kg,
                              BigDecimal orderValue, DeliveryType type, LocalDateTime time) {
         if (!Boolean.TRUE.equals(s.getActive())) return false;
+        // D-H2: sana oralig'i — startAt/endAt belgilangan bo'lsa surcharge faqat shu davrda faol
+        // (HOLIDAY butun yil emas, faqat berilgan sanalar oralig'ida ishlaydi).
+        if (s.getStartAt() != null && time.isBefore(s.getStartAt())) return false;
+        if (s.getEndAt() != null && time.isAfter(s.getEndAt())) return false;
         String cond = s.getConditionType() == null ? "" : s.getConditionType().toUpperCase();
+        String op = s.getOperator() == null ? "GTE" : s.getOperator().toUpperCase();
         switch (cond) {
             case "PEAK_HOUR", "NIGHT", "HOLIDAY" -> {
                 if (s.getTimeFrom() == null || s.getTimeTo() == null) return false;
@@ -321,10 +348,19 @@ public class DeliveryPricingService {
                 if (s.getDeliveryType() != null && !s.getDeliveryType().equalsIgnoreCase(req.deliveryType())) return false;
                 if (type == null || !"EXPRESS".equalsIgnoreCase(type.getName())) return false;
             }
+            // D-H3: UI taklif qilgan DISTANCE/WEIGHT endi shu qiymatlarning o'zi bilan
+            // solishtiriladi (avval default → orderValue ga tushib, "masofa > 10 km"
+            // qoidasi aslida "savat ≥ 10 so'm" bo'lib ishlagan).
+            case "DISTANCE" -> {
+                if (!matchesScalar(BigDecimal.valueOf(km), s, op)) return false;
+            }
+            case "WEIGHT" -> {
+                if (!matchesScalar(BigDecimal.valueOf(kg), s, op)) return false;
+            }
             default -> {
                 // HIGH_DEMAND / REMOTE_AREA / WEATHER / boshqa: orderValue bo'yicha operator
                 if (s.getConditionValue() != null && orderValue != null) {
-                    if (!compare(orderValue, s.getOperator(), s.getConditionValue())) return false;
+                    if (!matchesScalar(orderValue, s, op)) return false;
                 }
             }
         }
@@ -333,6 +369,19 @@ public class DeliveryPricingService {
             return false;
         }
         return true;
+    }
+
+    /**
+     * D-H3: operator bo'yicha solishtirish. BETWEEN → [weightFrom..weightTo] oralig'i
+     * (min/max sifatida qayta ishlatiladi, qo'shimcha ustun shart emas).
+     */
+    private static boolean matchesScalar(BigDecimal actual, DeliverySurcharge s, String op) {
+        if ("BETWEEN".equals(op)) {
+            if (s.getWeightFrom() == null || s.getWeightTo() == null) return false;
+            return actual.compareTo(s.getWeightFrom()) >= 0 && actual.compareTo(s.getWeightTo()) <= 0;
+        }
+        if (s.getConditionValue() == null) return true;
+        return compare(actual, op, s.getConditionValue());
     }
 
     private static boolean compare(BigDecimal actual, String operator, BigDecimal value) {
@@ -380,10 +429,11 @@ public class DeliveryPricingService {
         return v == null ? BigDecimal.ZERO : v.setScale(0, RoundingMode.HALF_UP);
     }
 
-    private void recordEvent(PricingRequest req, DeliveryZone zone, DeliveryType type,
+    private void recordEvent(PricingRequest req, DeliveryZone zone, DeliveryType type, PricingRule rule,
                              BigDecimal base, BigDecimal distanceFee, BigDecimal weightFee,
                              BigDecimal surchargeTotal, BigDecimal discount, BigDecimal fee,
-                             BigDecimal cost, BigDecimal margin, boolean free, BigDecimal threshold) {
+                             BigDecimal cost, BigDecimal margin, boolean free, BigDecimal threshold,
+                             String source, String surchargeNames) {
         try {
             PricingEvent e = new PricingEvent();
             e.setOrderId(req.orderId());
@@ -392,6 +442,13 @@ public class DeliveryPricingService {
             e.setWeightKg(req.weightKg() != null ? BigDecimal.valueOf(req.weightKg()) : null);
             e.setZoneId(zone != null ? zone.getId() : null);
             e.setDeliveryType(type != null ? type.getName() : req.deliveryType());
+            // D-H5: qaysi qoida qo'llanilganini yozamiz — "eng yaxshi qoidalar",
+            // "surcharge qo'llanilish soni" kabi statistikalar shundan hisoblanadi.
+            e.setRuleId(rule != null ? rule.getId() : null);
+            e.setRuleName(rule != null ? rule.getName() : null);
+            // D-H4: qayerdan kelganini belgilaymiz (CREATE | QUOTE | INCENTIVE | LEGACY_QUOTE).
+            e.setSource(source == null || source.isBlank() ? "CREATE" : source);
+            e.setSurchargeNames(surchargeNames);
             e.setBaseFee(round(base));
             e.setDistanceFee(round(distanceFee));
             e.setWeightFee(round(weightFee));

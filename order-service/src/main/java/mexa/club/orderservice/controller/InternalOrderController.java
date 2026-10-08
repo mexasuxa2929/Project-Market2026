@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -164,6 +166,35 @@ public class InternalOrderController {
         ensureInternalSecret(secret);
         long count = orderService.countOrdersByProduct(productId);
         return ApiResponse.ok(new ProductUsageCheckResponse(productId, count > 0, count));
+    }
+
+    @GetMapping("/page")
+    @Operation(
+            summary = "List orders (internal, paged)",
+            description = "Returns a paged list of orders for internal reporting (report-service). "
+                    + "Response shape matches {data:{content:[...]}} so the report service can consume it directly. "
+                    + "Caller must supply the X-Internal-Secret header."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of orders returned successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "X-Internal-Secret header is missing or incorrect")
+    })
+    public ApiResponse<Map<String, Object>> page(
+            @Parameter(description = "Shared internal secret for service-to-service authentication", required = true)
+            @RequestHeader("X-Internal-Secret") String secret,
+            @Parameter(description = "Zero-based page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 500)") @RequestParam(defaultValue = "200") int size
+    ) {
+        ensureInternalSecret(secret);
+        int safeSize = Math.max(1, Math.min(size, 500));
+        var payload = orderService.allOrders(Math.max(0, page), safeSize);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("content", payload.content());
+        data.put("page", payload.page());
+        data.put("size", payload.size());
+        data.put("totalElements", payload.totalElements());
+        data.put("totalPages", payload.totalPages());
+        return ApiResponse.ok(data);
     }
 
     private void ensureInternalSecret(String secret) {

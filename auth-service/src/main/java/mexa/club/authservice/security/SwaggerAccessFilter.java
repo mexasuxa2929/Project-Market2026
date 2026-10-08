@@ -22,7 +22,7 @@ public class SwaggerAccessFilter extends OncePerRequestFilter {
     public SwaggerAccessFilter(
             @Value("${app.swagger.basic-auth.enabled:${APP_SWAGGER_BASIC_AUTH_ENABLED:true}}") boolean enabled,
             @Value("${app.swagger.username:${APP_SWAGGER_USERNAME:swagger}}") String swaggerUsername,
-            @Value("${app.swagger.password:${APP_SWAGGER_PASSWORD:change-me-now}}") String swaggerPassword
+            @Value("${app.swagger.password:${APP_SWAGGER_PASSWORD:dev-only-swagger-password}}") String swaggerPassword
     ) {
         this.enabled = enabled;
         this.swaggerUsername = swaggerUsername;

@@ -25,7 +25,7 @@ public class WarehouseStockClient {
 
     public WarehouseStockClient(
             @Value("${app.warehouse-service.url:${WAREHOUSE_SERVICE_URL:http://localhost:8084}}") String warehouseBaseUrl,
-            @Value("${app.internal-api.key:change-me-internal}") String internalApiKey
+            @Value("${app.internal-api.key:dev-only-insecure-internal-api-key-0123456789}") String internalApiKey
     ) {
         String base = warehouseBaseUrl == null ? "" : warehouseBaseUrl.trim();
         if (base.endsWith("/")) {

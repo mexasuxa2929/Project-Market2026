@@ -75,7 +75,7 @@ data class DeliveryRow(
     val createdAt: String,
 )
 
-val DELIVERY_STATUS_OPTIONS = listOf("PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "RETURNED")
+val DELIVERY_STATUS_OPTIONS = listOf("PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "RETURNED", "CANCELLED")
 private val ALL_FILTER = "ALL"
 
 fun deliveryStatusLabel(status: String): String = when (status.uppercase()) {
@@ -86,6 +86,7 @@ fun deliveryStatusLabel(status: String): String = when (status.uppercase()) {
     "DELIVERED" -> "Yetkazildi"
     "FAILED" -> "Muvaffaqiyatsiz"
     "RETURNED" -> "Qaytarildi"
+    "CANCELLED" -> "Bekor qilingan"
     else -> status
 }
 
@@ -93,7 +94,7 @@ fun deliveryStatusColors(status: String): Pair<Color, Color> = when (status.uppe
     "DELIVERED" -> MexaWarehouseColors.statusActiveBg to MexaWarehouseColors.statusActiveFg
     "ASSIGNED", "PICKED_UP", "IN_TRANSIT" -> MexaWarehouseColors.infoBadgeBg to MexaWarehouseColors.indigoAccent
     "PENDING" -> MexaWarehouseColors.amberBadgeBg to Color(0xFFB45309)
-    "FAILED", "RETURNED" -> MexaWarehouseColors.statusBlockedBg to MexaWarehouseColors.statusBlockedFg
+    "FAILED", "RETURNED", "CANCELLED" -> MexaWarehouseColors.statusBlockedBg to MexaWarehouseColors.statusBlockedFg
     else -> MexaWarehouseColors.borderSubtle to MexaWarehouseColors.textMuted
 }
 

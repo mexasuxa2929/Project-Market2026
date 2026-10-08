@@ -66,6 +66,13 @@ public class DeliverySurcharge {
     @Column(nullable = false)
     private Boolean active = true;
 
+    /** D-H2: surcharge faqat shu davrda faol (NULL = cheklov yo'q). */
+    @Column(name = "start_at")
+    private LocalDateTime startAt;
+
+    @Column(name = "end_at")
+    private LocalDateTime endAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

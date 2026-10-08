@@ -384,6 +384,11 @@ fun OrderDetailDialog(
 
                         // ── Status update ────────────────────────────────────────
                         Text("Holatni o'zgartirish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
+                        val currentStatus = d.status.uppercase()
+                        val allowedStatuses = ORDER_ALLOWED_TRANSITIONS[currentStatus]
+                            ?.plus(currentStatus)
+                            ?.let { allowed -> ORDER_STATUS_OPTIONS.filter { it in allowed } }
+                            ?: ORDER_STATUS_OPTIONS
                         ExposedDropdownMenuBox(expanded = statusExpanded, onExpandedChange = { statusExpanded = it }) {
                             OutlinedTextField(
                                 value = orderStatusLabel(newStatus),
@@ -394,7 +399,7 @@ fun OrderDetailDialog(
                                 shape = RoundedCornerShape(8.dp),
                             )
                             ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                                ORDER_STATUS_OPTIONS.forEach { opt ->
+                                allowedStatuses.forEach { opt ->
                                     DropdownMenuItem(text = { Text(orderStatusLabel(opt)) }, onClick = { newStatus = opt; statusExpanded = false })
                                 }
                             }

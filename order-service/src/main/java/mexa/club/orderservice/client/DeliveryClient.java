@@ -18,6 +18,10 @@ public interface DeliveryClient {
     @PostMapping("/internal/deliveries/create")
     InternalApiEnvelope<DeliveryCreatedPayload> createDelivery(@RequestBody InternalDeliveryCreateRequest request);
 
+    /** H10: order bekor qilinganda delivery'ni bekor qilish. */
+    @PostMapping("/internal/deliveries/cancel")
+    InternalApiEnvelope<Void> cancelByOrderId(@RequestParam("orderId") java.util.UUID orderId);
+
     @GetMapping("/api/delivery/pricing/quote")
     InternalApiEnvelope<DeliveryQuotePayload> quote(
             @RequestParam("region") String region,

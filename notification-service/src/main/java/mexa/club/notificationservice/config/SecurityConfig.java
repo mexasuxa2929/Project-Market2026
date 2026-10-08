@@ -32,7 +32,10 @@ public class SecurityConfig {
                         .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/api/admin/templates/**").hasAuthority("NOTIFICATION_MANAGE")
                         .requestMatchers("/api/admin/**").hasAuthority("NOTIFICATION_MANAGE")
-                        .requestMatchers("/api/notifications/my").hasAuthority("NOTIFICATION_VIEW")
+                        // H8: /my prefix butun foydalanuvchi endpointlarini qamrab oladi
+                        // (faqat /my emas — /my/unread-count va kelajakdagi yo'llar ham).
+                        .requestMatchers("/api/notifications/my", "/api/notifications/my/**")
+                                .hasAuthority("NOTIFICATION_VIEW")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)

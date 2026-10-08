@@ -21,12 +21,13 @@ public final class PricingDtos {
             String deliveryType,
             LocalDateTime time,
             UUID orderId,
-            boolean recordEvent
+            boolean recordEvent,
+            String source
     ) {
         public static PricingRequest of(String region, String district, Double distanceKm,
                                         Double weightKg, BigDecimal orderValue, String deliveryType) {
             return new PricingRequest(null, region, district, distanceKm, weightKg,
-                    orderValue, deliveryType, LocalDateTime.now(), null, false);
+                    orderValue, deliveryType, LocalDateTime.now(), null, false, "QUOTE");
         }
     }
 

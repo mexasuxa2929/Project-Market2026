@@ -75,6 +75,21 @@ public class PricingEvent {
     @Column(name = "threshold_amount", precision = 19, scale = 2)
     private BigDecimal thresholdAmount;
 
+    /** D-H5: qaysi pricing qoida qo'llanilgan. */
+    @Column(name = "rule_id")
+    private UUID ruleId;
+
+    @Column(name = "rule_name", length = 128)
+    private String ruleName;
+
+    /** D-H4: CREATE | QUOTE | INCENTIVE | LEGACY_QUOTE (source of event). */
+    @Column(name = "source", length = 16, nullable = false)
+    private String source = "CREATE";
+
+    /** D-H5: qo'llanilgan surcharge nomlari (vergul bilan). */
+    @Column(name = "surcharge_names", columnDefinition = "TEXT")
+    private String surchargeNames;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

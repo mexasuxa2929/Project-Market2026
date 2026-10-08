@@ -602,7 +602,8 @@ public class ProductService {
         String categoryName = product.getCategoryId() == null ? null : referenceDataService.resolveCategoryName(product.getCategoryId());
         String brandName = product.getBrandId() == null ? null : referenceDataService.resolveBrandName(product.getBrandId());
         String manufacturerName = product.getManufacturerId() != null
-                ? referenceDataService.resolveManufacturerName(product.getManufacturerId())
+                ? fallbackName(referenceDataService.resolveManufacturerName(product.getManufacturerId()),
+                        product.getManufacturerName())
                 : product.getManufacturerName();
         Set<String> tags = product.getTags() == null ? Set.of() : product.getTags().stream()
                 .map(mexa.club.productservice.entity.ProductTag::getName)
@@ -860,7 +861,8 @@ public class ProductService {
         String categoryName = p.getCategoryId() == null ? null : referenceDataService.resolveCategoryName(p.getCategoryId());
         String brandName = p.getBrandId() == null ? null : referenceDataService.resolveBrandName(p.getBrandId());
         String manufacturerName = p.getManufacturerId() != null
-                ? referenceDataService.resolveManufacturerName(p.getManufacturerId())
+                ? fallbackName(referenceDataService.resolveManufacturerName(p.getManufacturerId()),
+                        p.getManufacturerName())
                 : p.getManufacturerName();
         List<ProductColorSiblingResponse> siblingColors = buildSiblingColors(p);
         Set<String> tags = p.getTags() == null ? Set.of() : p.getTags().stream()
@@ -886,7 +888,7 @@ public class ProductService {
         String categoryName = p.getCategoryId() == null ? null : categoryNameMap.get(p.getCategoryId());
         String brandName = p.getBrandId() == null ? null : brandNameMap.get(p.getBrandId());
         String manufacturerName = p.getManufacturerId() != null
-                ? manufacturerNameMap.get(p.getManufacturerId())
+                ? fallbackName(manufacturerNameMap.get(p.getManufacturerId()), p.getManufacturerName())
                 : p.getManufacturerName();
         List<ProductColorSiblingResponse> siblingColors = siblingMap.getOrDefault(p.getId(), List.of());
         Set<String> tags = p.getTags() == null ? Set.of() : p.getTags().stream()
@@ -921,6 +923,11 @@ public class ProductService {
     // ── Lokalizatsiya + yengil (slim) payload ──
 
     private static final List<String> SUPPORTED_LANGS = List.of("uz", "ru");
+
+    /** H6: katalog down bo'lsa — product'da saqlangan nom ishlatiladi. */
+    private static String fallbackName(String resolved, String stored) {
+        return resolved != null && !resolved.isBlank() ? resolved : stored;
+    }
 
     private static String normalizeLang(String lang) {
         if (lang == null) {
@@ -1153,6 +1160,9 @@ public class ProductService {
             req.setUnit(unit);
             req.setCategoryId(referenceDataService.resolveOrCreateCategoryByName(value(cols, 3)));
             req.setBrandId(referenceDataService.resolveOrCreateBrandByName(value(cols, 4)));
+            // H6: manufacturer nomi doim yoziladi; id qidiruvi (catalog mavjud bo'lsa)
+            // ixtiyoriy — uchib ketsa ham import to'xtamaydi.
+            req.setManufacturerName(value(cols, 5));
             req.setManufacturerId(referenceDataService.resolveOrCreateManufacturerByName(value(cols, 5)));
             req.setWeight(parseDouble(value(cols, 6)));
             req.setActive(parseBoolean(value(cols, 9), true));

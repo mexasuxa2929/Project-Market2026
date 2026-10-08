@@ -22,7 +22,8 @@ public class RoleRoutePredicateFactory extends AbstractRoutePredicateFactory<Rol
 
     private final String jwtSecret;
 
-    public RoleRoutePredicateFactory(@Value("${jwt.secret:default_dev_secret_key_min_32_chars}") String jwtSecret) {
+    // H11: default yo'q — jwt.secret majburiy (yolgon zaif kalit bilan ishga tushmasligi uchun).
+    public RoleRoutePredicateFactory(@Value("${jwt.secret}") String jwtSecret) {
         super(Config.class);
         this.jwtSecret = jwtSecret;
     }
@@ -59,12 +60,22 @@ public class RoleRoutePredicateFactory extends AbstractRoutePredicateFactory<Rol
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
-                Object rolesObj = claims.get("roles");
-                if (!(rolesObj instanceof Collection<?> rolesCollection)) {
-                    return false;
-                }
-                for (Object role : rolesCollection) {
-                    if (role != null && config.roles.contains(String.valueOf(role).trim())) {
+                // H7: RoleRoute qiymatlari role ("ROLE_ADMIN") yoki
+                // "perm:PRODUCT_MANAGE" (ruxsat nomi) bo'lishi mumkin.
+                List<String> required = config.roles;
+                Collection<?> rolesCollection = asCollection(claims.get("roles"));
+                Collection<?> permissionsCollection = asCollection(claims.get("permissions"));
+                for (String req : required) {
+                    if (req == null || req.isBlank()) {
+                        continue;
+                    }
+                    String value = req.trim();
+                    if (value.startsWith("perm:")) {
+                        String permission = value.substring("perm:".length()).trim();
+                        if (permissionsCollection != null && containsIgnoreCase(permissionsCollection, permission)) {
+                            return true;
+                        }
+                    } else if (rolesCollection != null && containsIgnoreCase(rolesCollection, value)) {
                         return true;
                     }
                 }
@@ -73,6 +84,19 @@ public class RoleRoutePredicateFactory extends AbstractRoutePredicateFactory<Rol
                 return false;
             }
         };
+    }
+
+    private static Collection<?> asCollection(Object value) {
+        return value instanceof Collection<?> c ? c : null;
+    }
+
+    private static boolean containsIgnoreCase(Collection<?> collection, String wanted) {
+        for (Object item : collection) {
+            if (item != null && String.valueOf(item).trim().equalsIgnoreCase(wanted)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Key getSigningKey() {

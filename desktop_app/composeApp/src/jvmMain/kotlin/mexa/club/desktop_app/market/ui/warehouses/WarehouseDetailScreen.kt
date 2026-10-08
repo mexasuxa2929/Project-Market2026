@@ -2377,6 +2377,7 @@ private fun deliveryStatusLabel(status: String): Pair<Color, String> = when (sta
     "DELIVERED" -> Color(0xFF16A34A) to "YETKAZILDI"
     "FAILED" -> Color(0xFFDC2626) to "MUVAFFAQIYATSIZ"
     "RETURNED" -> Color(0xFFEA580C) to "QAYTARILGAN"
+    "CANCELLED" -> Color(0xFF6B7280) to "BEKOR QILINGAN"
     else -> MexaWarehouseColors.textMuted to status
 }
 

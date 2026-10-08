@@ -4,9 +4,11 @@ import mexa.club.paymentservice.config.PaymeProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableConfigurationProperties(PaymeProperties.class)
+@EnableScheduling // H4: outbox retry va reconcile joblari uchun
 public class PaymentServiceApplication {
 
     public static void main(String[] args) {

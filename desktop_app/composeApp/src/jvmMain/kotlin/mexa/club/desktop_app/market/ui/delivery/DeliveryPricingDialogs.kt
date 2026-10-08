@@ -91,17 +91,17 @@ sealed class PricingField {
 private fun esc(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
 
-/** Fieldlar → JSON body (bo'sh ixtiyoriy maydonlar yuborilmaydi). */
+/** Fieldlar → JSON body (bo'sh ixtiyoriy maydonlar null sifatida yuboriladi — PUT merge'da eski qiymat tozalanadi). */
 fun buildJson(fields: List<PricingField>): String =
     fields.mapNotNull { f ->
         val key = "\"${f.key}\""
         when (f) {
             is PricingField.Text ->
-                if (f.skipWhenBlank && f.value.isBlank()) null
+                if (f.skipWhenBlank && f.value.isBlank()) "$key:null"
                 else "$key:\"${esc(f.value.trim())}\""
             is PricingField.Num -> {
                 val raw = f.value.trim()
-                if (raw.isEmpty()) null
+                if (raw.isEmpty()) "$key:null"
                 else {
                     val n = raw.toBigDecimalOrNull()
                     if (n != null) "$key:$n" else "$key:\"${esc(raw)}\""
@@ -109,7 +109,7 @@ fun buildJson(fields: List<PricingField>): String =
             }
             is PricingField.Bool -> "$key:${f.value}"
             is PricingField.Sel ->
-                if (f.value.isBlank()) null else "$key:\"${esc(f.value)}\""
+                if (f.value.isBlank()) "$key:null" else "$key:\"${esc(f.value)}\""
         }
     }.joinToString(",", "{", "}")
 

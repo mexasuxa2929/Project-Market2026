@@ -54,6 +54,20 @@ public class InternalGeoController {
         return ApiResponse.ok(service.checkPoint(new PointInPolygonRequest(lat, lng)));
     }
 
+    /** D-H1: ombor pozitsiyasi — order-service masofa (Haversine) hisoblash uchun. */
+    @GetMapping("/warehouse/{warehouseId}/position")
+    public ApiResponse<WarehousePosition> warehousePosition(
+            @PathVariable UUID warehouseId,
+            @RequestHeader(value = "X-Internal-Secret", required = false) String secret
+    ) {
+        ensureInternalSecret(secret);
+        var loc = whLocationRepo.findById(warehouseId).orElseThrow(() ->
+                new GeoException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Warehouse position not found"));
+        return ApiResponse.ok(new WarehousePosition(warehouseId, loc.getLatitude(), loc.getLongitude()));
+    }
+
+    public record WarehousePosition(UUID warehouseId, Double latitude, Double longitude) {}
+
     @GetMapping("/active")
     @Operation(summary = "Active coverage zones (for mobile map)")
     public ApiResponse<List<GeoZoneResponse>> active(

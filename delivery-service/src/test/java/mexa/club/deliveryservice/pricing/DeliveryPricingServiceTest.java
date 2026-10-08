@@ -316,7 +316,7 @@ class DeliveryPricingServiceTest {
         verify(eventRepository, never()).save(any(PricingEvent.class));
 
         service.calculate(new PricingRequest(null, null, null, 0.0, null, null, null,
-                TIME, UUID.randomUUID(), true));
+                TIME, UUID.randomUUID(), true, "CREATE"));
         verify(eventRepository, times(1)).save(any(PricingEvent.class));
     }
 
@@ -332,7 +332,7 @@ class DeliveryPricingServiceTest {
     // ─── Yordamchilar ─────────────────────────────────────────────────────
 
     private static PricingRequest request(UUID zoneId, Double km, Double kg, BigDecimal orderValue) {
-        return new PricingRequest(zoneId, null, null, km, kg, orderValue, null, TIME, null, false);
+        return new PricingRequest(zoneId, null, null, km, kg, orderValue, null, TIME, null, false, "QUOTE");
     }
 
     private void givenZone(UUID id, String fee, String perKm, String perKg) {

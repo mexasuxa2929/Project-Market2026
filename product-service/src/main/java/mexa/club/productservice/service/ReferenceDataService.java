@@ -177,7 +177,9 @@ public class ReferenceDataService {
         } catch (FeignException ignored) {
             // fallback below
         }
-        throw new NoSuchElementException("Unable to resolve/create reference: " + normalized);
+        // H6: katalog (manufacturer) mavjud bo'lmasa — id'siz saqlaymiz,
+        // nomi ProductRequest.manufacturerName'da qoladi. Import/creation to'xtamaydi.
+        return null;
     }
 
     public List<Map<String, Object>> listWarehousesSafe() {
@@ -213,7 +215,8 @@ public class ReferenceDataService {
         try {
             Map<String, Object> payload = call.execute();
             return extractName(payload);
-        } catch (FeignException | IllegalStateException ex) {
+        } catch (Exception ex) {
+            // H6: katalog mavjud bo'lmasa ham product oqimi to'xtamaydi.
             return null;
         }
     }

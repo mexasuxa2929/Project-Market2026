@@ -61,7 +61,16 @@ public class PricingAdminController {
     private final DeliveryPricingService pricingService;
     private final PricingAnalyticsService analyticsService;
 
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    private <T> T merge(T existing, com.fasterxml.jackson.databind.JsonNode patch) {
+        try {
+            return objectMapper.updateValue(existing, patch);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Noto'g'ri JSON maydoni: " + e.getOriginalMessage());
+        }
+    }
 
     // ─── Pricing rules ─────────────────────────────────────────────────────
 
@@ -82,11 +91,14 @@ public class PricingAdminController {
     }
 
     @PutMapping("/rules/{id}")
-    public ApiResponse<PricingRule> updateRule(@PathVariable UUID id, @RequestBody PricingRule rule, Authentication auth) {
-        validateRule(rule);
+    public ApiResponse<PricingRule> updateRule(@PathVariable UUID id,
+                                               @RequestBody com.fasterxml.jackson.databind.JsonNode patch,
+                                               Authentication auth) {
         PricingRule old = ruleRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         String before = json(old);
+        PricingRule rule = merge(old, patch);
+        validateRule(rule);
         rule.setId(id);
         PricingRule saved = ruleRepository.save(rule);
         audit(auth, "UPDATE", "PRICING_RULE", id, before, json(saved), rule.getChangeReason());
@@ -94,11 +106,13 @@ public class PricingAdminController {
     }
 
     @DeleteMapping("/rules/{id}")
-    public ApiResponse<Map<String, Object>> deleteRule(@PathVariable UUID id, Authentication auth) {
+    public ApiResponse<Map<String, Object>> deleteRule(@PathVariable UUID id,
+                                                       @RequestParam(required = false) String reason,
+                                                       Authentication auth) {
         PricingRule old = ruleRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         ruleRepository.delete(old);
-        audit(auth, "DELETE", "PRICING_RULE", id, json(old), null, null);
+        audit(auth, "DELETE", "PRICING_RULE", id, json(old), null, reason);
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -120,11 +134,14 @@ public class PricingAdminController {
     }
 
     @PutMapping("/free-delivery/{id}")
-    public ApiResponse<FreeDeliveryRule> updateFree(@PathVariable UUID id, @RequestBody FreeDeliveryRule rule, Authentication auth) {
-        validateFree(rule);
+    public ApiResponse<FreeDeliveryRule> updateFree(@PathVariable UUID id,
+                                                    @RequestBody com.fasterxml.jackson.databind.JsonNode patch,
+                                                    Authentication auth) {
         FreeDeliveryRule old = freeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         String before = json(old);
+        FreeDeliveryRule rule = merge(old, patch);
+        validateFree(rule);
         rule.setId(id);
         FreeDeliveryRule saved = freeRepository.save(rule);
         audit(auth, "UPDATE", "FREE_DELIVERY_RULE", id, before, json(saved), null);
@@ -132,11 +149,13 @@ public class PricingAdminController {
     }
 
     @DeleteMapping("/free-delivery/{id}")
-    public ApiResponse<Map<String, Object>> deleteFree(@PathVariable UUID id, Authentication auth) {
+    public ApiResponse<Map<String, Object>> deleteFree(@PathVariable UUID id,
+                                                       @RequestParam(required = false) String reason,
+                                                       Authentication auth) {
         FreeDeliveryRule old = freeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         freeRepository.delete(old);
-        audit(auth, "DELETE", "FREE_DELIVERY_RULE", id, json(old), null, null);
+        audit(auth, "DELETE", "FREE_DELIVERY_RULE", id, json(old), null, reason);
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -158,11 +177,14 @@ public class PricingAdminController {
     }
 
     @PutMapping("/incentives/{id}")
-    public ApiResponse<CartIncentiveRule> updateIncentive(@PathVariable UUID id, @RequestBody CartIncentiveRule rule, Authentication auth) {
-        validateIncentive(rule);
+    public ApiResponse<CartIncentiveRule> updateIncentive(@PathVariable UUID id,
+                                                          @RequestBody com.fasterxml.jackson.databind.JsonNode patch,
+                                                          Authentication auth) {
         CartIncentiveRule old = incentiveRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         String before = json(old);
+        CartIncentiveRule rule = merge(old, patch);
+        validateIncentive(rule);
         rule.setId(id);
         CartIncentiveRule saved = incentiveRepository.save(rule);
         audit(auth, "UPDATE", "CART_INCENTIVE_RULE", id, before, json(saved), null);
@@ -170,11 +192,13 @@ public class PricingAdminController {
     }
 
     @DeleteMapping("/incentives/{id}")
-    public ApiResponse<Map<String, Object>> deleteIncentive(@PathVariable UUID id, Authentication auth) {
+    public ApiResponse<Map<String, Object>> deleteIncentive(@PathVariable UUID id,
+                                                            @RequestParam(required = false) String reason,
+                                                            Authentication auth) {
         CartIncentiveRule old = incentiveRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         incentiveRepository.delete(old);
-        audit(auth, "DELETE", "CART_INCENTIVE_RULE", id, json(old), null, null);
+        audit(auth, "DELETE", "CART_INCENTIVE_RULE", id, json(old), null, reason);
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -195,11 +219,14 @@ public class PricingAdminController {
     }
 
     @PutMapping("/types/{id}")
-    public ApiResponse<DeliveryType> updateType(@PathVariable UUID id, @RequestBody DeliveryType type, Authentication auth) {
-        validateType(type);
+    public ApiResponse<DeliveryType> updateType(@PathVariable UUID id,
+                                                @RequestBody com.fasterxml.jackson.databind.JsonNode patch,
+                                                Authentication auth) {
         DeliveryType old = typeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Type not found"));
         String before = json(old);
+        DeliveryType type = merge(old, patch);
+        validateType(type);
         type.setId(id);
         DeliveryType saved = typeRepository.save(type);
         audit(auth, "UPDATE", "DELIVERY_TYPE", id, before, json(saved), null);
@@ -207,11 +234,13 @@ public class PricingAdminController {
     }
 
     @DeleteMapping("/types/{id}")
-    public ApiResponse<Map<String, Object>> deleteType(@PathVariable UUID id, Authentication auth) {
+    public ApiResponse<Map<String, Object>> deleteType(@PathVariable UUID id,
+                                                       @RequestParam(required = false) String reason,
+                                                       Authentication auth) {
         DeliveryType old = typeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Type not found"));
         typeRepository.delete(old);
-        audit(auth, "DELETE", "DELIVERY_TYPE", id, json(old), null, null);
+        audit(auth, "DELETE", "DELIVERY_TYPE", id, json(old), null, reason);
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -232,11 +261,14 @@ public class PricingAdminController {
     }
 
     @PutMapping("/surcharges/{id}")
-    public ApiResponse<DeliverySurcharge> updateSurcharge(@PathVariable UUID id, @RequestBody DeliverySurcharge s, Authentication auth) {
-        validateSurcharge(s);
+    public ApiResponse<DeliverySurcharge> updateSurcharge(@PathVariable UUID id,
+                                                          @RequestBody com.fasterxml.jackson.databind.JsonNode patch,
+                                                          Authentication auth) {
         DeliverySurcharge old = surchargeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Surcharge not found"));
         String before = json(old);
+        DeliverySurcharge s = merge(old, patch);
+        validateSurcharge(s);
         s.setId(id);
         DeliverySurcharge saved = surchargeRepository.save(s);
         audit(auth, "UPDATE", "SURCHARGE", id, before, json(saved), null);
@@ -244,11 +276,13 @@ public class PricingAdminController {
     }
 
     @DeleteMapping("/surcharges/{id}")
-    public ApiResponse<Map<String, Object>> deleteSurcharge(@PathVariable UUID id, Authentication auth) {
+    public ApiResponse<Map<String, Object>> deleteSurcharge(@PathVariable UUID id,
+                                                            @RequestParam(required = false) String reason,
+                                                            Authentication auth) {
         DeliverySurcharge old = surchargeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Surcharge not found"));
         surchargeRepository.delete(old);
-        audit(auth, "DELETE", "SURCHARGE", id, json(old), null, null);
+        audit(auth, "DELETE", "SURCHARGE", id, json(old), null, reason);
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -316,7 +350,8 @@ public class PricingAdminController {
                 req.zoneId(), req.region(), req.district(),
                 req.distanceKm(), req.weightKg(), req.orderValue(),
                 req.deliveryType(), req.time() != null ? req.time() : LocalDateTime.now(),
-                null, false));
+                // Simulator — admin what-if: exposure statistikasini buzmasligi uchun event yozilmaydi.
+                null, false, "SIMULATOR"));
         return ApiResponse.ok(quote);
     }
 
@@ -351,6 +386,9 @@ public class PricingAdminController {
     // ─── Validatsiya ──────────────────────────────────────────────────────
 
     private static void validateRule(PricingRule rule) {
+        if (rule.getName() == null || rule.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name bo'sh bo'lmasligi kerak");
+        }
         validateNonNegative(rule.getBaseFee(), "baseFee");
         validateNonNegative(rule.getPricePerKm(), "pricePerKm");
         validateNonNegative(rule.getPricePerKg(), "pricePerKg");
@@ -362,11 +400,19 @@ public class PricingAdminController {
     }
 
     private static void validateFree(FreeDeliveryRule rule) {
+        if (rule.getName() == null || rule.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name bo'sh bo'lmasligi kerak");
+        }
+        if (rule.getMinOrder() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minOrder majburiy");
+        }
         validateNonNegative(rule.getMinOrder(), "minOrder");
         validateWindow(rule.getStartAt(), rule.getEndAt());
     }
-
     private static void validateIncentive(CartIncentiveRule rule) {
+        if (rule.getName() == null || rule.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name bo'sh bo'lmasligi kerak");
+        }
         if (rule.getThresholdAmount() == null || rule.getThresholdAmount().signum() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "thresholdAmount 0 dan katta bo'lishi kerak");
         }
@@ -386,6 +432,15 @@ public class PricingAdminController {
     }
 
     private static void validateSurcharge(DeliverySurcharge s) {
+        if (s.getName() == null || s.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name bo'sh bo'lmasligi kerak");
+        }
+        if (s.getConditionType() == null || s.getConditionType().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "conditionType majburiy");
+        }
+        if (s.getFee() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fee majburiy");
+        }
         validateNonNegative(s.getFee(), "fee");
         validateNonNegative(s.getConditionValue(), "conditionValue");
         if ("PERCENT".equalsIgnoreCase(s.getFeeType()) && s.getFee() != null

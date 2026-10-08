@@ -148,6 +148,48 @@ public class InternalUserController {
         return ApiResponse.ok(new InternalUserProfileResponse(user.getId(), user.getUsername(), user.getEmail()));
     }
 
+    @Operation(
+            summary = "List users (internal, paged)",
+            description = "Returns a paged list of users for internal reporting (report-service dashboard). "
+                    + "Response shape matches {data:{content:[...]}} so the report service can consume it directly. "
+                    + "Caller must supply the X-Internal-Secret header."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of users returned successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "X-Internal-Secret header is missing or does not match")
+    })
+    @SecurityRequirements
+    @GetMapping("/users")
+    public ApiResponse<Map<String, Object>> users(
+            @Parameter(description = "Shared internal secret for service-to-service authentication", required = true)
+            @RequestHeader("X-Internal-Secret") String secret,
+            @Parameter(description = "Zero-based page number") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 500)") @RequestParam(defaultValue = "200") int size
+    ) {
+        ensureSecret(secret);
+        int safeSize = Math.max(1, Math.min(size, 500));
+        int safePage = Math.max(0, page);
+        org.springframework.data.domain.Page<User> result =
+                userRepository.findAll(org.springframework.data.domain.PageRequest.of(safePage, safeSize));
+        List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (User u : result.getContent()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", u.getId());
+            row.put("username", u.getUsername());
+            row.put("email", u.getEmail());
+            row.put("enabled", u.isEnabled());
+            row.put("createdAt", u.getCreatedAt());
+            rows.add(row);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("content", rows);
+        data.put("page", safePage);
+        data.put("size", safeSize);
+        data.put("totalElements", result.getTotalElements());
+        data.put("totalPages", result.getTotalPages());
+        return ApiResponse.ok(data);
+    }
+
     private void ensureSecret(String secret) {
         if (secret == null || !secret.equals(internalSecret)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal secret");

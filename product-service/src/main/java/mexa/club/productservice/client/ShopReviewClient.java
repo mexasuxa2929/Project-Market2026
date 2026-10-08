@@ -33,7 +33,7 @@ public class ShopReviewClient {
 
     public ShopReviewClient(
             @Value("${app.shop-service.url:${SHOP_SERVICE_URL:http://localhost:8094}}") String shopBaseUrl,
-            @Value("${app.internal-api.key:change-me-internal}") String internalApiKey
+            @Value("${app.internal-api.key:dev-only-insecure-internal-api-key-0123456789}") String internalApiKey
     ) {
         String base = shopBaseUrl == null ? "" : shopBaseUrl.trim();
         if (base.endsWith("/")) {

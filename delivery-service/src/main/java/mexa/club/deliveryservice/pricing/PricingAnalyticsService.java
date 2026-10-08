@@ -63,7 +63,28 @@ public class PricingAnalyticsService {
         out.put("deliverySubsidyTotal", r2(cost.subtract(revenue).max(BigDecimal.ZERO)));
         out.put("thresholds", thresholdPerformance(since));
         out.put("deliveriesTotal", deliveryRepository.count());
-        out.put("eventsSample", eventRepository.findRecent(since).size());
+        // D-H6: sample ro'yxat o'rniga DB'da sanoq.
+        out.put("eventsSample", eventRepository.countRecent(since));
+        // D-H4: eventlar qaysi source'dan (CREATE / QUOTE / INCENTIVE / LEGACY_QUOTE).
+        Map<String, Long> bySource = new LinkedHashMap<>();
+        for (Object[] row : eventRepository.countBySource(since)) {
+            bySource.put(String.valueOf(row[0]), (Long) row[1]);
+        }
+        out.put("eventsBySource", bySource);
+        // D-H5: eng ko'p qo'llanilgan qoidalar va surcharge to'plamlari.
+        out.put("topRules", topRows(eventRepository.topRules(since), "rule"));
+        out.put("topSurchargeSets", topRows(eventRepository.topSurchargeSets(since), "surcharge"));
+        return out;
+    }
+
+    private static List<Map<String, Object>> topRows(List<Object[]> rows, String keyName) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object[] row : rows) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put(keyName, row[0]);
+            m.put("count", row[1]);
+            out.add(m);
+        }
         return out;
     }
 

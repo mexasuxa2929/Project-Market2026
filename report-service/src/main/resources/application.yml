@@ -25,10 +25,10 @@ spring:
     spec: maximumSize=500,expireAfterWrite=15m
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}

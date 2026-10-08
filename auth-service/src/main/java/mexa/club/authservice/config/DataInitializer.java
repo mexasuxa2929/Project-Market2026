@@ -132,6 +132,10 @@ public class DataInitializer implements CommandLineRunner {
                     Permission.NOTIFICATION_VIEW
             ));
             roleRepository.save(userRole);
+        } else if (userRole.getPermissions().add(Permission.NOTIFICATION_VIEW)) {
+            // H8: eski DB'larda ROLE_USER allaqachon boshqa ruxsatlar bilan yaratilgan —
+            // NOTIFICATION_VIEW qo'shiladi (bildirishnoma sahifasi 403 bo'lmasligi uchun).
+            roleRepository.save(userRole);
         }
 
         if (warehouseRole.getPermissions().isEmpty()) {

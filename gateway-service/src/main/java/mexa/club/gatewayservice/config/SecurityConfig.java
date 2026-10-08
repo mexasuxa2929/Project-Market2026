@@ -24,6 +24,9 @@ public class SecurityConfig {
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchange -> exchange
+                        // H5: ichki endpointlar hech qachon gateway orqali ochiq emas
+                        // (route'lar ham /internal ni qo'llab-quvvatlamaydi — ikki qatlamli himoya).
+                        .pathMatchers("/internal/**").denyAll()
                         .pathMatchers("/api/realtime/**").authenticated()
                         .anyExchange().permitAll()
                 )

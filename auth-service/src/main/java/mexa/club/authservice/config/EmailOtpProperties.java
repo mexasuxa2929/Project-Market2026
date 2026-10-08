@@ -29,6 +29,6 @@ public class EmailOtpProperties {
     /**
      * OTP hash uchun secret (sha256).
      */
-    private String hashSecret = "change-me";
+    private String hashSecret = "dev-only-otp-hash-secret";
 }
 

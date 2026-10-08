@@ -3,6 +3,7 @@ package mexa.club.orderservice.client;
 import mexa.club.orderservice.config.FeignConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
@@ -21,6 +22,10 @@ public interface GeoZoneClient {
             @RequestParam("lng") String lng
     );
 
+    /** D-H1: ombor pozitsiyasi — order ↔ manzil orasidagi masofa (Haversine) uchun. */
+    @GetMapping("/internal/geo-zones/warehouse/{id}/position")
+    GeoPositionEnvelope warehousePosition(@PathVariable("id") UUID warehouseId);
+
     record GeoZoneEnvelope(boolean success, List<GeoZonePayload> data, String message) {}
 
     record GeoZonePayload(
@@ -30,4 +35,8 @@ public interface GeoZoneClient {
             String district,
             UUID warehouseId
     ) {}
+
+    record GeoPositionEnvelope(boolean success, GeoPositionPayload data, String message) {}
+
+    record GeoPositionPayload(UUID warehouseId, Double latitude, Double longitude) {}
 }

@@ -7,7 +7,7 @@ public class AnalyticsProperties {
 
     private int cacheTtlMinutes = 5;
     private int lowStockThreshold = 10;
-    private String warehouseInternalApiKey = "change-me-internal";
+    private String warehouseInternalApiKey = "dev-only-insecure-internal-api-key-0123456789";
 
     public int getCacheTtlMinutes() {
         return cacheTtlMinutes;

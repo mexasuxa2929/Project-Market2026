@@ -44,6 +44,9 @@ public class DeliveryZoneAudit {
     private BigDecimal newFreeAbove;
     @Column(name = "changed_by", length = 150)
     private String changedBy;
+    /** D-H7: buzuvchi amal sababi (delete/update reason). */
+    @Column(name = "reason", length = 255)
+    private String reason;
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

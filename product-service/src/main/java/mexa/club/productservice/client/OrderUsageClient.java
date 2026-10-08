@@ -29,7 +29,7 @@ public class OrderUsageClient {
 
     public OrderUsageClient(
             @Value("${app.order-service.url:${ORDER_SERVICE_URL:http://localhost:8085}}") String orderBaseUrl,
-            @Value("${app.internal-secret:change-me-internal}") String internalSecret
+            @Value("${app.internal-secret:dev-only-insecure-internal-api-key-0123456789}") String internalSecret
     ) {
         String base = orderBaseUrl == null ? "" : orderBaseUrl.trim();
         if (base.endsWith("/")) {

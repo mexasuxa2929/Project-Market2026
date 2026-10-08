@@ -41,8 +41,9 @@ public class PricingPublicController {
             @RequestParam(required = false) String deliveryType,
             @RequestParam(required = false) String time) {
         LocalDateTime t = parseTime(time);
+        // D-H4: user ko'rayotgan quote ham exposure sifatida yoziladi.
         return ApiResponse.ok(pricingService.calculate(new PricingRequest(
-                zoneId, region, district, distanceKm, weightKg, orderValue, deliveryType, t, null, false)));
+                zoneId, region, district, distanceKm, weightKg, orderValue, deliveryType, t, null, true, "QUOTE")));
     }
 
     @Operation(summary = "Cart incentive (kattaroq buyurtmaga undash)",
@@ -57,7 +58,7 @@ public class PricingPublicController {
             @RequestParam(required = false) String deliveryType) {
         PricingQuote q = pricingService.calculate(new PricingRequest(
                 zoneId, region, district, null, null, orderValue, deliveryType,
-                LocalDateTime.now(), null, false));
+                LocalDateTime.now(), null, true, "INCENTIVE"));
         IncentiveInfo info = q.incentive();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("currentOrderValue", orderValue);

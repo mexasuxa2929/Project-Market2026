@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Map
@@ -60,6 +62,7 @@ import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import java.math.BigDecimal
+import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -75,7 +78,11 @@ enum class DeliveryPricingTab(val title: String, val icon: ImageVector) {
     TYPES("Yetkazish turlari", Icons.Default.LocalShipping),
     SIMULATOR("Simulyator", Icons.Default.Calculate),
     ANALYTICS("Analitika", Icons.Default.BarChart),
+    VERSIONS("Versiyalar", Icons.Default.History),
+    AUDIT("Audit log", Icons.Default.FactCheck),
 }
+
+private data class DeleteTarget(val path: String, val name: String)
 
 private suspend fun fetchList(path: String): List<JsonObject> =
     dataArray(ApiClient.get(path))
@@ -98,6 +105,9 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
     var zones by remember { mutableStateOf<List<ZoneRow>>(emptyList()) }
     var analytics by remember { mutableStateOf<AnalyticsData?>(null) }
     var settings by remember { mutableStateOf<JsonObject?>(null) }
+    var versions by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
+    var auditLog by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
+    var onlyActive by remember { mutableStateOf(false) }
 
     var editRule by remember { mutableStateOf<PricingRuleRow?>(null) }
     var newRule by remember { mutableStateOf(false) }
@@ -110,7 +120,9 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
     var editType by remember { mutableStateOf<TypeRow?>(null) }
     var newType by remember { mutableStateOf(false) }
     var editZone by remember { mutableStateOf<ZoneRow?>(null) }
-    var deleteTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    var newZone by remember { mutableStateOf(false) }
+    var newVersion by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<DeleteTarget?>(null) }
     var preview by remember { mutableStateOf<JsonObject?>(null) }
 
     fun reload() {
@@ -127,15 +139,18 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
                     val z = fetchList("/api/admin/delivery-zones")
                     val a = fetchObj("$PRICING/analytics?days=30")
                     val st = fetchObj("$PRICING/settings")
+                    val v = fetchList("$PRICING/versions")
+                    val au = fetchList("$PRICING/audit")
                     PricingBundle(r.map { it.toPricingRule() }, f.map { it.toFreeRule() },
                         i.map { it.toIncentive() }, s.map { it.toSurcharge() },
-                        t.map { it.toTypeRow() }, z.map { it.toZoneRow() }, a, st)
+                        t.map { it.toTypeRow() }, z.map { it.toZoneRow() }, a, st, v, au)
                 }
             }
             result.onSuccess { q ->
                 rules = q.rules; freeRules = q.free; incentives = q.inc
                 surcharges = q.sur; types = q.types; zones = q.zones
                 analytics = q.analytics?.toAnalytics(); settings = q.settings
+                versions = q.versions; auditLog = q.audit
             }.onFailure { e -> error = e.message ?: "Xatolik" }
             loading = false
         }
@@ -224,19 +239,47 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
             onSaved = { editZone = null; reload() },
         )
     }
-    deleteTarget?.let { (kind, id, name) ->
+    if (newZone) {
+        PricingEditorDialog(
+            title = "Zona yaratish",
+            subtitle = "Hudud darajasidagi bazaviy tarif va min/max chegaralar",
+            initialFields = zoneFields(
+                ZoneRow(
+                    id = "", region = "", district = "",
+                    fee = BigDecimal.ZERO, perKmFee = BigDecimal.ZERO, perKgFee = BigDecimal.ZERO,
+                    freeAbove = null, minFee = null, maxFee = null, priority = 100, estimatedDays = 1,
+                ),
+            ),
+            saveRequest = { body -> ApiClient.post("/api/admin/delivery-zones", body) },
+            onDismiss = { newZone = false },
+            onSaved = { newZone = false; reload() },
+        )
+    }
+    deleteTarget?.let { target ->
         ConfirmDeleteDialog(
-            title = "\"$name\" o'chirilsinmi?",
+            title = "\"${target.name}\" o'chirilsinmi?",
             message = "O'chirishni qaytarib bo'lmaydi. Tarixdagi yozuvlar saqlanib qoladi.",
-            requireReason = false,
-            onConfirm = {
+            requireReason = true,
+            onConfirm = { reason ->
                 withContext(Dispatchers.IO) {
-                    ApiClient.delete("$PRICING/$kind/$id")
+                    ApiClient.delete("${target.path}?reason=${URLEncoder.encode(reason, "UTF-8")}")
                 }
                 deleteTarget = null
                 reload()
             },
             onDismiss = { deleteTarget = null },
+        )
+    }
+    if (newVersion) {
+        PricingEditorDialog(
+            title = "Yangi pricing versiyasi",
+            subtitle = "Joriy narx to'plamini yangi versiya sifatida belgilash (avvalgisi ARCHIVED bo'ladi)",
+            initialFields = listOf(
+                PricingField.Text("O'zgarish sababi", "changeReason", "Narx to'plami yangilandi", required = true),
+            ),
+            saveRequest = { body -> ApiClient.post("$PRICING/versions", body) },
+            onDismiss = { newVersion = false },
+            onSaved = { newVersion = false; reload() },
         )
     }
 
@@ -306,6 +349,19 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        if (tab == DeliveryPricingTab.RULES || tab == DeliveryPricingTab.FREE || tab == DeliveryPricingTab.INCENTIVES ||
+            tab == DeliveryPricingTab.SURCHARGES || tab == DeliveryPricingTab.TYPES
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Switch(checked = onlyActive, onCheckedChange = { onlyActive = it })
+                Text("Faqat faol qoidalar", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+            }
+        }
+
         if (loading) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MexaWarehouseColors.indigoAccent)
@@ -329,10 +385,10 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
                     onSavedSettings = { reload() },
                 )
                 DeliveryPricingTab.RULES -> RulesTab(
-                    rules = rules,
+                    rules = rules.filter { !onlyActive || it.active },
                     onCreate = { newRule = true },
                     onEdit = { editRule = it },
-                    onDelete = { r -> deleteTarget = Triple("rules", r.id, r.name) },
+                    onDelete = { r -> deleteTarget = DeleteTarget("$PRICING/rules/${r.id}", r.name) },
                     onPreview = { id ->
                         scope.launch {
                             withContext(Dispatchers.IO) { runCatching { fetchObj("$PRICING/preview?ruleId=$id") } }
@@ -342,35 +398,42 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
                     preview = preview,
                 )
                 DeliveryPricingTab.FREE -> FreeTab(
-                    rows = freeRules,
+                    rows = freeRules.filter { !onlyActive || it.active },
                     onCreate = { newFree = true },
                     onEdit = { editFree = it },
-                    onDelete = { r -> deleteTarget = Triple("free-delivery", r.id, r.name) },
+                    onDelete = { r -> deleteTarget = DeleteTarget("$PRICING/free-delivery/${r.id}", r.name) },
                 )
                 DeliveryPricingTab.INCENTIVES -> IncentiveTab(
-                    rows = incentives,
+                    rows = incentives.filter { !onlyActive || it.active },
                     onCreate = { newIncentive = true },
                     onEdit = { editIncentive = it },
-                    onDelete = { r -> deleteTarget = Triple("incentives", r.id, r.name) },
+                    onDelete = { r -> deleteTarget = DeleteTarget("$PRICING/incentives/${r.id}", r.name) },
                 )
                 DeliveryPricingTab.ZONES -> ZoneTab(
                     rows = zones,
+                    onCreate = { newZone = true },
                     onEdit = { editZone = it },
+                    onDelete = { z -> deleteTarget = DeleteTarget("/api/admin/delivery-zones/${z.id}", "${z.region} — ${z.district}") },
                 )
                 DeliveryPricingTab.SURCHARGES -> SurchargeTab(
-                    rows = surcharges,
+                    rows = surcharges.filter { !onlyActive || it.active },
                     onCreate = { newSurcharge = true },
                     onEdit = { editSurcharge = it },
-                    onDelete = { r -> deleteTarget = Triple("surcharges", r.id, r.name) },
+                    onDelete = { s -> deleteTarget = DeleteTarget("$PRICING/surcharges/${s.id}", s.name) },
                 )
                 DeliveryPricingTab.TYPES -> TypeTab(
-                    rows = types,
+                    rows = types.filter { !onlyActive || it.active },
                     onCreate = { newType = true },
                     onEdit = { editType = it },
-                    onDelete = { r -> deleteTarget = Triple("types", r.id, r.name) },
+                    onDelete = { t -> deleteTarget = DeleteTarget("$PRICING/types/${t.id}", t.name) },
                 )
                 DeliveryPricingTab.SIMULATOR -> SimulatorTab(zones = zones, types = types)
                 DeliveryPricingTab.ANALYTICS -> AnalyticsTab(analytics = analytics)
+                DeliveryPricingTab.VERSIONS -> VersionsTab(
+                    rows = versions,
+                    onCreate = { newVersion = true },
+                )
+                DeliveryPricingTab.AUDIT -> AuditTab(rows = auditLog)
             }
         }
     }
@@ -385,6 +448,8 @@ private data class PricingBundle(
     val zones: List<ZoneRow>,
     val analytics: JsonObject?,
     val settings: JsonObject?,
+    val versions: List<JsonObject>,
+    val audit: List<JsonObject>,
 )
 
 // ─── Umumiy tab ────────────────────────────────────────────────────────────
@@ -726,14 +791,33 @@ private fun IncentiveTab(
 // ─── Zonalar ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun ZoneTab(rows: List<ZoneRow>, onEdit: (ZoneRow) -> Unit) {
-    SectionCard(title = "Yetkazish zonalari", subtitle = "Narx ustuvorligi: qoida → zona → default tarif; min/max clamp zona darajasida ham mavjud") {
+private fun ZoneTab(
+    rows: List<ZoneRow>,
+    onCreate: () -> Unit,
+    onEdit: (ZoneRow) -> Unit,
+    onDelete: (ZoneRow) -> Unit,
+) {
+    SectionCard(
+        title = "Yetkazish zonalari",
+        subtitle = "Narx ustuvorligi: qoida → zona → default tarif; min/max clamp zona darajasida ham mavjud",
+        actions = {
+            Button(
+                onClick = onCreate,
+                colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.indigoAccent),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+                Text("Yangi zona", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        },
+    ) {
         if (rows.isEmpty()) {
             Text("Zona yo'q", Modifier.padding(top = 14.dp), fontSize = 13.sp, color = MexaWarehouseColors.textCaption)
         } else {
             Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                    TH("Hudud", 2f); TH("Bazaviy", 1.2f); TH("1 km", 1f); TH("1 kg", 1f); TH("min/max", 1.4f); TH("prio", 0.7f); TH("", 0.5f)
+                    TH("Hudud", 2f); TH("Bazaviy", 1.2f); TH("1 km", 1f); TH("1 kg", 1f); TH("min/max", 1.4f); TH("prio", 0.7f); TH("", 0.8f)
                 }
                 rows.forEach { z ->
                     Row(
@@ -746,9 +830,12 @@ private fun ZoneTab(rows: List<ZoneRow>, onEdit: (ZoneRow) -> Unit) {
                         TD(money(z.perKgFee), 1f)
                         TD("${z.minFee?.let { money(it) } ?: "—"}/${z.maxFee?.let { money(it) } ?: "—"}", 1.4f)
                         TD("${z.priority}", 0.7f)
-                        Row(Modifier.weight(0.5f)) {
+                        Row(Modifier.weight(0.8f)) {
                             IconButton(onClick = { onEdit(z) }, modifier = Modifier.size(26.dp)) {
-                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(15.dp), tint = MexaWarehouseColors.indigoAccent)
+                                Icon(Icons.Default.Edit, contentDescription = "Tahrirlash", modifier = Modifier.size(15.dp), tint = MexaWarehouseColors.indigoAccent)
+                            }
+                            IconButton(onClick = { onDelete(z) }, modifier = Modifier.size(26.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "O'chirish", modifier = Modifier.size(15.dp), tint = MexaWarehouseColors.danger)
                             }
                         }
                     }
@@ -812,7 +899,13 @@ private fun SurchargeTab(
                         append(s.conditionType)
                         if (s.conditionValue != null) append(" ${s.operator} ${s.conditionValue}")
                         if (s.timeFrom.isNotBlank()) append(" • vaqt ${s.timeFrom}–${s.timeTo}")
-                        if (s.weightFrom != null || s.weightTo != null) append(" • vazn ${s.weightFrom ?: "—"}–${s.weightTo ?: "—"} kg")
+                        if (s.weightFrom != null || s.weightTo != null) {
+                            append(" • oralig'i ${s.weightFrom ?: "—"}–${s.weightTo ?: "—"}")
+                            append(if (s.conditionType == "DISTANCE") " km" else " kg")
+                        }
+                        if (s.startAt.isNotBlank() || s.endAt.isNotBlank()) {
+                            append(" • okno ${s.startAt.ifBlank { "—" }} → ${s.endAt.ifBlank { "—" }}")
+                        }
                     }
                     Text(cond, fontSize = 12.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(top = 5.dp))
                     Text(
@@ -898,6 +991,116 @@ private fun AnalyticsTab(analytics: AnalyticsData?) {
             KpiCard("Buyurtmalar (event)", "${analytics.orders}", Modifier.weight(1f))
         }
         ThresholdTable(analytics.thresholds, Modifier.padding(top = 16.dp))
+    }
+}
+
+private fun shortTime(iso: String): String =
+    iso.ifBlank { "—" }.take(19).replace('T', ' ')
+
+@Composable
+private fun VersionsTab(rows: List<JsonObject>, onCreate: () -> Unit) {
+    SectionCard(
+        title = "Pricing versiyalari",
+        subtitle = "Narx to'plamining versiyalar tarixi; faol versiya bitta, eski versiyalar ARCHIVED bo'ladi",
+        actions = {
+            Button(
+                onClick = onCreate,
+                colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.indigoAccent),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+                Text("Yangi versiya", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        },
+    ) {
+        if (rows.isEmpty()) {
+            Text("Versiya yo'q", Modifier.padding(top = 14.dp), fontSize = 13.sp, color = MexaWarehouseColors.textCaption)
+        }
+        rows.forEach { v ->
+            val active = v.str("status") == "ACTIVE"
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (active) MexaWarehouseColors.infoBadgeBg else MexaWarehouseColors.surfaceContainerLow.copy(alpha = 0.5f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (active) MexaWarehouseColors.roleAdminBorder else MexaWarehouseColors.borderSubtle,
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "v${v.int("version")}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MexaWarehouseColors.textPrimary,
+                            )
+                            MiniChip(
+                                v.str("status"),
+                                if (active) MexaWarehouseColors.greenBadgeBg else MexaWarehouseColors.amberBadgeBg,
+                                if (active) MexaWarehouseColors.greenBadgeFg else MexaWarehouseColors.amberBadgeFg,
+                            )
+                        }
+                        Text(v.str("createdBy").ifBlank { "—" }, fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+                    }
+                    Text(
+                        "Sabab: ${v.str("changeReason").ifBlank { "—" }}",
+                        fontSize = 12.sp,
+                        color = MexaWarehouseColors.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 5.dp),
+                    )
+                    Text(
+                        "Amal qiladi: ${shortTime(v.str("effectiveFrom"))} → ${shortTime(v.str("effectiveUntil"))}",
+                        fontSize = 12.sp,
+                        color = MexaWarehouseColors.textMuted,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuditTab(rows: List<JsonObject>) {
+    SectionCard(title = "O'zgarishlar audit logi", subtitle = "Oxirgi 200 yozuv; o'chirish sabablari majburiy saqlanadi") {
+        if (rows.isEmpty()) {
+            Text("Yozuv yo'q", Modifier.padding(top = 14.dp), fontSize = 13.sp, color = MexaWarehouseColors.textCaption)
+        } else {
+            Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                    TH("Vaqt", 1.4f); TH("Admin", 1.2f); TH("Amal", 1f); TH("Ob'ekt", 1.6f); TH("Sabab", 2.4f)
+                }
+                rows.forEach { r ->
+                    val action = r.str("action")
+                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        TD(shortTime(r.str("createdAt")), 1.4f, color = MexaWarehouseColors.textMuted)
+                        TD(r.str("adminName").ifBlank { "—" }, 1.2f, bold = true)
+                        TD(
+                            action,
+                            1f,
+                            color = when {
+                                action == "DELETE" -> MexaWarehouseColors.danger
+                                action == "UPDATE" -> MexaWarehouseColors.amberBadgeFg
+                                else -> MexaWarehouseColors.statusActiveFg
+                            },
+                        )
+                        TD(
+                            r.str("entityType").ifBlank { "—" } + r.str("entityId").take(8).let { if (it.isBlank()) "" else " #$it" },
+                            1.6f,
+                            color = MexaWarehouseColors.textMuted,
+                        )
+                        TD(r.str("reason").ifBlank { "—" }, 2.4f, color = MexaWarehouseColors.textMuted)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1151,11 +1354,19 @@ private fun surchargeFields(rule: SurchargeRow?, typeOptions: List<String>): Lis
         PricingField.Sel("Haq turi", "feeType", opts("FIXED", "PERCENT"), rule?.feeType ?: "FIXED"),
         PricingField.Text("Boshlanish vaqti (HH:mm)", "timeFrom", rule?.timeFrom ?: "", hint = "Masalan 18:00", skipWhenBlank = true),
         PricingField.Text("Tugash vaqti (HH:mm)", "timeTo", rule?.timeTo ?: "", hint = "Masalan 21:00", skipWhenBlank = true),
-        PricingField.Num("Vazn dan (kg)", "weightFrom", rule?.weightFrom?.toPlainString() ?: ""),
-        PricingField.Num("Vazn gacha (kg)", "weightTo", rule?.weightTo?.toPlainString() ?: ""),
+        PricingField.Num(
+            "Min qiymat (BETWEEN)", "weightFrom", rule?.weightFrom?.toPlainString() ?: "",
+            hint = "Operator BETWEEN: vazn kg (WEIGHT) yoki masofa km (DISTANCE) boshlang'ich qiymati",
+        ),
+        PricingField.Num(
+            "Max qiymat (BETWEEN)", "weightTo", rule?.weightTo?.toPlainString() ?: "",
+            hint = "Operator BETWEEN: vazn kg (WEIGHT) yoki masofa km (DISTANCE) yakuniy qiymati",
+        ),
         PricingField.Sel("Yetkazish turi", "deliveryType", typeOptions.map { it to it }, rule?.deliveryType ?: ""),
         PricingField.Num("Ustuvorlik", "priority", "${rule?.priority ?: 100}"),
         PricingField.Bool("Faol", "active", rule?.active ?: true),
+        PricingField.Text("Boshlanish sanasi (yyyy-MM-ddTHH:mm)", "startAt", rule?.startAt ?: "", hint = "Qoida shu sanadan boshlab faol", skipWhenBlank = true),
+        PricingField.Text("Tugash sanasi (yyyy-MM-ddTHH:mm)", "endAt", rule?.endAt ?: "", hint = "Qoida shu sanada o'chadi", skipWhenBlank = true),
     )
 }
 

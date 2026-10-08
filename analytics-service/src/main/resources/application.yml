@@ -28,20 +28,20 @@ spring:
     baseline-on-migrate: true
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
 
 app:
   jwt:
     access-token-ttl: ${APP_JWT_ACCESS_TOKEN_TTL:900}
   # Boshqa servislar (auth, order, discount) bilan bir xil — bo'lmasa X-Internal-Secret 403
-  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
   analytics:
     cache-ttl-minutes: ${ANALYTICS_CACHE_TTL_MINUTES:5}
     low-stock-threshold: ${ANALYTICS_LOW_STOCK_THRESHOLD:10}
-    warehouse-internal-api-key: ${APP_INTERNAL_API_KEY:change-me-internal}
+    warehouse-internal-api-key: ${APP_INTERNAL_API_KEY:dev-only-insecure-internal-api-key-0123456789}
   services:
     order-url: ${ORDER_SERVICE_URL:http://localhost:8085}
     auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}

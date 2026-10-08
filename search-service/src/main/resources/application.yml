@@ -12,13 +12,17 @@ spring:
     uris: ${ES_URIS:http://localhost:9200}
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
 
 app:
   search:
     elasticsearch:
-      enabled: false
-  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+      # H12: ES indeks qidiruvi faol (lokal dev'da ES yo'q bo'lsa dev profili:
+      # -Dspring.profiles.active=dev — fallback qidiruv).
+      enabled: true
+    reindex-interval-ms: 600000
+    reindex-initial-delay-ms: 30000
+  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -43,6 +47,6 @@ management:
       show-details: never
   health:
     elasticsearch:
-      enabled: false
+      enabled: true
     redis:
       enabled: false

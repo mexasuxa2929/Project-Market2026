@@ -7,5 +7,7 @@ public enum DeliveryStatus {
     IN_TRANSIT,
     DELIVERED,
     FAILED,
-    RETURNED
+    RETURNED,
+    /** H10: order bekor qilinganda (order-service chaqiruvi bilan). */
+    CANCELLED
 }

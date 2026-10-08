@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Internal - Delivery", description = "Internal endpoint for creating deliveries from other microservices. Protected by X-Internal-Secret header.")
@@ -49,5 +50,21 @@ public class InternalDeliveryController {
             throw new DeliveryException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Invalid internal secret");
         }
         return ApiResponse.ok(deliveryService.create(request));
+    }
+
+    @Operation(
+        summary = "Cancel delivery by order (internal)",
+        description = "Order bekor qilinganda order-service chaqiradi. Terminal holatda no-op."
+    )
+    @PostMapping("/cancel")
+    public ApiResponse<Void> cancelByOrder(
+            @RequestParam("orderId") java.util.UUID orderId,
+            @RequestHeader("X-Internal-Secret") String secret
+    ) {
+        if (secret == null || !secret.equals(internalSecret)) {
+            throw new DeliveryException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Invalid internal secret");
+        }
+        deliveryService.cancelForOrder(orderId);
+        return ApiResponse.ok(null);
     }
 }

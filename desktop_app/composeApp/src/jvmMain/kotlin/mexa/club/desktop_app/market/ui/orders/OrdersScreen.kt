@@ -96,6 +96,16 @@ val ORDER_STATUS_OPTIONS = listOf(
     "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED",
 )
 
+val ORDER_ALLOWED_TRANSITIONS: Map<String, Set<String>> = mapOf(
+    "PENDING" to setOf("CONFIRMED", "PROCESSING", "CANCELLED"),
+    "CONFIRMED" to setOf("PROCESSING", "SHIPPED", "CANCELLED"),
+    "PROCESSING" to setOf("SHIPPED", "CANCELLED"),
+    "SHIPPED" to setOf("DELIVERED", "CANCELLED"),
+    "DELIVERED" to setOf("REFUNDED"),
+    "CANCELLED" to emptySet(),
+    "REFUNDED" to emptySet(),
+)
+
 fun orderStatusLabel(status: String): String = when (status.uppercase(Locale.getDefault())) {
     "PENDING" -> "Kutilmoqda"
     "CONFIRMED" -> "Tasdiqlandi"

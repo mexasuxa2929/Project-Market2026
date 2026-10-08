@@ -45,8 +45,8 @@ public interface PricingEventRepository extends JpaRepository<PricingEvent, UUID
     @Query("select coalesce(sum(e.estimatedCost), 0) from PricingEvent e where e.createdAt >= :since")
     BigDecimal sumCost(@Param("since") LocalDateTime since);
 
-    /** Threshold exposure: cart >= threshold bo'lganlar soni. */
-    @Query("select count(e) from PricingEvent e where e.createdAt >= :since and e.cartTotal >= :threshold")
+    /** Threshold exposure: event aynan shu threshold'ga exposed bo'lgan (recordEvent yozgan). */
+    @Query("select count(e) from PricingEvent e where e.createdAt >= :since and e.thresholdAmount = :threshold")
     long countExposed(@Param("since") LocalDateTime since, @Param("threshold") BigDecimal threshold);
 
     /** Threshold'dan o'tganlar: bepul yetkazilgan. */
@@ -62,4 +62,24 @@ public interface PricingEventRepository extends JpaRepository<PricingEvent, UUID
 
     @Query("select e from PricingEvent e where e.createdAt >= :since order by e.createdAt desc")
     List<PricingEvent> findRecent(@Param("since") LocalDateTime since);
+
+    /** D-H6: sample o'rniga DB'da sanaladi (1M+ qatorda heap ko'tarmaslik uchun). */
+    @Query("select count(e) from PricingEvent e where e.createdAt >= :since")
+    long countRecent(@Param("since") LocalDateTime since);
+
+    /** D-H4: qaysi source'dan nechta event (CREATE / QUOTE / INCENTIVE / LEGACY_QUOTE). */
+    @Query("select coalesce(e.source, 'CREATE') as src, count(e) from PricingEvent e "
+            + "where e.createdAt >= :since group by coalesce(e.source, 'CREATE') order by count(e) desc")
+    List<Object[]> countBySource(@Param("since") LocalDateTime since);
+
+    /** D-H5: eng ko'p qo'llanilgan qoidalar (rule_name bo'yicha). */
+    @Query("select e.ruleName, count(e) from PricingEvent e where e.createdAt >= :since "
+            + "and e.ruleName is not null group by e.ruleName order by count(e) desc")
+    List<Object[]> topRules(@Param("since") LocalDateTime since);
+
+    /** D-H5: eng ko'p qo'llanilgan surcharge shartlari. */
+    @Query("select e.surchargeNames, count(e) from PricingEvent e where e.createdAt >= :since "
+            + "and e.surchargeNames is not null and e.surchargeNames <> '' "
+            + "group by e.surchargeNames order by count(e) desc")
+    List<Object[]> topSurchargeSets(@Param("since") LocalDateTime since);
 }

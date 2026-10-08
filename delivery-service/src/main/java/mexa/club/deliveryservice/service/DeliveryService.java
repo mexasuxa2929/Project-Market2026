@@ -17,6 +17,7 @@ import mexa.club.deliveryservice.entity.Delivery;
 import mexa.club.deliveryservice.entity.DeliveryStatus;
 import mexa.club.deliveryservice.entity.DeliveryTrackingEvent;
 import mexa.club.deliveryservice.entity.DeliveryZone;
+import mexa.club.deliveryservice.entity.OrderNotifyOutbox;
 import mexa.club.deliveryservice.exception.DeliveryException;
 import mexa.club.deliveryservice.repository.CourierRepository;
 import mexa.club.deliveryservice.repository.DeliveryRepository;
@@ -57,6 +58,7 @@ public class DeliveryService {
     private final DeliveryNotificationService deliveryNotificationService;
     private final OrderInternalClient orderInternalClient;
     private final mexa.club.deliveryservice.pricing.DeliveryPricingService pricingService;
+    private final mexa.club.deliveryservice.repository.OrderNotifyOutboxRepository outboxRepository;
 
     public DeliveryService(
             DeliveryRepository deliveryRepository,
@@ -68,7 +70,8 @@ public class DeliveryService {
             DeliveryMapper mapper,
             DeliveryNotificationService deliveryNotificationService,
             OrderInternalClient orderInternalClient,
-            mexa.club.deliveryservice.pricing.DeliveryPricingService pricingService
+            mexa.club.deliveryservice.pricing.DeliveryPricingService pricingService,
+            mexa.club.deliveryservice.repository.OrderNotifyOutboxRepository outboxRepository
     ) {
         this.deliveryRepository = deliveryRepository;
         this.eventRepository = eventRepository;
@@ -80,6 +83,7 @@ public class DeliveryService {
         this.deliveryNotificationService = deliveryNotificationService;
         this.orderInternalClient = orderInternalClient;
         this.pricingService = pricingService;
+        this.outboxRepository = outboxRepository;
     }
 
     /**
@@ -94,12 +98,14 @@ public class DeliveryService {
             orderInternalClient.markDelivered(d.getOrderId());
         } catch (Exception ex) {
             log.warn("Order status sync failed for delivery {}: {}", d.getId(), ex.getMessage());
+            // H2: xabar yetkazilmadi → outbox'ga yoziladi, retry job qayta yuboradi.
+            enqueueNotifyRetry(d.getOrderId(), OrderNotifyRetryJob.KIND_DELIVERED, null);
         }
     }
 
     /**
      * Yetkazib bo'lmaganda (FAILED / RETURNED) order-service'ga xabar beradi.
-     * Xatolik bo'lsa faqat log yoziladi — delivery oqimi hech qachon uzilmaydi.
+     * Xatolik bo'lsa outbox'ga yoziladi — delivery oqimi uzilmaydi, xabar keyin qayta yuboriladi.
      */
     private void notifyOrderDeliveryFailed(Delivery d, String reason) {
         if (d.getOrderId() == null) {
@@ -109,7 +115,51 @@ public class DeliveryService {
             orderInternalClient.deliveryFailed(d.getOrderId(), new DeliveryFailedRequest(reason));
         } catch (Exception ex) {
             log.warn("Order status sync failed for delivery {}: {}", d.getId(), ex.getMessage());
+            enqueueNotifyRetry(d.getOrderId(), OrderNotifyRetryJob.KIND_FAILED, reason);
         }
+    }
+
+    private void enqueueNotifyRetry(java.util.UUID orderId, String kind, String reason) {
+        try {
+            if (outboxRepository.findByOrderIdAndKindAndSentAtIsNull(orderId, kind).isPresent()) {
+                return;
+            }
+            OrderNotifyOutbox row = new OrderNotifyOutbox();
+            row.setId(java.util.UUID.randomUUID());
+            row.setOrderId(orderId);
+            row.setKind(kind);
+            row.setReason(reason);
+            row.setAttempts(0);
+            row.setNextAttemptAt(java.time.LocalDateTime.now().plusSeconds(30));
+            outboxRepository.save(row);
+            log.info("Notify retry enqueued: order={} kind={}", orderId, kind);
+        } catch (Exception ex) {
+            log.warn("Notify outbox enqueue failed for order {}: {}", orderId, ex.getMessage());
+        }
+    }
+
+    /**
+     * H10: order bekor qilinganda order-service chaqiradi.
+     * Terminal holatdagi (DELIVERED/FAILED/RETURNED/CANCELLED) delivery'larga
+     * ta'sir qilinmaydi — bu holda endpoint no-op (idempotent).
+     */
+    @Transactional
+    public DeliveryResponse cancelForOrder(UUID orderId) {
+        Delivery d = deliveryRepository.findByOrderId(orderId).orElse(null);
+        if (d == null) {
+            return null;
+        }
+        switch (d.getStatus()) {
+            case DELIVERED, FAILED, RETURNED, CANCELLED -> {
+                return toResponse(d);
+            }
+            default -> { }
+        }
+        d.setStatus(DeliveryStatus.CANCELLED);
+        Delivery saved = deliveryRepository.save(d);
+        logEvent(saved.getId(), saved.getStatus(), null, "Cancelled: order cancelled");
+        log.info("Delivery {} cancelled (order {})", saved.getId(), orderId);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -126,7 +176,7 @@ public class DeliveryService {
                         null, request.region(), request.district(),
                         request.distanceKm(), request.weightKg(), request.orderSubtotal(),
                         request.deliveryType(), java.time.LocalDateTime.now(),
-                        request.orderId(), true));
+                        request.orderId(), true, "CREATE"));
         Delivery d = new Delivery();
         d.setOrderId(request.orderId());
         d.setFromWarehouseId(request.warehouseId());
@@ -558,7 +608,7 @@ public class DeliveryService {
             Double distanceKm, Double weightKg, BigDecimal subtotal) {
         var q = pricingService.calculate(new mexa.club.deliveryservice.pricing.PricingDtos.PricingRequest(
                 null, region, district, distanceKm, weightKg, subtotal, null,
-                java.time.LocalDateTime.now(), null, false));
+                java.time.LocalDateTime.now(), null, true, "LEGACY_QUOTE"));
         return new DeliveryFeeQuoteResponse(
                 q.finalFee(),
                 q.estimatedDays() != null ? q.estimatedDays() : 1,
@@ -763,6 +813,10 @@ public class DeliveryService {
     }
 
     private void auditZone(DeliveryZone before, DeliveryZone after, String action, String by) {
+        auditZone(before, after, action, by, null);
+    }
+
+    private void auditZone(DeliveryZone before, DeliveryZone after, String action, String by, String reason) {
         try {
             mexa.club.deliveryservice.entity.DeliveryZoneAudit a =
                     new mexa.club.deliveryservice.entity.DeliveryZoneAudit();
@@ -777,6 +831,7 @@ public class DeliveryService {
             a.setOldFreeAbove(before != null ? before.getFreeAbove() : null);
             a.setNewFreeAbove(after.getFreeAbove());
             a.setChangedBy(by);
+            a.setReason(reason);
             auditRepository.save(a);
         } catch (Exception ex) {
             log.warn("Zone audit failed: {}", ex.getMessage());
@@ -797,7 +852,7 @@ public class DeliveryService {
     }
 
     @Transactional
-    public void deleteZone(UUID id) {
+    public void deleteZone(UUID id, String reason) {
         DeliveryZone zone = zoneRepository.findById(id).orElseThrow(() ->
                 new DeliveryException(HttpStatus.NOT_FOUND, "ZONE_NOT_FOUND", "Zone not found"));
         // 1-bosqich: faol delivery bor zonani o'chirishdan himoya
@@ -814,7 +869,7 @@ public class DeliveryService {
         }
         DeliveryZone before = snapshotZone(zone);
         zoneRepository.deleteById(id);
-        auditZone(before, before, "DELETE", "admin");
+        auditZone(before, before, "DELETE", "admin", reason);
     }
 
     private Delivery getCourierDelivery(UUID deliveryId, UUID courierUserId) {

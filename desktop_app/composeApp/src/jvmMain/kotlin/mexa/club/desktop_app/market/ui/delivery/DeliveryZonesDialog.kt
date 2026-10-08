@@ -53,6 +53,7 @@ import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import java.net.URLEncoder
 
 private data class DeliveryZoneItem(
     val id: String,
@@ -69,6 +70,7 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var showForm by remember { mutableStateOf(false) }
     var editZone by remember { mutableStateOf<DeliveryZoneItem?>(null) }
+    var deleteTarget by remember { mutableStateOf<DeliveryZoneItem?>(null) }
 
     suspend fun fetchZones(): List<DeliveryZoneItem> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/delivery-zones")
@@ -154,14 +156,7 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
                                 Text(formatDeliveryAmount(z.fee), modifier = Modifier.weight(0.7f), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
                                 Text("${z.estimatedDays}", modifier = Modifier.weight(0.4f), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
                                 IconButton(
-                                    onClick = {
-                                        scope.launch {
-                                            withContext(Dispatchers.IO) {
-                                                ApiClient.delete("/api/admin/delivery-zones/${z.id}")
-                                            }
-                                            reload()
-                                        }
-                                    },
+                                    onClick = { deleteTarget = z },
                                     modifier = Modifier.size(28.dp),
                                 ) {
                                     Icon(Icons.Default.Delete, contentDescription = "O'chirish", tint = MexaWarehouseColors.danger, modifier = Modifier.size(16.dp))
@@ -177,5 +172,21 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+
+    deleteTarget?.let { z ->
+        ConfirmDeleteDialog(
+            title = "\"${z.region} — ${z.district}\" o'chirilsinmi?",
+            message = "O'chirishni qaytarib bo'lmaydi. Tarixdagi yozuvlar saqlanib qoladi.",
+            requireReason = true,
+            onConfirm = { reason ->
+                withContext(Dispatchers.IO) {
+                    ApiClient.delete("/api/admin/delivery-zones/${z.id}?reason=${URLEncoder.encode(reason, "UTF-8")}")
+                }
+                deleteTarget = null
+                reload()
+            },
+            onDismiss = { deleteTarget = null },
+        )
     }
 }

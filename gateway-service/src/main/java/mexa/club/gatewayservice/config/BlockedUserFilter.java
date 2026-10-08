@@ -31,9 +31,13 @@ public class BlockedUserFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(BlockedUserFilter.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final byte[] signingKey;
 
-    public BlockedUserFilter(StringRedisTemplate redisTemplate) {
+    // H11: maxfiy kalit kodda emas, application.yml (${JWT_SECRET}) orqali.
+    public BlockedUserFilter(StringRedisTemplate redisTemplate,
+                             @org.springframework.beans.factory.annotation.Value("${jwt.secret}") String jwtSecret) {
         this.redisTemplate = redisTemplate;
+        this.signingKey = jwtSecret.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
@@ -87,11 +91,7 @@ public class BlockedUserFilter implements GlobalFilter, Ordered {
     }
 
     private byte[] getSigningKey() {
-        String secret = System.getenv("JWT_SECRET");
-        if (secret == null || secret.isBlank()) {
-            secret = "mexa_jwt_2024_secret_key_32chars_long!!";
-        }
-        return secret.getBytes(StandardCharsets.UTF_8);
+        return signingKey;
     }
 
     @Override

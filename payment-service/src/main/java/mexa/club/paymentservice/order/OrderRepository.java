@@ -15,4 +15,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdForUpdate(@Param("id") Long id);
 
     Optional<Order> findByOrderServiceId(UUID orderServiceId);
+
+    /** H4 reconcile: eng yangi PAID orderlar (orderServiceId bilan). */
+    java.util.List<Order> findTop50ByStateAndOrderServiceIdNotNullOrderByCreatedAtDesc(OrderState state);
 }

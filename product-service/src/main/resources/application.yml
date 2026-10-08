@@ -27,7 +27,8 @@ spring:
       maximum-pool-size: 5
   jpa:
     hibernate:
-      ddl-auto: update
+      # H9: schema faqat flyway orqali boshqariladi — drift aniqlansa to'xtaydi.
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -57,11 +58,11 @@ spring:
             readTimeout: ${REFERENCE_DATA_READ_TIMEOUT_MS:3000}
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:mexa_int_v1_R9x!2Qm#7Lp$4Tw@8Kd%1Nc^6Zh&3By*5Fu(0Ej)9Sa=2Vr+7Hg!4Px#8Lq$6Wt@1}
+  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -92,10 +93,10 @@ app:
   shop-service:
     url: ${SHOP_SERVICE_URL:http://localhost:8094}
   internal-api:
-    key: ${APP_INTERNAL_API_KEY:change-me-internal}
+    key: ${APP_INTERNAL_API_KEY:dev-only-insecure-internal-api-key-0123456789}
   swagger:
     username: ${APP_SWAGGER_USERNAME:swagger}
-    password: ${APP_SWAGGER_PASSWORD:change-me-now}
+    password: ${APP_SWAGGER_PASSWORD:dev-only-swagger-password}
     basic-auth:
       enabled: ${APP_SWAGGER_BASIC_AUTH_ENABLED:false}
 

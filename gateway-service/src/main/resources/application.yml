@@ -164,7 +164,8 @@ spring:
           uri: ${PRODUCT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/products/**
-            - RoleRoute=ROLE_ADMIN,ROLE_SUPER_ADMIN
+            # H7: PRODUCT_MANAGE ruxsatiga ega xodimlar ham kiradi (faqat admin emas).
+            - RoleRoute=ROLE_ADMIN,ROLE_SUPER_ADMIN,perm:PRODUCT_MANAGE
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -212,7 +213,8 @@ spring:
         - id: orders-api
           uri: ${ORDER_SERVICE_URL:http://localhost:8085}
           predicates:
-            - Path=/api/orders/**,/api/admin/orders/**,/internal/orders/**
+            # H5: /internal gateway orqali ochiq emas — faqat to'g'ridan-to'g'ri servislar arasi.
+            - Path=/api/orders/**,/api/admin/orders/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -224,7 +226,8 @@ spring:
         - id: notifications-api
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
           predicates:
-            - Path=/api/notifications/**,/api/admin/notifications/**,/api/admin/templates/**,/internal/notifications/**
+            # H5: /internal gateway orqali ochiq emas.
+            - Path=/api/notifications/**,/api/admin/notifications/**,/api/admin/templates/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -236,7 +239,8 @@ spring:
         - id: deliveries-api
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8088}
           predicates:
-            - Path=/api/deliveries/**,/api/delivery/**,/api/admin/deliveries/**,/api/admin/pricing/**,/api/admin/delivery-zones,/api/admin/delivery-zones/**,/api/admin/couriers/**,/api/admin/courier-actions/**,/api/courier/deliveries/**,/internal/deliveries/**
+            # H5: /internal gateway orqali ochiq emas.
+            - Path=/api/deliveries/**,/api/delivery/**,/api/admin/deliveries/**,/api/admin/pricing/**,/api/admin/delivery-zones,/api/admin/delivery-zones/**,/api/admin/couriers/**,/api/admin/courier-actions/**,/api/courier/deliveries/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -260,7 +264,8 @@ spring:
         - id: search-api
           uri: ${SEARCH_SERVICE_URL:http://localhost:8090}
           predicates:
-            - Path=/api/search/**,/internal/search/**
+            # H5: /internal gateway orqali ochiq emas.
+            - Path=/api/search/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -272,7 +277,8 @@ spring:
         - id: discount-api
           uri: ${DISCOUNT_SERVICE_URL:http://localhost:8092}
           predicates:
-            - Path=/api/discounts/**,/api/admin/promotions/**,/internal/discounts/**
+            # H5: /internal gateway orqali ochiq emas.
+            - Path=/api/discounts/**,/api/admin/promotions/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -306,7 +312,7 @@ spring:
                 key-resolver: "#{@userOrIpKeyResolver}"
 
 jwt:
-  secret: ${JWT_SECRET:mexa_jwt_2024_secret_key_32chars_long!!}
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
 
 app:
   rate-limiter:

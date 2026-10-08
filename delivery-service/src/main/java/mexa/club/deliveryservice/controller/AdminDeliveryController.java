@@ -272,8 +272,9 @@ public class AdminDeliveryController {
     }
 
     @DeleteMapping("/delivery-zones/{id}")
-    public ApiResponse<Void> deleteZone(@PathVariable UUID id) {
-        deliveryService.deleteZone(id);
+    public ApiResponse<Void> deleteZone(@PathVariable UUID id,
+                                        @org.springframework.web.bind.annotation.RequestParam(required = false) String reason) {
+        deliveryService.deleteZone(id, reason);
         return ApiResponse.ok(null);
     }
 
