@@ -45,6 +45,9 @@ build/
 .claude/worktrees/
 /0
 
+# Cursor'ning vaqtinchalik Flyway sinov fayllari
+.cursor-tmp-flyway*/
+
 # Signing kaliti va maxfiy fayllar
 *.jks
 *.keystore

@@ -10,6 +10,7 @@ import java.util.Map;
 
 @FeignClient(name = "notificationClient", url = "${services.notification.url}", configuration = FeignConfig.class)
 public interface NotificationClient {
-    @PostMapping("/internal/notifications/order")
+    /** notification-service faqat /send va /send-bulk mapping'lariga ega. */
+    @PostMapping("/internal/notifications/send")
     ResponseEntity<Void> sendOrderEvent(@RequestBody Map<String, Object> payload);
 }

@@ -26,13 +26,17 @@ public class NotificationEventListener {
     public void handleOrderCreatedEvent(OrderCreatedEvent event) {
         try {
             notificationClient.sendOrderEvent(Map.of(
-                    "orderId", event.orderId(),
-                    "orderNumber", event.orderNumber(),
                     "userId", event.userId(),
-                    "totalAmount", event.totalAmount()
+                    "type", "ORDER_CREATED",
+                    "channel", "PUSH",
+                    "variables", Map.of(
+                            "orderId", String.valueOf(event.orderId()),
+                            "orderNumber", event.orderNumber(),
+                            "totalAmount", String.valueOf(event.totalAmount())
+                    )
             ));
         } catch (Exception ex) {
-            log.warn("Order notification failed for orderId={}", event.orderId(), ex);
+            log.error("Order notification failed for orderId={}", event.orderId(), ex);
         }
     }
 }

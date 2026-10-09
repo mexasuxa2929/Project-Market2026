@@ -50,6 +50,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PricingAdminController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PricingAdminController.class);
+
     private final PricingRuleRepository ruleRepository;
     private final FreeDeliveryRuleRepository freeRepository;
     private final CartIncentiveRuleRepository incentiveRepository;
@@ -102,6 +104,7 @@ public class PricingAdminController {
         rule.setId(id);
         PricingRule saved = ruleRepository.save(rule);
         audit(auth, "UPDATE", "PRICING_RULE", id, before, json(saved), rule.getChangeReason());
+        bumpVersion(auth, "Pricing rule yangilandi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -113,6 +116,7 @@ public class PricingAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         ruleRepository.delete(old);
         audit(auth, "DELETE", "PRICING_RULE", id, json(old), null, reason);
+        bumpVersion(auth, "Pricing rule o'chirildi: " + old.getName());
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -145,6 +149,7 @@ public class PricingAdminController {
         rule.setId(id);
         FreeDeliveryRule saved = freeRepository.save(rule);
         audit(auth, "UPDATE", "FREE_DELIVERY_RULE", id, before, json(saved), null);
+        bumpVersion(auth, "Free delivery qoidasi yangilandi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -156,6 +161,7 @@ public class PricingAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         freeRepository.delete(old);
         audit(auth, "DELETE", "FREE_DELIVERY_RULE", id, json(old), null, reason);
+        bumpVersion(auth, "Free delivery qoidasi o'chirildi: " + old.getName());
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -188,6 +194,7 @@ public class PricingAdminController {
         rule.setId(id);
         CartIncentiveRule saved = incentiveRepository.save(rule);
         audit(auth, "UPDATE", "CART_INCENTIVE_RULE", id, before, json(saved), null);
+        bumpVersion(auth, "Cart incentive yangilandi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -199,6 +206,7 @@ public class PricingAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rule not found"));
         incentiveRepository.delete(old);
         audit(auth, "DELETE", "CART_INCENTIVE_RULE", id, json(old), null, reason);
+        bumpVersion(auth, "Cart incentive o'chirildi: " + old.getName());
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -215,6 +223,7 @@ public class PricingAdminController {
         type.setId(null);
         DeliveryType saved = typeRepository.save(type);
         audit(auth, "CREATE", "DELIVERY_TYPE", saved.getId(), null, json(saved), null);
+        bumpVersion(auth, "Delivery type yaratildi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -230,6 +239,7 @@ public class PricingAdminController {
         type.setId(id);
         DeliveryType saved = typeRepository.save(type);
         audit(auth, "UPDATE", "DELIVERY_TYPE", id, before, json(saved), null);
+        bumpVersion(auth, "Delivery type yangilandi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -241,6 +251,7 @@ public class PricingAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Type not found"));
         typeRepository.delete(old);
         audit(auth, "DELETE", "DELIVERY_TYPE", id, json(old), null, reason);
+        bumpVersion(auth, "Delivery type o'chirildi: " + old.getName());
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -257,6 +268,7 @@ public class PricingAdminController {
         s.setId(null);
         DeliverySurcharge saved = surchargeRepository.save(s);
         audit(auth, "CREATE", "SURCHARGE", saved.getId(), null, json(saved), null);
+        bumpVersion(auth, "Surcharge yaratildi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -272,6 +284,7 @@ public class PricingAdminController {
         s.setId(id);
         DeliverySurcharge saved = surchargeRepository.save(s);
         audit(auth, "UPDATE", "SURCHARGE", id, before, json(saved), null);
+        bumpVersion(auth, "Surcharge yangilandi: " + saved.getName());
         return ApiResponse.ok(saved);
     }
 
@@ -283,6 +296,7 @@ public class PricingAdminController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Surcharge not found"));
         surchargeRepository.delete(old);
         audit(auth, "DELETE", "SURCHARGE", id, json(old), null, reason);
+        bumpVersion(auth, "Surcharge o'chirildi: " + old.getName());
         return ApiResponse.ok(Map.of("deleted", true));
     }
 
@@ -299,6 +313,7 @@ public class PricingAdminController {
         String before = json(pricingService.settings());
         PricingSettings saved = pricingService.saveSettings(settings);
         audit(auth, "UPDATE", "PRICING_SETTINGS", null, before, json(saved), null);
+        bumpVersion(auth, "Pricing settings yangilandi");
         return ApiResponse.ok(saved);
     }
 
@@ -475,34 +490,49 @@ public class PricingAdminController {
     private void audit(Authentication auth, String action, String entityType, UUID entityId,
                        String oldValue, String newValue, String reason) {
         try {
-            PricingAuditLog log = new PricingAuditLog();
-            log.setAdminName(userName(auth));
-            log.setAction(action);
-            log.setEntityType(entityType);
-            log.setEntityId(entityId);
-            log.setOldValue(oldValue);
-            log.setNewValue(newValue);
-            log.setReason(reason);
-            auditRepository.save(log);
-        } catch (Exception ignored) {
+            PricingAuditLog entry = new PricingAuditLog();
+            entry.setAdminName(userName(auth));
+            entry.setAction(action);
+            entry.setEntityType(entityType);
+            entry.setEntityId(entityId);
+            entry.setOldValue(oldValue);
+            entry.setNewValue(newValue);
+            entry.setReason(reason);
+            auditRepository.save(entry);
+        } catch (Exception e) {
+            logger.error("Pricing audit yozilmadi: action={} entityType={} entityId={}",
+                    action, entityType, entityId, e);
         }
     }
 
     private void bumpVersion(Authentication auth, String reason) {
-        PricingVersion last = versionRepository.findTopByOrderByVersionDesc();
-        int next = last == null ? 1 : last.getVersion() + 1;
-        if (last != null && "ACTIVE".equals(last.getStatus())) {
-            last.setStatus("ARCHIVED");
-            last.setEffectiveUntil(LocalDateTime.now());
-            versionRepository.save(last);
+        // version UNIQUE — parallel so'rovlarda collision bo'lishi mumkin, shuning uchun retry.
+        int attempts = 3;
+        for (int i = 1; i <= attempts; i++) {
+            try {
+                PricingVersion last = versionRepository.findTopByOrderByVersionDesc();
+                int next = last == null ? 1 : last.getVersion() + 1;
+                if (last != null && "ACTIVE".equals(last.getStatus())) {
+                    last.setStatus("ARCHIVED");
+                    last.setEffectiveUntil(LocalDateTime.now());
+                    versionRepository.save(last);
+                }
+                PricingVersion v = new PricingVersion();
+                v.setVersion(next);
+                v.setStatus("ACTIVE");
+                v.setCreatedBy(userName(auth));
+                v.setEffectiveFrom(LocalDateTime.now());
+                v.setChangeReason(reason);
+                versionRepository.save(v);
+                return;
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                if (i == attempts) {
+                    logger.error("Pricing version oshirilmadi (collision): {}", reason, e);
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Pricing version yaratishda collision, qayta urinib ko'ring");
+                }
+            }
         }
-        PricingVersion v = new PricingVersion();
-        v.setVersion(next);
-        v.setStatus("ACTIVE");
-        v.setCreatedBy(userName(auth));
-        v.setEffectiveFrom(LocalDateTime.now());
-        v.setChangeReason(reason);
-        versionRepository.save(v);
     }
 
     private static String userName(Authentication auth) {

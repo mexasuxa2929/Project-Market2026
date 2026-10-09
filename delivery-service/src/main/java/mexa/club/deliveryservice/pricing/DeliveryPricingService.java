@@ -465,10 +465,11 @@ public class DeliveryPricingService {
         }
     }
 
+    /** GET'da yozmaydi — qator bo'sh bo'lsa, default obyektni xotirada qaytaradi (PUT paytida save qilinadi). */
     public PricingSettings settings() {
         return settingsRepository.findById(PricingSettings.DEFAULT_ID)
                 .orElseGet(() -> settingsRepository.findAll().stream().findFirst()
-                        .orElseGet(() -> settingsRepository.save(new PricingSettings())));
+                        .orElseGet(PricingSettings::new));
     }
 
     public PricingSettings saveSettings(PricingSettings s) {

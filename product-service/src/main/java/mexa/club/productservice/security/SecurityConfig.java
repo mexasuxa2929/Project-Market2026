@@ -49,8 +49,27 @@ public class SecurityConfig {
                         ).permitAll()
                         // Rasmlar ommaviy — token kerak emas
                         .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                        // Admin/ombor endpointlari — GET bo'lsa ham autentifikatsiya talab qilinadi
+                        // (avval e'lon qilinadi: birinchi mos qoida g'olib)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products/export",
+                                "/api/products/{id}/stock-summary"
+                        ).authenticated()
                         // Mahsulotlarni o'qish (GET) ommaviy — shop-service orqali keladi
-                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        // (batch: shop katalogi; full: warehouse S2S — ikkalasi ham anonymous bo'lishi mumkin)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products",
+                                "/api/products/search",
+                                "/api/products/tags",
+                                "/api/products/batch",
+                                "/api/products/by-barcode/**",
+                                "/api/products/{id}",
+                                "/api/products/{id}/price",
+                                "/api/products/{id}/images",
+                                "/api/products/{id}/colors",
+                                "/api/products/{id}/siblings",
+                                "/api/products/{id}/full"
+                        ).permitAll()
                         // Kategoriya/Brend/Ishlab chiqaruvchi ma'lumotlari ommaviy
                         .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/brands/**", "/api/manufacturers/**").permitAll()
                         // JWT kerak: product CRUD, kategoriya proxy (NON-GET)

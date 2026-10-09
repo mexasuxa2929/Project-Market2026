@@ -115,7 +115,7 @@ spring:
         - id: warehouse-api
           uri: ${WAREHOUSE_SERVICE_URL:http://localhost:8084}
           predicates:
-            - Path=/api/warehouses/**,/api/audit-logs/**,/api/suppliers/**
+            - Path=/api/warehouses/**,/api/audit-logs/**,/api/stock/**
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
@@ -313,6 +313,12 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+
+gateway:
+  cors:
+    allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:}
+    allowed-origin-1: ${GATEWAY_CORS_ALLOWED_ORIGIN_1:}
+    allowed-origin-2: ${GATEWAY_CORS_ALLOWED_ORIGIN_2:}
 
 app:
   rate-limiter:
