@@ -62,9 +62,9 @@ public class ProductController {
             @RequestParam(defaultValue = "20")               int size
     ) {
         if (cursor != null) {
-            return productCatalogService.getProductsPage(search, categoryId, sort, cursor, size);
+            return productCatalogService.getProductsPage(search, categoryId, sort, minPrice, maxPrice, cursor, size);
         }
-        return productCatalogService.getProductsPage(search, categoryId, sort, page, size);
+        return productCatalogService.getProductsPage(search, categoryId, sort, minPrice, maxPrice, page, size);
     }
 
     /**

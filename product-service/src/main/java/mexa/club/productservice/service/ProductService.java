@@ -127,6 +127,8 @@ public class ProductService {
             String tag,
             String status,
             Boolean featured,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
             String lang
     ) {
         UUID categoryId = parseOptionalUuid(categoryIdParam);
@@ -138,6 +140,7 @@ public class ProductService {
         }
         Page<Product> page = productRepository.findAll(
                 ProductSpecification.combined(name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured)
+                        .and(ProductSpecification.priceBetween(minPrice, maxPrice))
                         .and(ProductSpecification.afterId(afterId))
                         .and(ProductSpecification.primaryOnly()),
                 pageable

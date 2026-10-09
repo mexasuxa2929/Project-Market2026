@@ -113,19 +113,21 @@ class AuthRepository(private val authApiService: AuthApiService) {
         val refreshTok = TokenManager.refreshToken
             ?: return Result.failure(Exception("No refresh token"))
         val response = authApiService.refreshToken(RefreshTokenRequest(refreshTok, deviceId = TokenManager.deviceId))
-        if (response.isSuccessful) {
-            val body = response.body()
-            if (body?.success == true && body.data != null) {
-                saveTokens(body.data)
-                Result.success(body)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true && body.data != null) {
+                    saveTokens(body.data)
+                    Result.success(body)
+                } else {
+                    TokenManager.clear()
+                    Result.failure(Exception("Session expired"))
+                }
             } else {
-                TokenManager.clear()
+                // Aniq rad etish (400-403) da sessiyani tozalaymiz; 429/5xx —
+                // vaqtinchi xato, sessiya saqlanadi (audit M-H2)
+                if (response.code() in 400..403) TokenManager.clear()
                 Result.failure(Exception("Session expired"))
             }
-        } else {
-            TokenManager.clear()
-            Result.failure(Exception("Session expired"))
-        }
     } catch (e: Exception) {
         Result.failure(e)
     }
@@ -236,8 +238,22 @@ class AuthRepository(private val authApiService: AuthApiService) {
         } else Result.failure(Exception("HTTP ${response.code()}"))
     } catch (e: Exception) { Result.failure(e) }
 
-    fun logout() {
-        TokenManager.clear()
+    /**
+     * Best-effort server logout: refresh tokenni bekor qiladi, access tokenni
+     * blacklistga tushiradi (auth-service /api/auth/logout). Keyin lokal clear.
+     * Server yoki tarmoq xatosi bo'lsa ham lokal clear bajariladi (audit M-H4).
+     */
+    suspend fun logout() {
+        try {
+            val refresh = TokenManager.refreshToken
+            if (!refresh.isNullOrBlank()) {
+                authApiService.logout(mapOf("refreshToken" to refresh))
+            }
+        } catch (_: Exception) {
+            // Offline/timeout/5xx — baribir lokal clear bajariladi
+        } finally {
+            TokenManager.clear()
+        }
     }
 
     /** Tokenlarni va muddatini TokenManager ga saqlaydi */

@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,8 +56,13 @@ public class ProductApiClient {
 
     /** Paginatsiyali mahsulotlar ro'yxati */
     public PagePayload<ProductResponse> fetchProductsPage(String search, UUID categoryId, int page, int size, String bearerToken) {
+        return fetchProductsPage(search, categoryId, null, null, page, size, bearerToken);
+    }
+
+    /** Paginatsiyali ro'yxat + narx filtri (M-H6) */
+    public PagePayload<ProductResponse> fetchProductsPage(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String bearerToken) {
         ApiResponse<PagePayload<ProductResponse>> response = productRestClient.get()
-                .uri(productsUri(search, categoryId, page, size))
+                .uri(productsUri(search, categoryId, minPrice, maxPrice, page, size))
                 .headers(headers -> addBearerToken(headers, bearerToken))
                 .retrieve()
                 .body(PAGE_RESPONSE_TYPE);
@@ -72,8 +78,13 @@ public class ProductApiClient {
      * Filterlar DB tomonidan qo'llanilgani uchun hasMore hisobi aniq bo'ladi.
      */
     public PagePayload<ProductResponse> fetchProductsAfter(String search, UUID categoryId, UUID afterId, int size, String bearerToken) {
+        return fetchProductsAfter(search, categoryId, null, null, afterId, size, bearerToken);
+    }
+
+    /** Keyset pagination + narx filtri (M-H6) */
+    public PagePayload<ProductResponse> fetchProductsAfter(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, UUID afterId, int size, String bearerToken) {
         ApiResponse<PagePayload<ProductResponse>> response = productRestClient.get()
-                .uri(productsAfterUri(search, categoryId, afterId, size))
+                .uri(productsAfterUri(search, categoryId, minPrice, maxPrice, afterId, size))
                 .headers(headers -> addBearerToken(headers, bearerToken))
                 .retrieve()
                 .body(PAGE_RESPONSE_TYPE);
@@ -180,19 +191,23 @@ public class ProductApiClient {
         return response.data().content();
     }
 
-    private Function<UriBuilder, java.net.URI> productsUri(String search, UUID categoryId, int page, int size) {
+    private Function<UriBuilder, java.net.URI> productsUri(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size) {
         return uriBuilder -> uriBuilder.path("/api/products")
                 .queryParamIfPresent("name", Optional.ofNullable(search).filter(StringUtils::hasText))
                 .queryParamIfPresent("categoryId", Optional.ofNullable(categoryId))
+                .queryParamIfPresent("minPrice", Optional.ofNullable(minPrice))
+                .queryParamIfPresent("maxPrice", Optional.ofNullable(maxPrice))
                 .queryParam("page", page)
                 .queryParam("size", size)
                 .build();
     }
 
-    private Function<UriBuilder, java.net.URI> productsAfterUri(String search, UUID categoryId, UUID afterId, int size) {
+    private Function<UriBuilder, java.net.URI> productsAfterUri(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, UUID afterId, int size) {
         return uriBuilder -> uriBuilder.path("/api/products")
                 .queryParamIfPresent("name", Optional.ofNullable(search).filter(StringUtils::hasText))
                 .queryParamIfPresent("categoryId", Optional.ofNullable(categoryId))
+                .queryParamIfPresent("minPrice", Optional.ofNullable(minPrice))
+                .queryParamIfPresent("maxPrice", Optional.ofNullable(maxPrice))
                 .queryParamIfPresent("afterId", Optional.ofNullable(afterId))
                 .queryParam("page", 0)
                 .queryParam("size", size)

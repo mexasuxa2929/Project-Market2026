@@ -2,6 +2,7 @@ package com.example.mobile_app.ui.screens.category
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,20 +22,29 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +83,12 @@ fun CategoryProductsScreen(
     val refreshState = products.loadState.refresh
     val isFirstLoad = refreshState is LoadState.Loading && products.itemCount == 0
     val gridState = rememberLazyGridState()
+
+    // Narx filtri (M-H6): panel holati + matn maydonlari
+    val priceRange by viewModel.priceRange.collectAsState()
+    var showPriceFilter by rememberSaveable { mutableStateOf(false) }
+    var minText by rememberSaveable { mutableStateOf("") }
+    var maxText by rememberSaveable { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
 
@@ -230,6 +246,91 @@ fun CategoryProductsScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            // Narx filtri tugmasi (faol bo'lsa ko'k fon bilan belgilanadi)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (priceRange != null) PrimaryColor.copy(alpha = 0.12f) else Color.Transparent)
+                    .clickable { showPriceFilter = !showPriceFilter },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.FilterAlt,
+                    contentDescription = tr("price_filter_min"),
+                    tint = if (priceRange != null) PrimaryColor else OnSurface,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // Narx filtri paneli (header ostida)
+        if (showPriceFilter) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp)
+                    .shadow(6.dp)
+                    .background(Surface)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = minText,
+                        onValueChange = { minText = it.filter(Char::isDigit) },
+                        placeholder = { Text(tr("price_filter_min"), fontSize = 12.sp) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColor,
+                            unfocusedBorderColor = OutlineVar
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                    OutlinedTextField(
+                        value = maxText,
+                        onValueChange = { maxText = it.filter(Char::isDigit) },
+                        placeholder = { Text(tr("price_filter_max"), fontSize = 12.sp) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColor,
+                            unfocusedBorderColor = OutlineVar
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            viewModel.setPriceFilter(minText.toDoubleOrNull(), maxText.toDoubleOrNull())
+                            showPriceFilter = false
+                        },
+                        enabled = minText.isNotBlank() || maxText.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text(tr("price_filter_apply"), color = Color.White, fontWeight = FontWeight.Bold) }
+                    OutlinedButton(
+                        onClick = {
+                            minText = ""
+                            maxText = ""
+                            viewModel.setPriceFilter(null, null)
+                            showPriceFilter = false
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text(tr("price_filter_clear"), color = PrimaryColor, fontWeight = FontWeight.Bold) }
+                }
+            }
         }
     }
 }

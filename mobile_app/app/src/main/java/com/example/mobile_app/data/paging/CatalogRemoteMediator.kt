@@ -24,7 +24,9 @@ class CatalogRemoteMediator(
     private val search: String,
     private val categoryId: String?,
     private val sort: String?,
-    private val gson: Gson
+    private val gson: Gson,
+    private val minPrice: Double? = null,
+    private val maxPrice: Double? = null
 ) : RemoteMediator<Int, CatalogProductEntity>() {
 
     /** Keshda saqlanadigan maksimal qidiruv so'rovlari soni (qolganlari o'chiriladi). */
@@ -46,6 +48,8 @@ class CatalogRemoteMediator(
                 search = search.ifBlank { null },
                 categoryId = categoryId,
                 sort = sort,
+                minPrice = minPrice,
+                maxPrice = maxPrice,
                 cursor = cursor,
                 size = state.config.pageSize
             )

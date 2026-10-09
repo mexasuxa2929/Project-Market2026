@@ -113,11 +113,16 @@ fun HomeScreen(
         { product, isFav -> wishlistViewModel.toggleFavorite(product.id, isFav) }
     }
 
-    // Savatga qo'shish: optimistic line + toast
+    // Savatga qo'shish: optimistic line + toast faqat server natijasiga qarab (M-H5)
     val onAddToCart: (Product) -> Unit = remember(cartViewModel) {
         { product ->
-            cartViewModel?.addProduct(product)
-            Toast.makeText(context, trNow("detail_added_to_cart"), Toast.LENGTH_SHORT).show()
+            cartViewModel?.addProduct(product) { ok ->
+                Toast.makeText(
+                    context,
+                    trNow(if (ok) "detail_added_to_cart" else "cart_add_failed"),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 

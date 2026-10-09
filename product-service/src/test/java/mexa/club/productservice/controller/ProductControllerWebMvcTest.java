@@ -49,7 +49,7 @@ class ProductControllerWebMvcTest {
     @Test
     void listProducts_returnsPagedResponse() throws Exception {
         ProductResponse response = sampleResponse();
-when(productService.findProducts(any(PageRequest.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+when(productService.findProducts(any(PageRequest.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/api/products"))

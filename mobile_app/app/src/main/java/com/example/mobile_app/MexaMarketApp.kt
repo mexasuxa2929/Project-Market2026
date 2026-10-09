@@ -23,7 +23,7 @@ class MexaMarketApp : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         instance = this
         purgeCatalogCacheIfNeeded()
-        startRealtimeListenerDelayed()
+        observeRealtimeListener()
     }
 
     /**
@@ -52,21 +52,45 @@ class MexaMarketApp : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Real-time SSE listener ni kechiktirib ishga tushiradi.
-     * Dastur ochilgandan 30 soniya keyin ulanadi — bu dasturning tezroq yuklanishini ta'minlaydi
-     * va past darajadagi qurilmalarda boshlang'ich xotira bosimini kamaytiradi.
+     * Real-time SSE listener'ni sessiya holatiga bog'laydi (audit M-H1):
+     * - Dastur ochilgandan 30 soniya keyin birinchi marta ulanadi (boot tezlashuvi)
+     * - Login → start, logout/session expire (token tozalandi) → stop (socket yopiladi)
      */
-    private fun startRealtimeListenerDelayed() {
+    private fun observeRealtimeListener() {
         appScope.launch {
-            delay(30_000L) // 30 soniya kutish
+            delay(30_000L) // birinchi ulanishni kechiktirish (eski xato)
+            var running = false
+            while (true) {
+                val loggedIn = try {
+                    com.example.mobile_app.data.local.TokenManager.isLoggedIn
+                } catch (_: Exception) {
+                    false
+                }
+                when {
+                    loggedIn && !running -> {
+                        ensureRealtimeService()?.start()
+                        running = true
+                    }
+                    !loggedIn && running -> {
+                        realtimeEventService?.stop()
+                        running = false
+                    }
+                }
+                delay(5_000L)
+            }
+        }
+    }
+
+    private fun ensureRealtimeService(): RealtimeEventService? {
+        if (realtimeEventService == null) {
             realtimeEventService = RealtimeEventService(
                 baseUrl = RetrofitClient.BASE_URL,
                 onEvent = { eventType, data ->
                     handleRealtimeEvent(eventType, data)
                 }
             )
-            realtimeEventService?.start()
         }
+        return realtimeEventService
     }
 
     /**

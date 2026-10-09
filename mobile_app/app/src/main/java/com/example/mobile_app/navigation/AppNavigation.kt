@@ -295,7 +295,19 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                     onFavoriteToggle = { productId, currentlyFavorited ->
                         wishlistViewModel.toggleFavorite(productId, currentlyFavorited)
                     },
-                    onAddToCart = { product -> cartViewModel.updateItem(product.id, 1) }
+                    onAddToCart = { product ->
+                        // Miqdor +1 (eski: updateItem(id, 1) mavjud miqdorni 1 ga bosardi) — M-H3;
+                        // toast faqat server natijasiga qarab — M-H5
+                        cartViewModel.addProduct(product) { ok ->
+                            android.widget.Toast.makeText(
+                                activity,
+                                com.example.mobile_app.util.trNow(
+                                    if (ok) "detail_added_to_cart" else "cart_add_failed"
+                                ),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 )
             }
 
@@ -402,7 +414,19 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                     onFavoriteToggle = { productId, currentlyFavorited ->
                         wishlistViewModel.toggleFavorite(productId, currentlyFavorited)
                     },
-                    onAddToCart = { product -> cartViewModel.updateItem(product.id, 1) }
+                    onAddToCart = { product ->
+                        // Miqdor +1 (eski: updateItem(id, 1) mavjud miqdorni 1 ga bosardi) — M-H3;
+                        // toast faqat server natijasiga qarab — M-H5
+                        cartViewModel.addProduct(product) { ok ->
+                            android.widget.Toast.makeText(
+                                activity,
+                                com.example.mobile_app.util.trNow(
+                                    if (ok) "detail_added_to_cart" else "cart_add_failed"
+                                ),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 )
             }
 

@@ -111,7 +111,7 @@ class ProductServiceTest {
         when(storageService.toPublicUrl(any())).thenAnswer(inv -> "/api/files/" + inv.getArgument(0, String.class));
         when(warehouseProductStockClient.fetchTotalStockBatch(any())).thenReturn(Map.of());
 
-        var page = productService.findProducts(PageRequest.of(0, 10), null, "key", null, null, null, null, null, null, null, null, null);
+        var page = productService.findProducts(PageRequest.of(0, 10), null, "key", null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(1, page.getTotalElements());
         assertEquals("Keyboard", page.getContent().get(0).getName());

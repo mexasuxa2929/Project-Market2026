@@ -235,8 +235,10 @@ class AuthViewModel : ViewModel() {
     }
 
     fun logout() {
-        repository.logout()
-        _uiState.value = AuthUiState(isLoggedIn = false)
+        viewModelScope.launch {
+            repository.logout()
+            _uiState.value = AuthUiState(isLoggedIn = false)
+        }
     }
 
     fun clearError() {

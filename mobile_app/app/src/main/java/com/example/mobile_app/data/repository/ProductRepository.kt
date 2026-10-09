@@ -172,10 +172,18 @@ class ProductRepository(
      * o'qiydi va Room'ga yozadi; UI esa doim Room'dan yuklanadi.
      */
     @OptIn(ExperimentalPagingApi::class)
-    fun getProductsPager(search: String = "", categoryId: String? = null, sort: String? = null): Flow<PagingData<Product>> {
+    fun getProductsPager(
+        search: String = "",
+        categoryId: String? = null,
+        sort: String? = null,
+        minPrice: Double? = null,
+        maxPrice: Double? = null
+    ): Flow<PagingData<Product>> {
         val sortKey = sort ?: ""
         val catKey = categoryId ?: ""
-        val queryKey = "${AppLanguage.current.code}:${search.trim().lowercase()}:${catKey}:${sortKey}"
+        // Narx filtri queryKey'ga kiradi — har xil filtr alohida keshlanadi (M-H6)
+        val priceKey = "p${minPrice ?: ""}t${maxPrice ?: ""}"
+        val queryKey = "${AppLanguage.current.code}:${search.trim().lowercase()}:${catKey}:${sortKey}:$priceKey"
         val lang = AppLanguage.current
         val rawSearch = search.trim()
         return Pager(
@@ -185,7 +193,9 @@ class ProductRepository(
                 initialLoadSize = 10,
                 enablePlaceholders = false
             ),
-            remoteMediator = CatalogRemoteMediator(apiService, catalogProductDao, queryKey, rawSearch, categoryId, sort, gson)
+            remoteMediator = CatalogRemoteMediator(
+                apiService, catalogProductDao, queryKey, rawSearch, categoryId, sort, gson, minPrice, maxPrice
+            )
         ) {
             catalogProductDao.pagingSource(queryKey)
         }

@@ -64,32 +64,43 @@ class TokenAuthenticator : Authenticator {
                     .build()
             }
 
-            val tokenPair = tryRefresh(refreshToken)
-            if (tokenPair != null) {
-                TokenManager.accessToken = tokenPair.first
-                TokenManager.refreshToken = tokenPair.second
+            val tokenPair = when (val result = tryRefresh(refreshToken)) {
+                is RefreshResult.Success -> result
+                // Server aniq rad etdi (400/401/403: refresh yaroqsiz/eskirgan/bloklangan)
+                is RefreshResult.Definitive -> {
+                    TokenManager.clear()
+                    SessionEvents.expire()
+                    null
+                }
+                // Tarmoq xati / 5xx / 429 / parse — sessiya SAQLANADI (audit M-H2):
+                // keyingi so'rovda refresh qayta uriniladi.
+                is RefreshResult.Retryable -> null
+            }
+            if (tokenPair is RefreshResult.Success) {
+                TokenManager.accessToken = tokenPair.access
+                TokenManager.refreshToken = tokenPair.refresh
                 response.request.newBuilder()
-                    .header("Authorization", "Bearer ${tokenPair.first}")
+                    .header("Authorization", "Bearer ${tokenPair.access}")
                     .build()
             } else {
-                TokenManager.clear()
-                SessionEvents.expire()
                 null
             }
         }
     }
 
+    private sealed interface RefreshResult {
+        data class Success(val access: String, val refresh: String) : RefreshResult
+        data class Definitive(val status: Int) : RefreshResult
+        data object Retryable : RefreshResult
+    }
+
     /**
      * OkHttp synchronous call orqali /api/auth/refresh endpointiga murojaat qiladi.
      * Retrofit ishlatilmaydi (suspend funksiya kerak emas).
+     * Xatolik turlarini ajratadi: aniq rad etish vs vaqtincha xato (audit M-H2).
      */
-    private fun tryRefresh(refreshToken: String): Pair<String, String>? {
+    private fun tryRefresh(refreshToken: String): RefreshResult {
         return try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-
             val json = JSONObject().apply {
                 put("refreshToken", refreshToken)
                 put("deviceId", com.example.mobile_app.data.local.TokenManager.deviceId)
@@ -102,22 +113,46 @@ class TokenAuthenticator : Authenticator {
                 .post(body)
                 .build()
 
-            val response = client.newCall(request).execute()
-
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string() ?: return null
-                val jsonObj = JSONObject(responseBody)
-                if (jsonObj.optBoolean("success", false)) {
-                    val data = jsonObj.optJSONObject("data") ?: return null
-                    val newAccess = data.optString("token").takeIf { it.isNotBlank() }
-                    val newRefresh = data.optString("refreshToken").takeIf { it.isNotBlank() }
-                    if (newAccess != null && newRefresh != null) {
-                        Pair(newAccess, newRefresh)
-                    } else null
-                } else null
-            } else null
+            // Bitta shared client (eski: har urinishda yangi OkHttpClient — socket leak)
+            sharedRefreshClient.newCall(request).execute().use { response ->
+                when {
+                    response.isSuccessful -> {
+                        val responseBody = response.body?.string()
+                            ?: return RefreshResult.Retryable
+                        val jsonObj = JSONObject(responseBody)
+                        if (jsonObj.optBoolean("success", false)) {
+                            val data = jsonObj.optJSONObject("data")
+                                ?: return RefreshResult.Retryable
+                            val newAccess = data.optString("token").takeIf { it.isNotBlank() }
+                            val newRefresh = data.optString("refreshToken").takeIf { it.isNotBlank() }
+                            if (newAccess != null && newRefresh != null) {
+                                RefreshResult.Success(newAccess, newRefresh)
+                            } else {
+                                RefreshResult.Retryable
+                            }
+                        } else {
+                            // 200 + success=false — sessiya obyektini buzmaymiz
+                            RefreshResult.Retryable
+                        }
+                    }
+                    response.code == 400 || response.code == 401 || response.code == 403 ->
+                        RefreshResult.Definitive(response.code)
+                    else -> RefreshResult.Retryable // 429/5xx
+                }
+            }
         } catch (e: Exception) {
-            null
+            // Offline/timeout/socket — sessiya saqlanadi
+            RefreshResult.Retryable
+        }
+    }
+
+    private companion object {
+        /** Refresh uchun bitta umumiy client (authenticator'siz — recursiv loop yo'q). */
+        val sharedRefreshClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .build()
         }
     }
 }

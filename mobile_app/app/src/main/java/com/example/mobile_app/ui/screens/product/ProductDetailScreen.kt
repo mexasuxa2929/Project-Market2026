@@ -102,6 +102,8 @@ fun ProductDetailScreen(
     onBack: () -> Unit,
     onNavigateToProduct: (String) -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     LaunchedEffect(productId) {
         viewModel.load(productId)
         viewModel.loadRecommended()
@@ -293,7 +295,16 @@ fun ProductDetailScreen(
                     totalStock  = product.totalStock,
                     onAddToCart = {
                         // Savatga aynan SELECT qilingan rang-varianti tushadi.
-                        cartViewModel?.updateItem(viewModel.effectiveProductId(), quantity)
+                        // Xato bo'lsa toast — muvaffaqiyatda tugma o'zi animatsiya ko'rsatadi (M-H5)
+                        cartViewModel?.updateItem(viewModel.effectiveProductId(), quantity) { ok ->
+                            if (!ok) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    com.example.mobile_app.util.trNow("cart_add_failed"),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     },
                     modifier    = Modifier.align(Alignment.BottomCenter)
                 )

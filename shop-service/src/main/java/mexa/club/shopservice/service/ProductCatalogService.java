@@ -31,20 +31,26 @@ public class ProductCatalogService {
     }
 
     public List<ProductResponse> getAllProducts(String search) {
-        return getProductsPage(search, null, null, 0, 20).content();
+        return getProductsPage(search, null, null, null, null, 0, 20).content();
     }
 
     public List<ProductResponse> getProducts(String search, BigDecimal minPrice, BigDecimal maxPrice, String currency) {
-        return getProductsPage(search, null, null, 0, 20).content();
+        // currency: product-service da alohida valyuta ustuni yo'q — hozircha e'tiborsiz
+        return getProductsPage(search, null, null, minPrice, maxPrice, 0, 20).content();
     }
 
     /** Paginatsiyali mahsulotlar ro'yxati — hasMore va nextCursor to'g'ri hisoblanadi */
     public PagePayload<ProductResponse> getProductsPage(String search, UUID categoryId, String sort, int page, int size) {
+        return getProductsPage(search, categoryId, sort, null, null, page, size);
+    }
+
+    /** Paginatsiyali ro'yxat + narx filtri (M-H6) */
+    public PagePayload<ProductResponse> getProductsPage(String search, UUID categoryId, String sort, BigDecimal minPrice, BigDecimal maxPrice, int page, int size) {
         String normalizedSearch = normalize(search);
         int limited = Math.max(1, Math.min(size <= 0 ? DEFAULT_PAGE_SIZE : size, MAX_PAGE_SIZE));
         try {
             PagePayload<ProductResponse> raw = productApiClient.fetchProductsPage(
-                    normalizedSearch, categoryId, page, limited + 1,
+                    normalizedSearch, categoryId, minPrice, maxPrice, page, limited + 1,
                     requestTokenProvider.resolveAuthorizationHeader()
             );
             List<ProductResponse> items = raw.content().stream()
@@ -66,11 +72,19 @@ public class ProductCatalogService {
      * size+1 qator olinadi — hasMore shu orqali aniqlanadi, keyingi cursor = oxirgi qator id.
      */
     public PagePayload<ProductResponse> getProductsPage(String search, UUID categoryId, String sort, UUID cursor, int size) {
+        return getProductsPage(search, categoryId, sort, null, null, cursor, size);
+    }
+
+    /**
+     * Keyset (cursor) pagination + narx filtri (M-H6): id tartibida, OFFSET'siz.
+     * size+1 qator olinadi — hasMore shu orqali aniqlanadi, keyingi cursor = oxirgi qator id.
+     */
+    public PagePayload<ProductResponse> getProductsPage(String search, UUID categoryId, String sort, BigDecimal minPrice, BigDecimal maxPrice, UUID cursor, int size) {
         String normalizedSearch = normalize(search);
         int limited = Math.max(1, Math.min(size <= 0 ? DEFAULT_PAGE_SIZE : size, MAX_PAGE_SIZE));
         try {
             PagePayload<ProductResponse> raw = productApiClient.fetchProductsAfter(
-                    normalizedSearch, categoryId, cursor, limited + 1,
+                    normalizedSearch, categoryId, minPrice, maxPrice, cursor, limited + 1,
                     requestTokenProvider.resolveAuthorizationHeader()
             );
             List<ProductResponse> items = raw.content().stream()

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class CartViewModel(private val repository: CartRepository) : ViewModel() {
@@ -72,21 +73,26 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
             lineCount = lines.size.toLong()
         )
 
-    fun updateItem(productId: String, quantity: Int) {
-        val current = (_cart.value as? UiState.Success)?.data ?: return
-        _cart.value = UiState.Success(withTotals(
-            current.lines.map {
-                if (it.productId == productId) it.copy(quantity = quantity) else it
-            },
-            current
-        ))
+    /**
+     * Miqdorni o'rnatish (absolyut PUT).
+     * Loading/Error holatida ham serverga yuboriladi (avval `?: return` bilan
+     * no-op bo'lib qolgan edi — audit M-H3). onResult: server muvaffaqiyati (M-H5).
+     */
+    fun updateItem(productId: String, quantity: Int, onResult: ((Boolean) -> Unit)? = null) {
+        val current = (_cart.value as? UiState.Success)?.data
+        if (current != null) {
+            _cart.value = UiState.Success(withTotals(
+                current.lines.map {
+                    if (it.productId == productId) it.copy(quantity = quantity) else it
+                },
+                current
+            ))
+        }
 
         viewModelScope.launch {
-            // Har doim serverdan sinxronlash: yangi line/narxlar + rollback
-            repository.updateCartItem(productId, quantity).fold(
-                onSuccess = { refreshCart() },
-                onFailure = { refreshCart() }
-            )
+            val ok = repository.updateCartItem(productId, quantity).isSuccess
+            refreshCart()
+            onResult?.invoke(ok)
         }
     }
 
@@ -94,36 +100,49 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
      * Yangi mahsulot qo'shish: optimistic line darhol ro'yxatda ko'rinadi
      * (unitPrice/nom Product dan olinadi), keyin server bilan sinxronlanadi.
      */
-    fun addProduct(product: Product) {
-        val current = (_cart.value as? UiState.Success)?.data
-        if (current != null) {
-            val existing = current.lines.find { it.productId == product.id }
-            val newLines = if (existing != null) {
-                current.lines.map {
-                    if (it.productId == product.id) it.copy(quantity = it.quantity + 1) else it
-                }
-            } else {
-                current.lines + CartLineResponse(
-                    productId = product.id,
-                    quantity = 1,
-                    unitPrice = product.basePrice,
-                    updatedAt = null,
-                    productName = product.name,
-                    imageUrl = product.thumbnail,
-                    color = product.color,
-                    colorCode = null
-                )
-            }
-            _cart.value = UiState.Success(withTotals(newLines, current))
-        }
-
+    /**
+     * Mahsulotni savatga qo'shish (miqdor +1).
+     * Joriy miqdor lokal holatdan olinadi; cart yuklanmagan bo'lsa — serverdan
+     * so'raladi (avval `updateItem(id, 1)` chaqirilib mavjud miqdorni 1 ga
+     * bosib qo'ygan edi — audit M-H3). onResult: server muvaffaqiyati (M-H5).
+     */
+    fun addProduct(product: Product, onResult: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
-            val qty = ((_cart.value as? UiState.Success)?.data?.lines
-                ?.find { it.productId == product.id }?.quantity) ?: 1
-            repository.updateCartItem(product.id, qty).fold(
-                onSuccess = { refreshCart() },
-                onFailure = { refreshCart() }
-            )
+            val loaded = (_cart.value as? UiState.Success)?.data
+            val baseQty = if (loaded != null) {
+                loaded.lines.find { it.productId == product.id }?.quantity ?: 0
+            } else {
+                // Cart holati ma'lum emas (Loading/Error) — miqdorni serverdan olamiz
+                repository.getCart().first().getOrNull()?.lines
+                    ?.find { it.productId == product.id }?.quantity ?: 0
+            }
+            val newQty = baseQty + 1
+
+            // Optimistic line (faqat cart yuklangan bo'lsa)
+            if (loaded != null) {
+                val existing = loaded.lines.find { it.productId == product.id }
+                val newLines = if (existing != null) {
+                    loaded.lines.map {
+                        if (it.productId == product.id) it.copy(quantity = newQty) else it
+                    }
+                } else {
+                    loaded.lines + CartLineResponse(
+                        productId = product.id,
+                        quantity = newQty,
+                        unitPrice = product.basePrice,
+                        updatedAt = null,
+                        productName = product.name,
+                        imageUrl = product.thumbnail,
+                        color = product.color,
+                        colorCode = null
+                    )
+                }
+                _cart.value = UiState.Success(withTotals(newLines, loaded))
+            }
+
+            val ok = repository.updateCartItem(product.id, newQty).isSuccess
+            refreshCart()
+            onResult?.invoke(ok)
         }
     }
 

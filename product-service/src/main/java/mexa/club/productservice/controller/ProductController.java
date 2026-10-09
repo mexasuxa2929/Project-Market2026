@@ -25,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,9 +63,11 @@ public class ProductController {
             @Parameter(description = "Filter by product tag") @RequestParam(required = false) String tag,
             @Parameter(description = "Filter by product status") @RequestParam(required = false) String status,
             @Parameter(description = "Filter by featured flag") @RequestParam(required = false) Boolean featured,
+            @Parameter(description = "Minimum price filter (product_price.salePrice)") @RequestParam(required = false) BigDecimal minPrice,
+            @Parameter(description = "Maximum price filter (product_price.salePrice)") @RequestParam(required = false) BigDecimal maxPrice,
             @Parameter(description = "Til kodi (uz|ru) — berilsa: lokalizatsiyalangan va yengil (slim) payload qaytariladi (mobile)") @RequestParam(required = false) String lang
     ) {
-        var page = productService.findProducts(pageable, afterId, name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured, lang);
+        var page = productService.findProducts(pageable, afterId, name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured, minPrice, maxPrice, lang);
         return ResponseEntity.ok(mexa.club.productservice.api.ApiResponse.ok(PagePayload.of(page)));
     }
 
@@ -146,7 +149,7 @@ public class ProductController {
                     .body(mexa.club.productservice.api.ApiResponse.fail("BAD_REQUEST",
                             "Provide at least one filter: name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured"));
         }
-        var page = productService.findProducts(pageable, null, name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured, lang);
+        var page = productService.findProducts(pageable, null, name, barcode, categoryId, brandId, manufacturerId, active, tag, status, featured, null, null, lang);
         return ResponseEntity.ok(mexa.club.productservice.api.ApiResponse.ok(PagePayload.of(page)));
     }
 

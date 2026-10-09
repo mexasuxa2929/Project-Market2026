@@ -231,12 +231,11 @@ fun ProductCard(
                             .size(34.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(cartBrush)
-                            .clickable {
-                                onAddToCart?.let {
-                                    it(product)
-                                    Toast.makeText(context, trNow("detail_added_to_cart"), Toast.LENGTH_SHORT).show()
-                                }
-                            },
+                        .clickable {
+                            // Natija-toast'ni handler (HomeScreen/AppNavigation) ko'rsatadi —
+                            // shu yerda ko'rsatilsa ikki marta chiqar edi (audit M-H5)
+                            onAddToCart?.invoke(product)
+                        },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
