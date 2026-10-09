@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -136,13 +138,13 @@ fun EditWarehouseDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it; error = null },
-                        placeholder = { Text("Masalan: Farg'ona Filiali", color = MexaWarehouseColors.textCaption) },
+                        placeholder = { Text(AppStrings.t(appLanguage(), "Masalan: Farg'ona Filiali"), color = MexaWarehouseColors.textCaption) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         isError = nameError,
                         shape = RoundedCornerShape(8.dp),
                         supportingText = if (nameError) {
-                            { Text("Ombor nomi bo'sh bo'lmasligi kerak", color = MexaWarehouseColors.danger, fontSize = 12.sp) }
+                            { Text(AppStrings.t(appLanguage(), "Ombor nomi bo'sh bo'lmasligi kerak"), color = MexaWarehouseColors.danger, fontSize = 12.sp) }
                         } else null,
                     )
                 }
@@ -178,8 +180,8 @@ fun EditWarehouseDialog(
                                 expanded = statusExpanded,
                                 onDismissRequest = { statusExpanded = false },
                             ) {
-                                DropdownMenuItem(text = { Text("Faol") }, onClick = { isActive = true; statusExpanded = false })
-                                DropdownMenuItem(text = { Text("Nofaol") }, onClick = { isActive = false; statusExpanded = false })
+                                DropdownMenuItem(text = { Text(AppStrings.devicesActiveBadge(appLanguage())) }, onClick = { isActive = true; statusExpanded = false })
+                                DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Nofaol")) }, onClick = { isActive = false; statusExpanded = false })
                             }
                         }
                     }
@@ -199,7 +201,7 @@ fun EditWarehouseDialog(
                         onClick = { if (!saving) onDismiss() },
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Bekor qilish")
+                        Text(AppStrings.cancel(appLanguage()))
                     }
                     Button(
                         onClick = { save() },
@@ -215,7 +217,7 @@ fun EditWarehouseDialog(
                             )
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

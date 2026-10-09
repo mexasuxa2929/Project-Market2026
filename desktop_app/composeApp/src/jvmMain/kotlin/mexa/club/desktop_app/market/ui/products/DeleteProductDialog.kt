@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -170,7 +172,7 @@ fun DeleteProductDialog(
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
                     ) {
-                        Text("Bekor qilish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.cancel(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                     Button(
                         onClick = { delete() },
@@ -182,7 +184,7 @@ fun DeleteProductDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("O'chirish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.deleteUserSubmit(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }

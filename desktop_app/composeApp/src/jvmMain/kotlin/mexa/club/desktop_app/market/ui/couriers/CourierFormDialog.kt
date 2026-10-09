@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.couriers
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -261,7 +264,7 @@ fun CourierFormDialog(
 
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = { save() },
                         enabled = !saving,
@@ -272,7 +275,7 @@ fun CourierFormDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

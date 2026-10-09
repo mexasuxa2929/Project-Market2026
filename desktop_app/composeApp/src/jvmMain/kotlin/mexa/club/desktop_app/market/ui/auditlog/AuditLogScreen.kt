@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.auditlog
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -37,10 +39,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
@@ -58,20 +62,34 @@ data class AuditLogRow(
 )
 
 @Composable
-fun AuditLogScreen(modifier: Modifier = Modifier) {
+fun AuditLogScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var logs by remember { mutableStateOf<List<AuditLogRow>>(emptyList()) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialQuery) }
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) searchQuery = initialQuery
+    }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
+    // Server pagination (T-H4): jami soni serverdan keladi
+    var totalElements by remember { mutableStateOf(0L) }
 
-    suspend fun fetchLogs(): List<AuditLogRow> = withContext(Dispatchers.IO) {
-        val text = ApiClient.get("/api/audit-logs?page=0&size=200")
+    suspend fun fetchLogs(): Pair<List<AuditLogRow>, Long> = withContext(Dispatchers.IO) {
+        val params = buildList {
+            add("page=$page")
+            add("size=$pageSize")
+            if (searchQuery.isNotBlank()) {
+                add("q=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
+            }
+        }
+        val text = ApiClient.get("/api/audit-logs?${params.joinToString("&")}")
         val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
         val items = data?.itemsOrContentArray() ?: JsonArray(emptyList())
-        items.mapNotNull { el ->
+        val rows = items.mapNotNull { el ->
             val l = el as? JsonObject ?: return@mapNotNull null
             AuditLogRow(
                 id = l.stringField("id").ifEmpty { return@mapNotNull null },
@@ -82,7 +100,10 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
                 details = l.stringField("details"),
                 createdAt = l.stringField("createdAt"),
             )
-        }.sortedByDescending { it.createdAt }
+        }
+        val total = (data?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
     }
 
     fun reload() {
@@ -90,24 +111,28 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
             loading = true
             error = null
             runCatching { fetchLogs() }
-                .onSuccess { logs = it }
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi (to'g'ri sahifa)
+                    } else {
+                        logs = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
-
-    val filtered = logs.filter { l ->
-        searchQuery.isBlank() ||
-            l.action.contains(searchQuery, ignoreCase = true) ||
-            l.targetType.contains(searchQuery, ignoreCase = true) ||
-            l.actorUsername.contains(searchQuery, ignoreCase = true) ||
-            l.details.contains(searchQuery, ignoreCase = true)
+    // Debounce: har bosishda emas, yozish to'xtagandan keyin serverga so'rov (T-H4)
+    LaunchedEffect(searchQuery, page, pageSize) {
+        delay(300)
+        reload()
     }
-    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+
+    val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
-    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -144,26 +169,26 @@ fun AuditLogScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
-            filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            logs.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Yozuvlar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> AuditLogTable(paged)
+            else -> AuditLogTable(logs)
         }
 
-        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
-        if (!loading && error == null && filtered.isNotEmpty()) {
+        // ── Pagination (umumiy andoza: PaginationBar) — server total (T-H4) ──
+        if (!loading && error == null && logs.isNotEmpty()) {
             HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
             PaginationBar(
                 page = safePage,
                 pageSize = pageSize,
-                totalElements = filtered.size,
+                totalElements = totalElements.toInt(),
                 infoText = run {
                     val from = safePage * pageSize + 1
-                    val to = minOf((safePage + 1) * pageSize, filtered.size)
-                    "$from - $to / ${filtered.size} ta yozuv"
+                    val to = minOf((safePage + 1) * pageSize, totalElements.toInt())
+                    "$from - $to / $totalElements ta yozuv"
                 },
                 onPageChange = { page = it },
                 onPageSizeChange = { pageSize = it; page = 0 },

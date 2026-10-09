@@ -70,10 +70,14 @@ object GatewayRealtimeHub {
                             emitRefreshThrottled()
                         }
                     }
+                    // Server kanalni yopdi (yoki 200 bo'sh javob) — zudlik bilan
+                    // qayta ulanish hot-loop hosil qiladi (audit T-H2), qisqa pauza.
+                    delay(1_000)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // Sessiya yopilgan bo'lsa darhol to'xtash, aks holda 4s kutib qayta urinish
+                    // Non-2xx/401/socket xatlari: sessiya yopilgan bo'lsa darhol
+                    // to'xtash, aks holda 4s kutib qayta urinish
                     if (!isActive || !MarketSessionGate.ready.value) break
                     delay(4_000)
                 }

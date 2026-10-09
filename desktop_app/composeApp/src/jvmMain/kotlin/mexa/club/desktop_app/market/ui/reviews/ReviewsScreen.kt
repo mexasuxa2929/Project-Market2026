@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.reviews
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +48,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -112,6 +116,11 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
         loading = false
     }
 
+    // Realtime mutatsiyalar (reviews) → avtomatik yangilash (T-H7)
+    LaunchedEffect(Unit) {
+        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { refreshKey++ }
+    }
+
     // ── Delete dialog ─────────────────────────────────────────────────────────
     deletingId?.let { rid ->
         AlertDialog(
@@ -140,10 +149,10 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.error),
                     shape  = RoundedCornerShape(8.dp),
-                ) { Text("O'chirish", color = Color.White) }
+                ) { Text(AppStrings.deleteUserSubmit(appLanguage()), color = Color.White) }
             },
             dismissButton = {
-                TextButton(onClick = { deletingId = null; deleteError = null }) { Text("Bekor") }
+                TextButton(onClick = { deletingId = null; deleteError = null }) { Text(AppStrings.t(appLanguage(), "Bekor")) }
             },
             shape = RoundedCornerShape(12.dp),
         )
@@ -203,7 +212,7 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("FOYDALANUVCHI", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    Text(AppStrings.usersColUser(appLanguage()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                         color = MexaWarehouseColors.textMuted, modifier = Modifier.weight(1f))
                     Text("MAHSULOT ID", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                         color = MexaWarehouseColors.textMuted, modifier = Modifier.weight(1.4f))

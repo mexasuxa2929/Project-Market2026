@@ -1,5 +1,7 @@
 ﻿package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.TooltipArea
@@ -29,11 +31,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,10 +50,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -132,7 +138,7 @@ data class DropdownItem(val id: String, val name: String, val active: Boolean = 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProductsScreen(modifier: Modifier = Modifier) {
+fun ProductsScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val scope = rememberCoroutineScope()
     // FAQAT super admin mahsulotlarni qo'sha/tahrirlay/o'chiradi; oddiy admin faqat ko'radi.
     val canManageProducts = AuthSession.isSuperAdmin
@@ -153,7 +159,12 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
     val snackbarHostState          = remember { SnackbarHostState() }
 
     // Filters (real-time)
-    var searchQuery     by remember { mutableStateOf("") }
+    var searchQuery     by remember { mutableStateOf(initialQuery) }
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) searchQuery = initialQuery
+    }
     var catId           by remember { mutableStateOf("") }
     var catName         by remember { mutableStateOf("Barcha kategoriyalar") }
     var brandId         by remember { mutableStateOf("") }
@@ -173,20 +184,32 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
     var pageSizeExpanded  by remember { mutableStateOf(false) }
     var addMenuExpanded   by remember { mutableStateOf(false) }
 
+    // ── Product ops (T-H8): barcode filtri, export/import, stock-summary ──
+    var barcodeQuery      by remember { mutableStateOf("") }
+    var stockTarget       by remember { mutableStateOf<ProductRowData?>(null) }
+    var opRunning         by remember { mutableStateOf(false) }
+
+    fun notifyOp(message: String) {
+        scope.launch {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Long)
+        }
+    }
+
     // ── Fetch products ─────────────────────────────────────────────────────────
-    LaunchedEffect(page, pageSize, refreshKey, searchQuery, catId, brandId, activeTab) {
+    LaunchedEffect(page, pageSize, refreshKey, searchQuery, barcodeQuery, catId, brandId, activeTab) {
         // Search uchun 400ms debounce
-        if (searchQuery.isNotBlank()) delay(400)
+        if (searchQuery.isNotBlank() || barcodeQuery.isNotBlank()) delay(400)
 
         val activeParam = when (activeTab) {
             "Faol"   -> "&active=true"
             "Nofaol" -> "&active=false"
             else     -> ""
         }
-        val nameParam   = if (searchQuery.isNotBlank()) "&name=${searchQuery.trim()}" else ""
+        val nameParam   = if (searchQuery.isNotBlank()) "&name=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}" else ""
+        val barcodeParam = if (barcodeQuery.isNotBlank()) "&barcode=${java.net.URLEncoder.encode(barcodeQuery.trim(), "UTF-8")}" else ""
         val catParam    = if (catId.isNotBlank()) "&categoryId=$catId" else ""
         val brandParam  = if (brandId.isNotBlank()) "&brandId=$brandId" else ""
-        val url = "/api/products?page=$page&size=$pageSize$nameParam$catParam$brandParam$activeParam"
+        val url = "/api/products?page=$page&size=$pageSize$nameParam$barcodeParam$catParam$brandParam$activeParam"
 
         loading = true
         error   = null
@@ -293,6 +316,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
 
     fun clearFilters() {
         searchQuery = ""
+        barcodeQuery = ""
         catId = ""; catName = "Barcha kategoriyalar"
         brandId = ""; brandName = "Barcha brendlar"
         activeTab = "Hammasi"
@@ -300,6 +324,13 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
     }
 
     // ── Dialogs ────────────────────────────────────────────────────────────────
+    stockTarget?.let { target ->
+        StockSummaryDialog(
+            productId = target.id,
+            productName = target.name,
+            onDismiss = { stockTarget = null },
+        )
+    }
     viewingProduct?.let { prod ->
         ProductViewDialog(
             product   = prod,
@@ -420,8 +451,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(
-                    "Mahsulotlar",
+                Text(AppStrings.t(appLanguage(), "Mahsulotlar"),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = MexaWarehouseColors.textPrimary,
@@ -446,7 +476,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Qo'shish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.t(appLanguage(), "Qo'shish"), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Spacer(Modifier.width(4.dp))
                         Icon(
                             Icons.Filled.KeyboardArrowDown,
@@ -477,7 +507,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.indigoAccent)
-                                    Text("Brendlarni boshqarish", fontSize = 14.sp)
+                                    Text(AppStrings.t(appLanguage(), "Brendlarni boshqarish"), fontSize = 14.sp)
                                 }
                             },
                             onClick = { addMenuExpanded = false; showManageBrandsDialog = true },
@@ -486,12 +516,83 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.indigoAccent)
-                                    Text("Kategoriyalarni boshqarish", fontSize = 14.sp)
+                                    Text(AppStrings.t(appLanguage(), "Kategoriyalarni boshqarish"), fontSize = 14.sp)
                                 }
                             },
                             onClick = { addMenuExpanded = false; showManageCategoriesDialog = true },
                         )
                     }
+                }
+                // ── Export / Import (T-H8 product ops) ──────────────────────
+                IconButton(
+                    onClick = {
+                        if (!opRunning) {
+                            opRunning = true
+                            scope.launch {
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        val bytes = ApiClient.getBytes("/api/products/export")
+                                        val file = java.io.File(
+                                            System.getProperty("user.home") +
+                                                "/Downloads/products_${java.time.LocalDate.now()}.xlsx",
+                                        )
+                                        file.writeBytes(bytes)
+                                        file.absolutePath
+                                    }
+                                }.onSuccess { path -> notifyOp("Eksport saqlandi: $path") }
+                                    .onFailure { notifyOp("Eksport xatosi: ${it.message}") }
+                                opRunning = false
+                            }
+                        }
+                    },
+                    enabled = !opRunning,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(MexaWarehouseColors.indigoAccent.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
+                ) {
+                    Icon(
+                        Icons.Filled.Download,
+                        contentDescription = "Eksport (Excel)",
+                        tint = MexaWarehouseColors.indigoAccent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        if (!opRunning) {
+                            opRunning = true
+                            scope.launch {
+                                val picked = withContext(Dispatchers.IO) { pickImportFile() }
+                                if (picked != null) {
+                                    val (fileName, bytes) = picked
+                                    runCatching {
+                                        withContext(Dispatchers.IO) {
+                                            ApiClient.uploadFile("/api/products/import", fileName, bytes)
+                                        }
+                                    }.onSuccess { text ->
+                                        val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
+                                        val imported = (data?.get("imported") as? JsonPrimitive)?.content ?: "?"
+                                        val skipped = (data?.get("skipped") as? JsonPrimitive)?.content ?: "0"
+                                        val errCount = (data?.get("errors") as? JsonArray)?.size ?: 0
+                                        notifyOp("Import: $imported qo'shildi, $skipped o'tkazildi, $errCount xato")
+                                        refreshKey++
+                                    }.onFailure { notifyOp("Import xatosi: ${it.message}") }
+                                }
+                                opRunning = false
+                            }
+                        }
+                    },
+                    enabled = !opRunning,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(MexaWarehouseColors.amberBadgeBg, RoundedCornerShape(8.dp)),
+                ) {
+                    Icon(
+                        Icons.Filled.Upload,
+                        contentDescription = "Import (Excel/CSV)",
+                        tint = MexaWarehouseColors.amberBadgeFg,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
         }
@@ -512,8 +613,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
             ) {
                 // Search
                 Column(Modifier.weight(1.6f)) {
-                    Text(
-                        "QIDIRUV",
+                    Text(AppStrings.t(appLanguage(), "QIDIRUV"),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MexaWarehouseColors.textMuted,
@@ -650,6 +750,32 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                     }
                 }
 
+                // ── Barcode filtri (T-H8) ────────────────────────────────────
+                Column(Modifier.weight(1.1f)) {
+                    Text(
+                        AppStrings.t(appLanguage(), "BARCODE"),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MexaWarehouseColors.textMuted,
+                        modifier = Modifier.padding(bottom = 5.dp),
+                    )
+                    OutlinedTextField(
+                        value = barcodeQuery,
+                        onValueChange = { barcodeQuery = it; page = 0 },
+                        placeholder = { Text("8690000123456", fontSize = 13.sp, color = MexaWarehouseColors.outline) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = MexaWarehouseColors.outlineVariant,
+                            focusedBorderColor   = MexaWarehouseColors.primary,
+                        ),
+                        textStyle = TextStyle(fontSize = 13.sp),
+                    )
+                }
+
                 // Filtrni tozalash tugmasi
                 IconButton(
                     onClick = { clearFilters() },
@@ -759,7 +885,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                                 onClick = { refreshKey++ },
                                 colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary),
                             ) {
-                                Text("Qayta urinish")
+                                Text(AppStrings.t(appLanguage(), "Qayta urinish"))
                             }
                         }
                     }
@@ -778,8 +904,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                                 modifier = Modifier.size(48.dp),
                                 tint = MexaWarehouseColors.outlineVariant,
                             )
-                            Text(
-                                "Mahsulotlar topilmadi",
+                            Text(AppStrings.t(appLanguage(), "Mahsulotlar topilmadi"),
                                 fontSize = 15.sp,
                                 color = MexaWarehouseColors.textMuted,
                             )
@@ -793,6 +918,7 @@ fun ProductsScreen(modifier: Modifier = Modifier) {
                             onView           = { viewingProduct = product },
                             onEdit           = { editingProduct = product },
                             onDelete         = { deletingProduct = product },
+                            onStock          = { stockTarget = product },
                         )
                         if (index < products.lastIndex) {
                             HorizontalDivider(
@@ -853,6 +979,7 @@ private fun ProductTableRow(
     onView: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onStock: () -> Unit,
 ) {
     Row(
         Modifier
@@ -934,9 +1061,17 @@ private fun ProductTableRow(
 
         // Actions
         Row(
-            Modifier.width(96.dp),
+            Modifier.width(128.dp),
             horizontalArrangement = Arrangement.End,
         ) {
+            IconButton(onClick = onStock, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = "Ombor qoldig'i",
+                    tint = MexaWarehouseColors.textMuted,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
             IconButton(onClick = onView, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Filled.Visibility,
@@ -1131,8 +1266,7 @@ private fun PriceCell(product: ProductRowData, modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Text(
-                            "Narx bosqichlari",
+                        Text(AppStrings.t(appLanguage(), "Narx bosqichlari"),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MexaWarehouseColors.textMuted,
@@ -1247,7 +1381,136 @@ private fun PriceCell(product: ProductRowData, modifier: Modifier = Modifier) {
                 }
             }
         } else {
-            Text("—", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+            Text(AppStrings.devicesCurrentHint(appLanguage()), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
         }
     }
+}
+
+// ─── Stock summary dialog (T-H8 product ops) ──────────────────────────────────
+
+/** Foydalanuvchi tanlagan .xlsx/.csv faylni ochadi; (nom, baytlar) qaytaradi. */
+private fun pickImportFile(): Pair<String, ByteArray>? {
+    val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Import faylini tanlash", java.awt.FileDialog.LOAD)
+    dialog.isVisible = true
+    val name = dialog.file ?: return null
+    val dir = dialog.directory ?: return null
+    val file = java.io.File(dir, name)
+    return file.name to file.readBytes()
+}
+
+@Composable
+private fun StockSummaryDialog(productId: String, productName: String, onDismiss: () -> Unit) {
+    var loading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var totalQuantity by remember { mutableStateOf("0") }
+    var warehouses by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
+
+    LaunchedEffect(productId) {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val text = ApiClient.get("/api/products/$productId/stock-summary")
+                ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
+            }
+        }.onSuccess { data ->
+            if (data != null) {
+                totalQuantity = (data["totalQuantity"] as? JsonPrimitive)?.content ?: "0"
+                warehouses = (data["warehouses"] as? JsonArray)
+                    ?.mapNotNull { it as? JsonObject }
+                    ?: emptyList()
+            }
+        }.onFailure { loadError = it.message ?: "Xatolik" }
+        loading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                AppStrings.t(appLanguage(), "Ombor qoldig'i"),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(productName, fontSize = 13.sp, color = MexaWarehouseColors.textMuted, maxLines = 2)
+                when {
+                    loading -> Box(
+                        Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = MexaWarehouseColors.indigoAccent)
+                    }
+
+                    loadError != null -> Text(
+                        loadError ?: "",
+                        fontSize = 13.sp,
+                        color = MexaWarehouseColors.danger,
+                    )
+
+                    else -> {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                AppStrings.t(appLanguage(), "Jami"),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MexaWarehouseColors.textPrimary,
+                            )
+                            Text(
+                                totalQuantity,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MexaWarehouseColors.indigoAccent,
+                            )
+                        }
+                        if (warehouses.isEmpty()) {
+                            Text(
+                                AppStrings.t(appLanguage(), "Ma'lumot yo'q"),
+                                fontSize = 13.sp,
+                                color = MexaWarehouseColors.textMuted,
+                            )
+                        } else {
+                            HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
+                            warehouses.forEach { w ->
+                                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                    Text(
+                                        w.stringField("warehouseName").ifBlank { AppStrings.t(appLanguage(), "Omborlar") },
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MexaWarehouseColors.textPrimary,
+                                    )
+                                    Text(
+                                        buildString {
+                                            append(AppStrings.t(appLanguage(), "Miqdor"))
+                                            append(": ${w.stringField("quantity")}")
+                                            append("  ·  ")
+                                            append(AppStrings.t(appLanguage(), "Band"))
+                                            append(": ${w.stringField("reservedQuantity")}")
+                                            append("  ·  ")
+                                            append(AppStrings.t(appLanguage(), "Erkin"))
+                                            append(": ${w.stringField("availableQuantity")}")
+                                        },
+                                        fontSize = 12.sp,
+                                        color = MexaWarehouseColors.textMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(AppStrings.usersDetailClose(appLanguage()))
+            }
+        },
+    )
 }

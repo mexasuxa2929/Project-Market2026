@@ -141,7 +141,7 @@ class UsersScreenModel(
         loadUsers()
     }
 
-    fun createUser(form: CreateUserForm, onSuccess: () -> Unit) {
+    fun createUser(form: CreateUserForm, onSuccess: () -> Unit, onError: ((String) -> Unit)? = null) {
         screenModelScope.launch {
             val token = AuthSession.accessToken ?: return@launch
             val roleIds = resolveRoleIds(form.roles)
@@ -159,7 +159,10 @@ class UsersScreenModel(
                     loadUsers()
                     onSuccess()
                 }
-                is AuthApiResult.Err -> _uiState.update { it.copy(error = r.message) }
+                is AuthApiResult.Err -> {
+                    _uiState.update { it.copy(error = r.message) }
+                    onError?.invoke(r.message)
+                }
             }
         }
     }

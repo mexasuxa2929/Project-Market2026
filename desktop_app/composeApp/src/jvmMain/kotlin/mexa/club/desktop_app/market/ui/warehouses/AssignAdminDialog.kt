@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,8 +181,7 @@ fun AssignAdminDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        "Admin tayinlash",
+                    Text(AppStrings.t(appLanguage(), "Admin tayinlash"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MexaWarehouseColors.textPrimary,
@@ -298,7 +299,7 @@ fun AssignAdminDialog(
                             onClick = { if (!saving) onDismiss() },
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = { save() },
@@ -310,7 +311,7 @@ fun AssignAdminDialog(
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                                 Spacer(Modifier.width(8.dp))
                             }
-                            Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -342,8 +343,7 @@ fun AssignAdminDialog(
                         ) {
                             Icon(Icons.Default.Close, null, tint = MexaWarehouseColors.danger, modifier = Modifier.size(28.dp))
                         }
-                        Text(
-                            "Adminni olib tashlash",
+                        Text(AppStrings.t(appLanguage(), "Adminni olib tashlash"),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MexaWarehouseColors.textPrimary,
@@ -369,7 +369,7 @@ fun AssignAdminDialog(
                             border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.borderSubtle),
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = {

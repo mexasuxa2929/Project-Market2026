@@ -71,6 +71,20 @@ fun LanguageToggleBar(modifier: Modifier = Modifier) {
                     color = if (lang == AppLanguage.RU) WarehousePalette.Primary else WarehousePalette.OnSurfaceVariant,
                 )
             }
+            Text("|", color = WarehousePalette.OutlineVariant, style = MaterialTheme.typography.labelSmall)
+            TextButton(
+                onClick = { controller.setLanguage(AppLanguage.EN) },
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Text(
+                    "EN",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        letterSpacing = 0.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = if (lang == AppLanguage.EN) WarehousePalette.Primary else WarehousePalette.OnSurfaceVariant,
+                )
+            }
         }
     }
 }

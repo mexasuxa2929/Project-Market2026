@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -217,7 +219,7 @@ fun TransferStockDialog(
                                 onClick = { if (!saving) onDismiss() },
                                 shape = RoundedCornerShape(8.dp),
                             ) {
-                                Text("Bekor qilish")
+                                Text(AppStrings.cancel(appLanguage()))
                             }
                             Button(
                                 onClick = { save() },
@@ -229,7 +231,7 @@ fun TransferStockDialog(
                                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Text("Transfer qilish", fontWeight = FontWeight.SemiBold)
+                                Text(AppStrings.t(appLanguage(), "Transfer qilish"), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

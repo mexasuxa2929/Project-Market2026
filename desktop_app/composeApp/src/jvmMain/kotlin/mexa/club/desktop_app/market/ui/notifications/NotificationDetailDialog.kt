@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.notifications
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -87,7 +90,7 @@ fun NotificationDetailDialog(
                 if (notification.recipientPhone.isNotBlank()) DetailRow("Telefon", notification.recipientPhone)
                 DetailRow("Mavzu", notification.subject.ifBlank { "—" })
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Holat", fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.tableStatus(appLanguage()), fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
                     val (bg, fg) = notificationStatusColors(notification.status)
                     Row(Modifier.background(bg, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
                         Text(notificationStatusLabel(notification.status), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = fg)
@@ -105,7 +108,7 @@ fun NotificationDetailDialog(
 
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                    OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) { Text("Yopish") }
+                    OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.usersDetailClose(appLanguage())) }
                     Button(
                         onClick = { resend() },
                         enabled = !resending,
@@ -116,7 +119,7 @@ fun NotificationDetailDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Qayta yuborish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.verifyResend(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.delivery
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -195,7 +198,7 @@ fun DeliveryDetailDialog(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                        OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                     }
                 }
                 else -> {
@@ -233,7 +236,7 @@ fun DeliveryDetailDialog(
                         }
 
                         // Note edit
-                        Text("Admin izohi", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Admin izohi"), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
                         OutlinedTextField(
                             value = editNote,
                             onValueChange = { editNote = it },
@@ -254,7 +257,7 @@ fun DeliveryDetailDialog(
                         // Actions
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = onAssign) {
-                                Text("Kuryer tayinlash")
+                                Text(AppStrings.t(appLanguage(), "Kuryer tayinlash"))
                             }
                             if (d.status == "FAILED") {
                                 Button(
@@ -297,12 +300,12 @@ fun DeliveryDetailDialog(
                         }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                            OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                             Spacer(Modifier.width(8.dp))
                             Button(
                                 onClick = onUpdated,
                                 colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.indigoAccent),
-                            ) { Text("Yangilash") }
+                            ) { Text(AppStrings.devicesRefresh(appLanguage())) }
                         }
                     }
                 }

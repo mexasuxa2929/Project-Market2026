@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.users
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +38,7 @@ fun DeleteConfirmDialog(
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = MexaWarehouseColors.danger, modifier = Modifier.size(28.dp))
-                    Text("Foydalanuvchini o'chirish", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(AppStrings.deleteUserTitle(appLanguage()), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Text(
                     "«${user.username}» (@${user.email}) butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.",
@@ -44,13 +46,13 @@ fun DeleteConfirmDialog(
                     fontSize = 14.sp,
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = onDismiss) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = onDismiss) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.padding(start = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.danger),
                     ) {
-                        Text("O'chirish")
+                        Text(AppStrings.deleteUserSubmit(appLanguage()))
                     }
                 }
             }

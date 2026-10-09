@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -202,7 +204,7 @@ fun AssignWarehouseCourierDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column {
-                        Text("Kuryer biriktirish", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Kuryer biriktirish"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                         Text(warehouseName, fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
                     }
                     IconButton(onClick = { if (!saving) onDismiss() }, modifier = Modifier.size(32.dp)) {
@@ -286,7 +288,7 @@ fun AssignWarehouseCourierDialog(
                                     }
                                     if (filteredUnassigned.isEmpty()) {
                                         DropdownMenuItem(
-                                            text = { Text("Topilmadi", fontSize = 12.sp, color = MexaWarehouseColors.textMuted) },
+                                            text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 12.sp, color = MexaWarehouseColors.textMuted) },
                                             onClick = {},
                                             enabled = false,
                                         )
@@ -318,7 +320,7 @@ fun AssignWarehouseCourierDialog(
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) {
-                            Text("Yopish")
+                            Text(AppStrings.usersDetailClose(appLanguage()))
                         }
                     }
                 }
@@ -336,7 +338,7 @@ fun AssignWarehouseCourierDialog(
                         fontSize = 13.sp, color = MexaWarehouseColors.textMuted,
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(onClick = { pendingRemove = null }, shape = RoundedCornerShape(8.dp)) { Text("Bekor") }
+                        OutlinedButton(onClick = { pendingRemove = null }, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.t(appLanguage(), "Bekor")) }
                         Spacer(Modifier.width(8.dp))
                         Button(
                             onClick = { detach(target) },

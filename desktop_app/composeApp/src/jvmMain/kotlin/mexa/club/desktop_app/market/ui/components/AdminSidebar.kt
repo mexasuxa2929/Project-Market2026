@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.components
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -133,8 +136,7 @@ fun AdminSidebar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MexaWarehouseColors.sidebarNavMuted)
-            Text(
-                "Chiqish",
+            Text(AppStrings.logout(appLanguage()),
                 color = MexaWarehouseColors.sidebarNavMuted,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,

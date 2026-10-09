@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.screens
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -98,7 +100,7 @@ fun SuperAdminDashboardSkeletonContent(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(Icons.Filled.CalendarMonth, null, tint = MexaWarehouseColors.onSurfaceVariant)
-                    Text("Oxirgi 30 kun", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.last30Days(appLanguage()), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Icon(
                         Icons.Filled.ExpandMore,
                         null,
@@ -115,8 +117,7 @@ fun SuperAdminDashboardSkeletonContent(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(Icons.Filled.Download, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    Text(
-                        "Hisobot yuklash",
+                    Text(AppStrings.downloadReport(appLanguage()),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,

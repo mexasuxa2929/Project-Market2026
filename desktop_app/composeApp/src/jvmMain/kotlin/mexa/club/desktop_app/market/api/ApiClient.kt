@@ -342,14 +342,13 @@ object ApiClient {
             header(HttpHeaders.Accept, "text/event-stream")
             header(HttpHeaders.CacheControl, "no-cache")
         }.execute { response ->
-            if (response.status.value == 401) {
-                // SSE uchun 401 sessiyani buzmasligi kerak — dashboard allaqachon
-                // muvaffaqiyatli yuklangan (screenshotda ko'rinib turibdi), demak
-                // token yaroqli. SSE alohida ruxsat talab qilishi mumkin, shuning
-                // uchun faqat log va qayta urinish, toast emas.
-                return@execute
+            if (response.status.value !in 200..299) {
+                // Ilgari bu yerda return@execute qilinib, hub darhol qayta ulanib
+                // hot-loop hosil qilardi (audit T-H2). Endi istisno otiladi —
+                // hub catch'ida delay bilan qayta uriniladi.401 BU YERDA sessiyani
+                // buzmaydi: exceptionni faqat SSE hub tutadi (toast/session clear yo'q).
+                throw GatewayApiException(response.status.value, "SSE HTTP ${response.status.value}")
             }
-            if (response.status.value !in 200..299) return@execute
             val channel = response.bodyAsChannel()
             val dataBuffer = StringBuilder()
             while (coroutineContext.isActive) {

@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -133,7 +135,7 @@ private fun PurchaseItemRow(
                     }
                     if (filtered.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("Topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
+                            text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
                             onClick = {},
                             enabled = false,
                         )
@@ -193,7 +195,7 @@ private fun PurchaseItemRow(
                     }
                     if (filtered.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("Topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
+                            text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
                             onClick = {},
                             enabled = false,
                         )
@@ -422,7 +424,7 @@ internal fun PurchaseCreateDialog(
                             ) {
                                 Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Qator qo'shish")
+                                Text(AppStrings.t(appLanguage(), "Qator qo'shish"))
                             }
                         }
 
@@ -448,7 +450,7 @@ internal fun PurchaseCreateDialog(
                                 onClick = { if (!saving) onDismiss() },
                                 shape = RoundedCornerShape(8.dp),
                             ) {
-                                Text("Bekor qilish")
+                                Text(AppStrings.cancel(appLanguage()))
                             }
                             Button(
                                 onClick = { save() },
@@ -460,7 +462,7 @@ internal fun PurchaseCreateDialog(
                                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                                Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -540,14 +542,14 @@ private fun PendingTransfersSection(
                                         shape = RoundedCornerShape(6.dp),
                                         contentPadding = ButtonDefaults.ContentPadding,
                                     ) {
-                                        Text("Tasdiqlash", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(AppStrings.verifySubmit(appLanguage()), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                     OutlinedButton(
                                         onClick = { decision = tr to false },
                                         shape = RoundedCornerShape(6.dp),
                                         contentPadding = ButtonDefaults.ContentPadding,
                                     ) {
-                                        Text("Rad etish", fontSize = 12.sp, color = MexaWarehouseColors.danger)
+                                        Text(AppStrings.t(appLanguage(), "Rad etish"), fontSize = 12.sp, color = MexaWarehouseColors.danger)
                                     }
                                 }
                             }
@@ -647,7 +649,7 @@ private fun TransferDecisionDialog(
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("Izoh (ixtiyoriy)", color = MexaWarehouseColors.textCaption) },
+                    label = { Text(AppStrings.t(appLanguage(), "Izoh (ixtiyoriy)"), color = MexaWarehouseColors.textCaption) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
@@ -664,7 +666,7 @@ private fun TransferDecisionDialog(
                         onClick = { if (!busy) onDismiss() },
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Bekor qilish")
+                        Text(AppStrings.cancel(appLanguage()))
                     }
                     Button(
                         onClick = { onConfirm(note.trim()) },

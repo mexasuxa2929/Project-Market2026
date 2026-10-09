@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -683,7 +685,7 @@ fun EditProductDialog(
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(loadError!!, color = MexaWarehouseColors.danger, fontSize = 14.sp)
                             Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary)) {
-                                Text("Qayta urinish")
+                                Text(AppStrings.t(appLanguage(), "Qayta urinish"))
                             }
                         }
                     }
@@ -749,7 +751,7 @@ fun EditProductDialog(
                                                     ExposedDropdownMenu(expanded = catExpanded, onDismissRequest = { catExpanded = false; catSearch = "" }) {
                                                         DropdownMenuItem(text = { Text("Kategoriyani tanlang", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = { selCatId = ""; selCatName = "Tanlang"; catExpanded = false; catSearch = "" })
                                                         val filteredCats = categories.filter { catSearch.isBlank() || it.name.contains(catSearch, ignoreCase = true) }
-                                                        if (filteredCats.isEmpty()) { DropdownMenuItem(text = { Text("Topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false) }
+                                                        if (filteredCats.isEmpty()) { DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false) }
                                                         else filteredCats.forEach { cat -> DropdownMenuItem(text = { Text(cat.name, fontSize = 13.sp) }, onClick = { selCatId = cat.id; selCatName = cat.name; catExpanded = false; catSearch = "" }) }
                                                     }
                                                 }
@@ -761,7 +763,7 @@ fun EditProductDialog(
                                                     ExposedDropdownMenu(expanded = brandExpanded, onDismissRequest = { brandExpanded = false; brandSearch = "" }) {
                                                         DropdownMenuItem(text = { Text("Brendni tanlang", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = { selBrandId = ""; selBrandName = "Tanlang"; brandExpanded = false; brandSearch = "" })
                                                         val filteredBrands = brands.filter { brandSearch.isBlank() || it.name.contains(brandSearch, ignoreCase = true) }
-                                                        if (filteredBrands.isEmpty()) { DropdownMenuItem(text = { Text("Topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false) }
+                                                        if (filteredBrands.isEmpty()) { DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false) }
                                                         else filteredBrands.forEach { b -> DropdownMenuItem(text = { Text(b.name, fontSize = 13.sp) }, onClick = { selBrandId = b.id; selBrandName = b.name; brandExpanded = false; brandSearch = "" }) }
                                                     }
                                                 }
@@ -771,7 +773,7 @@ fun EditProductDialog(
                                         // Ishlab chiqaruvchi
                                         Column(Modifier.fillMaxWidth()) {
                                             Text("Ishlab chiqaruvchi", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary, modifier = Modifier.padding(bottom = 5.dp))
-                                            OutlinedTextField(value = manufacturerName, onValueChange = { manufacturerName = it }, placeholder = { Text("Masalan: Samsung, Apple...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 13.sp))
+                                            OutlinedTextField(value = manufacturerName, onValueChange = { manufacturerName = it }, placeholder = { Text(AppStrings.t(appLanguage(), "Masalan: Samsung, Apple..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 13.sp))
                                         }
 
                                         // Nashr holati + Faol
@@ -790,7 +792,7 @@ fun EditProductDialog(
                                                 Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), color = MexaWarehouseColors.backgroundPage, border = BorderStroke(1.dp, MexaWarehouseColors.borderSubtle)) {
                                                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                                         Column {
-                                                            Text("Faol", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
+                                                            Text(AppStrings.devicesActiveBadge(appLanguage()), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
                                                             Text("Ro'yxatda ko'rinadi", fontSize = 11.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(top = 1.dp))
                                                         }
                                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -903,7 +905,7 @@ fun EditProductDialog(
                                                                             OutlinedTextField(value = barcode, onValueChange = { barcode = it; barcodeError = null }, placeholder = { Text("8690000123456", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, isError = barcodeError != null, enabled = !saving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                                                                         }
                                                                         EditFieldBlock("Rang nomi", null, Modifier.weight(1f)) {
-                                                                            OutlinedTextField(value = colorValue, onValueChange = { colorValue = it }, placeholder = { Text("Qora, Oq, Ko'k...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp))
+                                                                            OutlinedTextField(value = colorValue, onValueChange = { colorValue = it }, placeholder = { Text(AppStrings.t(appLanguage(), "Qora, Oq, Ko'k..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !saving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp))
                                                                         }
                                                                     }
                                                                     // Rang xulosasi + palitrani ochish/yopish
@@ -943,7 +945,7 @@ fun EditProductDialog(
                                         }
                                         if (!showAddColorForm) {
                                             OutlinedButton(onClick = { showAddColorForm = true; newColorError = null }, enabled = !saving, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, MexaWarehouseColors.primary), colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.primary), modifier = Modifier.fillMaxWidth()) {
-                                                Text("+ Rang qo'shish", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                                Text(AppStrings.t(appLanguage(), "+ Rang qo'shish"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                             }
                                         } else {
                                             // Yangi rang karta — Create dialog bilan bir xil ko'rinish
@@ -968,7 +970,7 @@ fun EditProductDialog(
                                                         OutlinedTextField(value = newColorBarcode, onValueChange = { newColorBarcode = it; newColorError = null }, placeholder = { Text("8690000123456", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !newColorSaving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                                                     }
                                                     EditFieldBlock("Rang nomi", null, Modifier.weight(1f)) {
-                                                        OutlinedTextField(value = newColorName, onValueChange = { newColorName = it }, placeholder = { Text("Qora, Oq, Ko'k...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !newColorSaving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp))
+                                                        OutlinedTextField(value = newColorName, onValueChange = { newColorName = it }, placeholder = { Text(AppStrings.t(appLanguage(), "Qora, Oq, Ko'k..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, singleLine = true, enabled = !newColorSaving, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = editFieldColors(), textStyle = TextStyle(fontSize = 14.sp))
                                                     }
                                                 }
                                                 // Color picker — 29 rang
@@ -1039,7 +1041,7 @@ fun EditProductDialog(
                                                             }
                                                         }, enabled = !newColorSaving, colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary), shape = RoundedCornerShape(8.dp)) {
                                                             if (newColorSaving) { CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White); Spacer(Modifier.width(8.dp)) }
-                                                            Text("Qo'shish", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                                            Text(AppStrings.t(appLanguage(), "Qo'shish"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                                         }
                                                     }
                                                 }
@@ -1160,7 +1162,7 @@ fun EditProductDialog(
                                             Text("Bo'sh qoldirilsa mavjud chegirma o'zgarmaydi; 0 yozilsa chegirma o'chiriladi. Tugash sanasi o'tgach narx avtomatik avvalgi holatga qaytadi.", fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                                         }
                                         HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
-                                        Text("MIQDORGA BOG'LIQ NARX BOSQICHLARI", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
+                                        Text(AppStrings.t(appLanguage(), "MIQDORGA BOG'LIQ NARX BOSQICHLARI"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
                                         val baseForTier = tier1Price.trim().toBigDecimalOrNull()
                                             ?: salePriceRow.trim().toBigDecimalOrNull()
                                         ProductPriceTierSection(productId = activeProductId, enabled = !saving, basePriceForDisplay = baseForTier)
@@ -1203,7 +1205,7 @@ fun EditProductDialog(
                                             }
                                             Row(Modifier.weight(1f).padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 Checkbox(checked = fragile, onCheckedChange = { if (!saving) fragile = it }, colors = CheckboxDefaults.colors(checkmarkColor = Color.White, checkedColor = MexaWarehouseColors.primary))
-                                                Text("Tez sinuvchan", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
+                                                Text(AppStrings.t(appLanguage(), "Tez sinuvchan"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
                                             }
                                         }
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1242,7 +1244,7 @@ fun EditProductDialog(
                                             val notSelected = suggestedTags.filter { it !in tags }.take(12)
                                             if (notSelected.isNotEmpty()) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                    Text("Tavsiya etilgan teglar:", fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
+                                                    Text(AppStrings.t(appLanguage(), "Tavsiya etilgan teglar:"), fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                                                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                                         notSelected.forEach { tag ->
                                                             Surface(onClick = { tags = tags + tag }, shape = RoundedCornerShape(4.dp), color = MexaWarehouseColors.tableHeaderBg, border = BorderStroke(1.dp, MexaWarehouseColors.borderSubtle)) {
@@ -1358,7 +1360,7 @@ fun EditProductDialog(
                                                     Text(if (totalCount == 0) "Rasm yuklash" else "Yana rasm qo'shish", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.primary)
                                                     Text("PNG, JPG, WEBP max 5 MB ${10 - totalCount} ta joy qoldi", fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                                                     Spacer(Modifier.height(4.dp))
-                                                    Text("Fayl tanlash", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.primary)
+                                                    Text(AppStrings.t(appLanguage(), "Fayl tanlash"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.primary)
                                                 }
                                             }
                                         }
@@ -1406,7 +1408,7 @@ fun EditProductDialog(
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
-                        ) { Text("Bekor qilish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
+                        ) { Text(AppStrings.cancel(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
                         if (selectedTab < 3 && !loadingProduct) {
                             Button(
                                 onClick = { selectedTab++ },
@@ -1425,7 +1427,7 @@ fun EditProductDialog(
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                                 Spacer(Modifier.width(8.dp))
                             }
-                            Text("Saqlash", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -1694,7 +1696,7 @@ fun SimpleDatePickerDialog(
             }) { Text("Tanlash", color = MexaWarehouseColors.primary) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Bekor", color = MexaWarehouseColors.textMuted) }
+            TextButton(onClick = onDismiss) { Text(AppStrings.t(appLanguage(), "Bekor"), color = MexaWarehouseColors.textMuted) }
         },
     ) {
         DatePicker(state = state)

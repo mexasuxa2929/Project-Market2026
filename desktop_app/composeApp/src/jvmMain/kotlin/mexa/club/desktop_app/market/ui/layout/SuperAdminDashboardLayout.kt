@@ -11,16 +11,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DeliveryDining
+import androidx.compose.material.icons.filled.GroupWork
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PriceChange
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
@@ -44,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import mexa.club.desktop_app.auth.AuthSession
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import mexa.club.desktop_app.market.navigation.AdminNavScreen
 import mexa.club.desktop_app.market.session.SessionManager
 import mexa.club.desktop_app.market.ui.components.AdminSidebar
@@ -52,6 +58,10 @@ import mexa.club.desktop_app.market.ui.components.SuperAdminTopBar
 import mexa.club.desktop_app.market.ui.roles.RolesScreen
 import mexa.club.desktop_app.market.ui.products.ProductsScreen
 import mexa.club.desktop_app.market.ui.orders.OrdersScreen
+import mexa.club.desktop_app.market.ui.analytics.AnalyticsScreen
+import mexa.club.desktop_app.market.ui.promotions.PromotionsScreen
+import mexa.club.desktop_app.market.ui.groups.GroupsScreen
+import mexa.club.desktop_app.market.ui.search.SearchOpsScreen
 import mexa.club.desktop_app.market.ui.delivery.DeliveryPricingScreen
 import mexa.club.desktop_app.market.ui.delivery.DeliveryScreen
 import mexa.club.desktop_app.market.ui.couriers.CouriersScreen
@@ -91,8 +101,28 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
     var current by remember { mutableStateOf<AdminNavScreen>(AdminNavScreen.Dashboard) }
     var searchQuery by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    // T-H1: global qidiruv → (bo'lim kaliti, so'rov); tanlangan ekranga initialQuery sifatida uzatiladi
+    var pendingSearch by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val isSuperAdmin = AuthSession.isSuperAdmin
+
+    // Global qidiruv bo'limlari (superadmin bo'lmaganlar uchun faqat ruxsat etilganlari)
+    val searchScreenByKey = remember(isSuperAdmin) {
+        mapOf(
+            "orders" to AdminNavScreen.Orders,
+            "products" to AdminNavScreen.Products,
+            "users" to AdminNavScreen.Users,
+            "warehouses" to AdminNavScreen.Warehouses,
+            "notifications" to AdminNavScreen.Notifications,
+            "auditlog" to AdminNavScreen.AuditLog,
+        ).filterValues { isSuperAdmin || !it.superAdminOnly }
+    }
+    val allSearchTargets = AppStrings.globalSearchTargets(appLanguage())
+    val searchTargets = remember(allSearchTargets, searchScreenByKey) {
+        allSearchTargets.filterKeys { it in searchScreenByKey }
+    }
+    fun searchQueryFor(key: String): String =
+        if (pendingSearch?.first == key) pendingSearch?.second.orEmpty() else ""
 
     val displayName = userDisplayName(
         SessionManager.currentUser?.username ?: AuthSession.username,
@@ -114,6 +144,10 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
         AdminSidebarItem("Notifications", AdminNavScreen.Notifications, Icons.Filled.Notifications),
         AdminSidebarItem("Templates", AdminNavScreen.Templates, Icons.Filled.Description),
         AdminSidebarItem("Reports", AdminNavScreen.Reports, Icons.Filled.Assessment),
+        AdminSidebarItem("Analytics", AdminNavScreen.Analytics, Icons.Filled.BarChart),
+        AdminSidebarItem("Promotions", AdminNavScreen.Promotions, Icons.Filled.LocalOffer),
+        AdminSidebarItem("Groups", AdminNavScreen.Groups, Icons.Filled.GroupWork),
+        AdminSidebarItem("Search", AdminNavScreen.SearchOps, Icons.Filled.Search),
         AdminSidebarItem("Audit Log", AdminNavScreen.AuditLog, Icons.Filled.History),
         AdminSidebarItem("Sharhlar", AdminNavScreen.Reviews, Icons.Filled.RateReview),
         AdminSidebarItem("Xarita", AdminNavScreen.Map, Icons.Filled.Map),
@@ -133,7 +167,7 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                 modifier = Modifier.width(240.dp),
                 items = items,
                 selected = current,
-                onSelect = { current = it },
+                onSelect = { current = it; pendingSearch = null },
                 title = "MEXA WAREHOUSE",
                 subtitle = if (isSuperAdmin) "SUPER ADMIN PANEL" else "WAREHOUSE ADMIN PANEL",
                 onLogout = { showLogoutDialog = true },
@@ -142,6 +176,11 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                 SuperAdminTopBar(
                     searchQuery = searchQuery,
                     onSearchChange = { searchQuery = it },
+                    searchTargets = searchTargets,
+                    onSearchNavigate = { key, query ->
+                        searchScreenByKey[key]?.let { current = it }
+                        pendingSearch = key to query.trim()
+                    },
                     displayName = displayName,
                     subtitle = "Admin Panel",
                     avatarInitials = initials,
@@ -156,18 +195,22 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                 ) {
                     when (current) {
                         AdminNavScreen.Dashboard     -> SuperAdminDashboardScreen()
-                        AdminNavScreen.Users         -> UsersScreen()
+                        AdminNavScreen.Users         -> UsersScreen(initialQuery = searchQueryFor("users"))
                         AdminNavScreen.Roles         -> RolesScreen()
-                        AdminNavScreen.Warehouses    -> WarehousesScreen()
-                        AdminNavScreen.Products      -> ProductsScreen()
-                        AdminNavScreen.Orders        -> OrdersScreen()
+                        AdminNavScreen.Warehouses    -> WarehousesScreen(initialQuery = searchQueryFor("warehouses"))
+                        AdminNavScreen.Products      -> ProductsScreen(initialQuery = searchQueryFor("products"))
+                        AdminNavScreen.Orders        -> OrdersScreen(initialQuery = searchQueryFor("orders"))
                         AdminNavScreen.Deliveries    -> DeliveryScreen()
                         AdminNavScreen.Couriers      -> CouriersScreen()
                         AdminNavScreen.Delivery      -> DeliveryPricingScreen()
-                        AdminNavScreen.Notifications -> NotificationsScreen()
+                        AdminNavScreen.Notifications -> NotificationsScreen(initialQuery = searchQueryFor("notifications"))
                         AdminNavScreen.Templates     -> TemplatesScreen()
                         AdminNavScreen.Reports       -> ReportsScreen()
-                        AdminNavScreen.AuditLog      -> AuditLogScreen()
+                        AdminNavScreen.Analytics     -> AnalyticsScreen()
+                        AdminNavScreen.Promotions    -> PromotionsScreen()
+                        AdminNavScreen.Groups        -> GroupsScreen()
+                        AdminNavScreen.SearchOps     -> SearchOpsScreen()
+                        AdminNavScreen.AuditLog      -> AuditLogScreen(initialQuery = searchQueryFor("auditlog"))
                         AdminNavScreen.Reviews       -> ReviewsScreen()
                         AdminNavScreen.Map           -> MarketMapScreen()
                         AdminNavScreen.Settings      -> SettingsScreen()
@@ -197,12 +240,12 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                         onLogout()
                     },
                 ) {
-                    Text("Chiqish", color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.logout(appLanguage()), color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                 }
             },
         )

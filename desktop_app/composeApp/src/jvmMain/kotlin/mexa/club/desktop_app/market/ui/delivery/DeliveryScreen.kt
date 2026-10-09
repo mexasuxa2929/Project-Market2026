@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.delivery
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -303,7 +305,7 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                     shape = RoundedCornerShape(8.dp),
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    DropdownMenuItem(text = { Text("Barcha holatlar") }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false })
+                    DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Barcha holatlar")) }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false })
                     DELIVERY_STATUS_OPTIONS.forEach { opt ->
                         DropdownMenuItem(text = { Text(deliveryStatusLabel(opt)) }, onClick = { statusFilter = opt; statusExpanded = false })
                     }
@@ -354,7 +356,7 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
             filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {

@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.templates
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,7 +114,7 @@ fun TemplateEditDialog(
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Faol", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
+                    Text(AppStrings.devicesActiveBadge(appLanguage()), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
                     Switch(checked = active, onCheckedChange = { active = it })
                 }
 
@@ -120,7 +122,7 @@ fun TemplateEditDialog(
 
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = { save() },
                         enabled = !saving,
@@ -131,7 +133,7 @@ fun TemplateEditDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

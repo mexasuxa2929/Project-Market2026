@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.notifications
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,10 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
@@ -87,23 +93,38 @@ fun notificationStatusColors(status: String): Pair<Color, Color> = when (status.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(modifier: Modifier = Modifier) {
+fun NotificationsScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var notifications by remember { mutableStateOf<List<NotificationRow>>(emptyList()) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialQuery) }
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) searchQuery = initialQuery
+    }
     var statusFilter by remember { mutableStateOf(ALL_FILTER) }
     var statusExpanded by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<NotificationRow?>(null) }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
+    // Server pagination (T-H4): jami soni serverdan
+    var totalElements by remember { mutableStateOf(0L) }
 
-    suspend fun fetchNotifications(): List<NotificationRow> = withContext(Dispatchers.IO) {
-        val text = ApiClient.get("/api/admin/notifications?page=0&size=200")
+    suspend fun fetchNotifications(): Pair<List<NotificationRow>, Long> = withContext(Dispatchers.IO) {
+        val params = buildList {
+            add("page=$page")
+            add("size=$pageSize")
+            if (statusFilter != ALL_FILTER) add("status=$statusFilter")
+            if (searchQuery.isNotBlank()) {
+                add("q=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
+            }
+        }
+        val text = ApiClient.get("/api/admin/notifications?${params.joinToString("&")}")
         val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
         val items = data?.itemsOrContentArray() ?: JsonArray(emptyList())
-        items.mapNotNull { el ->
+        val rows = items.mapNotNull { el ->
             val n = el as? JsonObject ?: return@mapNotNull null
             NotificationRow(
                 id = n.stringField("id").ifEmpty { return@mapNotNull null },
@@ -117,7 +138,10 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
                 errorMessage = n.stringField("errorMessage"),
                 createdAt = n.stringField("createdAt"),
             )
-        }.sortedByDescending { it.createdAt }
+        }
+        val total = (data?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
     }
 
     fun reload() {
@@ -125,28 +149,37 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
             loading = true
             error = null
             runCatching { fetchNotifications() }
-                .onSuccess { notifications = it }
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi
+                    } else {
+                        notifications = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    // Debounce: qidiruv/holat o'zgarishi → 300ms so'ng server so'rovi (T-H4)
+    LaunchedEffect(searchQuery, statusFilter, page, pageSize) {
+        delay(300)
+        reload()
+    }
+
+    LaunchedEffect(Unit) {
+        // Realtime NOTIFICATION_CREATED / admin mutatsiyalar → avtomatik yangilash (T-H7)
+        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+    }
 
     selected?.let { target ->
         NotificationDetailDialog(notification = target, onDismiss = { selected = null }, onResent = { selected = null; reload() })
     }
 
-    val filtered = notifications.filter { n ->
-        (statusFilter == ALL_FILTER || n.status.equals(statusFilter, ignoreCase = true)) &&
-            (searchQuery.isBlank() ||
-                n.recipientEmail.contains(searchQuery, ignoreCase = true) ||
-                n.recipientPhone.contains(searchQuery, ignoreCase = true) ||
-                n.subject.contains(searchQuery, ignoreCase = true))
-    }
-    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
-    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -185,7 +218,7 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
                     shape = RoundedCornerShape(8.dp),
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    DropdownMenuItem(text = { Text("Barcha holatlar") }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false; page = 0 })
+                    DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Barcha holatlar")) }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false; page = 0 })
                     NOTIFICATION_STATUS_OPTIONS.forEach { opt ->
                         DropdownMenuItem(text = { Text(notificationStatusLabel(opt)) }, onClick = { statusFilter = opt; statusExpanded = false; page = 0 })
                     }
@@ -201,26 +234,26 @@ fun NotificationsScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
-            filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            notifications.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Bildirishnomalar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> NotificationsTable(paged, onRowClick = { selected = it })
+            else -> NotificationsTable(notifications, onRowClick = { selected = it })
         }
 
-        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
-        if (!loading && error == null && filtered.isNotEmpty()) {
+        // ── Pagination (umumiy andoza: PaginationBar) — server total (T-H4) ──
+        if (!loading && error == null && notifications.isNotEmpty()) {
             HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
             PaginationBar(
                 page = safePage,
                 pageSize = pageSize,
-                totalElements = filtered.size,
+                totalElements = totalElements.toInt(),
                 infoText = run {
                     val from = safePage * pageSize + 1
-                    val to = minOf((safePage + 1) * pageSize, filtered.size)
-                    "$from - $to / ${filtered.size} ta bildirishnoma"
+                    val to = minOf((safePage + 1) * pageSize, totalElements.toInt())
+                    "$from - $to / $totalElements ta bildirishnoma"
                 },
                 onPageChange = { page = it },
                 onPageSizeChange = { pageSize = it; page = 0 },

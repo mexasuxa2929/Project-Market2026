@@ -20,6 +20,10 @@ sealed class AdminNavScreen {
     data object Notifications : AdminNavScreen() { override val superAdminOnly = false }
     data object Templates : AdminNavScreen() { override val superAdminOnly = true }
     data object Reports : AdminNavScreen() { override val superAdminOnly = true }
+    data object Analytics : AdminNavScreen() { override val superAdminOnly = true }
+    data object Promotions : AdminNavScreen() { override val superAdminOnly = true }
+    data object Groups : AdminNavScreen() { override val superAdminOnly = true }
+    data object SearchOps : AdminNavScreen() { override val superAdminOnly = true }
     data object AuditLog : AdminNavScreen() { override val superAdminOnly = true }
     data object Reviews : AdminNavScreen() { override val superAdminOnly = true }
     data object Map : AdminNavScreen() { override val superAdminOnly = true }

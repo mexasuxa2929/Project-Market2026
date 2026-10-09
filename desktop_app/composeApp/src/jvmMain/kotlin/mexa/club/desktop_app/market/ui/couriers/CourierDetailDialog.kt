@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.couriers
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -135,7 +138,7 @@ fun CourierDetailDialog(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                        OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                     }
                 }
                 else -> {
@@ -175,7 +178,7 @@ fun CourierDetailDialog(
                             ) {
                                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Tahrirlash")
+                                Text(AppStrings.t(appLanguage(), "Tahrirlash"))
                             }
                             if (d.currentDeliveries == 0) {
                                 Button(
@@ -189,7 +192,7 @@ fun CourierDetailDialog(
                                     } else {
                                         Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(6.dp))
-                                        Text("O'chirish")
+                                        Text(AppStrings.deleteUserSubmit(appLanguage()))
                                     }
                                 }
                             }
@@ -198,7 +201,7 @@ fun CourierDetailDialog(
                         deleteError?.let { Text(it, color = MexaWarehouseColors.danger, fontSize = 12.sp) }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                            OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                         }
                     }
                 }

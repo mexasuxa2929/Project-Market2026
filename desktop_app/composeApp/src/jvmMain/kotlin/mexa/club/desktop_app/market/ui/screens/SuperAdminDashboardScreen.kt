@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.screens
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -100,16 +102,14 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                         if (compact) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Column {
-                                    Text(
-                                        "Boshqaruv Paneli",
+                                    Text(AppStrings.dashboardPanelTitle(appLanguage()),
                                         fontSize = 24.sp,
                                         lineHeight = 32.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         letterSpacing = (-0.2).sp,
                                         color = MexaWarehouseColors.onSurface,
                                     )
-                                    Text(
-                                        "Bugungi ombor holati va faoliyat ko'rsatkichlari.",
+                                    Text(AppStrings.t(appLanguage(), "Bugungi ombor holati va faoliyat ko'rsatkichlari."),
                                         fontSize = 14.sp,
                                         lineHeight = 20.sp,
                                         color = MexaWarehouseColors.onSurfaceVariant,
@@ -138,16 +138,14 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column {
-                                    Text(
-                                        "Boshqaruv Paneli",
+                                    Text(AppStrings.dashboardPanelTitle(appLanguage()),
                                         fontSize = 24.sp,
                                         lineHeight = 32.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         letterSpacing = (-0.2).sp,
                                         color = MexaWarehouseColors.onSurface,
                                     )
-                                    Text(
-                                        "Bugungi ombor holati va faoliyat ko'rsatkichlari.",
+                                    Text(AppStrings.t(appLanguage(), "Bugungi ombor holati va faoliyat ko'rsatkichlari."),
                                         fontSize = 14.sp,
                                         lineHeight = 20.sp,
                                         color = MexaWarehouseColors.onSurfaceVariant,
@@ -164,7 +162,7 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MexaWarehouseColors.onSurface)
-                                            Text("Oxirgi 30 kun", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                            Text(AppStrings.last30Days(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                         }
                                     }
                                     Button(
@@ -176,7 +174,7 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Icon(Icons.Filled.Download, contentDescription = null, tint = Color.White)
-                                            Text("Hisobot yuklash", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                            Text(AppStrings.downloadReport(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                         }
                                     }
                                 }

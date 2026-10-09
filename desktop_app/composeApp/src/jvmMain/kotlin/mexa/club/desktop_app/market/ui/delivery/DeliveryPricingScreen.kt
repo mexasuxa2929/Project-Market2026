@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.delivery
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -56,10 +59,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import mexa.club.desktop_app.market.api.ApiClient
+import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import java.math.BigDecimal
 import java.net.URLEncoder
@@ -156,7 +161,11 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    LaunchedEffect(Unit) {
+        reload()
+        // Realtime mutatsiyalar (pricing/types/surcharges/zones) → avtomatik yangilash (T-H7)
+        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+    }
 
     // ─── Dialoglar ─────────────────────────────────────────────────────────
 
@@ -306,7 +315,7 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
             OutlinedButton(onClick = { reload() }, shape = RoundedCornerShape(8.dp)) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                 androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
-                Text("Yangilash")
+                Text(AppStrings.devicesRefresh(appLanguage()))
             }
         }
 
@@ -484,7 +493,7 @@ private fun OverviewTab(analytics: AnalyticsData?, settings: JsonObject?, onSave
                 shape = RoundedCornerShape(8.dp),
             ) {
                 if (saving) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
-                else Text("Saqlash", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                else Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
         },
     ) {
@@ -808,7 +817,7 @@ private fun ZoneTab(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
-                Text("Yangi zona", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(AppStrings.t(appLanguage(), "Yangi zona"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
         },
     ) {
@@ -1265,7 +1274,7 @@ private fun DropdownLike(
                 shape = RoundedCornerShape(8.dp),
             )
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                androidx.compose.material3.DropdownMenuItem(text = { Text("— tanlanmagan —") }, onClick = { onChange(""); expanded = false })
+                androidx.compose.material3.DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "— tanlanmagan —")) }, onClick = { onChange(""); expanded = false })
                 options.forEach { opt ->
                     androidx.compose.material3.DropdownMenuItem(text = { Text(opt) }, onClick = { onChange(opt); expanded = false })
                 }

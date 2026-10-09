@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -541,7 +543,7 @@ fun AddProductDialog(
                                 OutlinedTextField(
                                     value         = manufacturerName,
                                     onValueChange = { manufacturerName = it },
-                                    placeholder   = { Text("Masalan: Samsung, Apple...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
+                                    placeholder   = { Text(AppStrings.t(appLanguage(), "Masalan: Samsung, Apple..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
                                     singleLine    = true,
                                     enabled       = !saving,
                                     modifier      = Modifier.fillMaxWidth(),
@@ -757,7 +759,7 @@ fun AddProductDialog(
                                     colors   = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.primary),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Text("+ Rang qo'shish", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(AppStrings.t(appLanguage(), "+ Rang qo'shish"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                 }
                             }
 
@@ -810,8 +812,7 @@ fun AddProductDialog(
                                 .padding(24.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
-                            Text(
-                                "MIQDORGA BOG'LIQ NARX BOSQICHLARI",
+                            Text(AppStrings.t(appLanguage(), "MIQDORGA BOG'LIQ NARX BOSQICHLARI"),
                                 fontSize      = 11.sp,
                                 fontWeight    = FontWeight.SemiBold,
                                 color         = MexaWarehouseColors.textMuted,
@@ -835,7 +836,7 @@ fun AddProductDialog(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             // Tavsif
-                            Text("TAVSIF", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
+                            Text(AppStrings.t(appLanguage(), "TAVSIF"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
 
                             PField("To'liq tavsif") {
                                 OutlinedTextField(
@@ -918,7 +919,7 @@ fun AddProductDialog(
                                         onCheckedChange = { fragile = it },
                                         colors          = CheckboxDefaults.colors(checkedColor = MexaWarehouseColors.primary),
                                     )
-                                    Text("Tez sinuvchan", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
+                                    Text(AppStrings.t(appLanguage(), "Tez sinuvchan"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
                                 }
                             }
 
@@ -978,7 +979,7 @@ fun AddProductDialog(
                                 val notSel = suggestedTags.filter { it !in tags }.take(12)
                                 if (notSel.isNotEmpty()) {
                                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("Tavsiya etilgan teglar:", fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
+                                        Text(AppStrings.t(appLanguage(), "Tavsiya etilgan teglar:"), fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             notSel.forEach { tag ->
                                                 Surface(
@@ -999,7 +1000,7 @@ fun AddProductDialog(
                             }
 
                             HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
-                            Text("SEO VA ICHKI KODLAR", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
+                            Text(AppStrings.t(appLanguage(), "SEO VA ICHKI KODLAR"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
 
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 PField("SKU (ichki kod)", modifier = Modifier.weight(1f)) {
@@ -1014,7 +1015,7 @@ fun AddProductDialog(
                                 OutlinedTextField(
                                     value         = metaDescription,
                                     onValueChange = { if (it.length <= 160) metaDescription = it },
-                                    placeholder   = { Text("Qidiruvda ko'rinadigan qisqa tavsif...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
+                                    placeholder   = { Text(AppStrings.t(appLanguage(), "Qidiruvda ko'rinadigan qisqa tavsif..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
                                     singleLine    = true,
                                     modifier      = Modifier.fillMaxWidth(),
                                     shape         = RoundedCornerShape(8.dp),
@@ -1099,7 +1100,7 @@ fun AddProductDialog(
                             }
 
                             HorizontalDivider(color = MexaWarehouseColors.borderSubtle)
-                            Text("SEO VA ICHKI KODLAR", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
+                            Text(AppStrings.t(appLanguage(), "SEO VA ICHKI KODLAR"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, letterSpacing = 0.5.sp)
 
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 PField("SKU (ichki kod)", modifier = Modifier.weight(1f)) {
@@ -1114,7 +1115,7 @@ fun AddProductDialog(
                                 OutlinedTextField(
                                     value         = metaDescription,
                                     onValueChange = { if (it.length <= 160) metaDescription = it },
-                                    placeholder   = { Text("Qidiruvda ko'rinadigan qisqa tavsif...", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
+                                    placeholder   = { Text(AppStrings.t(appLanguage(), "Qidiruvda ko'rinadigan qisqa tavsif..."), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) },
                                     singleLine    = true,
                                     modifier      = Modifier.fillMaxWidth(),
                                     shape         = RoundedCornerShape(8.dp),
@@ -1158,7 +1159,7 @@ fun AddProductDialog(
                                         Text("Rasm yuklash", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MexaWarehouseColors.textPrimary)
                                         Text("PNG, JPG, WEBP · 5MB gacha", fontSize = 12.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(top = 2.dp))
                                         Spacer(Modifier.height(8.dp))
-                                        Text("Fayl tanlash", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.primary)
+                                        Text(AppStrings.t(appLanguage(), "Fayl tanlash"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.primary)
                                     }
                                 }
                             }
@@ -1257,7 +1258,7 @@ fun AddProductDialog(
                         border   = BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
                         colors   = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
                     ) {
-                        Text("Bekor qilish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.cancel(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
 
                     Button(
@@ -1270,7 +1271,7 @@ fun AddProductDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }
@@ -1360,7 +1361,7 @@ private fun PDropdown(
                 onClick = onClear,
             )
             if (items.isEmpty()) {
-                DropdownMenuItem(text = { Text("Topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false)
+                DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted) }, onClick = {}, enabled = false)
             } else {
                 items.forEach { item ->
                     DropdownMenuItem(

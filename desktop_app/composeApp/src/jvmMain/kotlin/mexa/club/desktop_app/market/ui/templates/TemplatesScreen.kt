@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.templates
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,11 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import mexa.club.desktop_app.market.api.ApiClient
+import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
@@ -63,12 +69,17 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
     var editTarget by remember { mutableStateOf<TemplateRow?>(null) }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
+    var totalElements by remember { mutableStateOf(0L) }
 
-    suspend fun fetchTemplates(): List<TemplateRow> = withContext(Dispatchers.IO) {
-        val text = ApiClient.get("/api/admin/templates")
+    suspend fun fetchTemplates(): Pair<List<TemplateRow>, Long> = withContext(Dispatchers.IO) {
+        val text = ApiClient.get("/api/admin/templates?page=$page&size=$pageSize")
         val root = ApiClient.parseJsonObject(text)
-        val arr = (root?.get("data") as? JsonArray) ?: JsonArray(emptyList())
-        arr.mapNotNull { el ->
+        // Paginatsiyalangan javob: {data:{content,...,totalElements}}; paramsiz — to'liq massiv
+        val data = (root?.get("data") as? JsonObject)
+        val arr = data?.itemsOrContentArray()
+            ?: (root?.get("data") as? JsonArray)
+            ?: JsonArray(emptyList())
+        val rows = arr.mapNotNull { el ->
             val t = el as? JsonObject ?: return@mapNotNull null
             TemplateRow(
                 id = t.stringField("id").ifEmpty { return@mapNotNull null },
@@ -78,7 +89,10 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
                 bodyTemplate = t.stringField("bodyTemplate"),
                 active = t.stringField("active").toBooleanStrictOrNull() ?: true,
             )
-        }.sortedBy { it.type }
+        }
+        val total = (data?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
     }
 
     fun reload() {
@@ -86,21 +100,33 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
             loading = true
             error = null
             runCatching { fetchTemplates() }
-                .onSuccess { templates = it }
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi
+                    } else {
+                        templates = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    LaunchedEffect(page, pageSize) { reload() }
+
+    LaunchedEffect(Unit) {
+        // Realtime mutatsiyalar (templates) → avtomatik yangilash (T-H7)
+        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+    }
 
     editTarget?.let { target ->
         TemplateEditDialog(template = target, onDismiss = { editTarget = null }, onSaved = { editTarget = null; reload() })
     }
 
-    val totalPages = if (templates.isEmpty()) 1 else (templates.size + pageSize - 1) / pageSize
+    val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
-    val paged = templates.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -127,26 +153,26 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
             templates.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Shablonlar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> TemplatesTable(paged, onRowClick = { editTarget = it })
+            else -> TemplatesTable(templates, onRowClick = { editTarget = it })
         }
 
-        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
+        // ── Pagination (umumiy andoza: PaginationBar) — server total (T-H4) ──
         if (!loading && error == null && templates.isNotEmpty()) {
             HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
             PaginationBar(
                 page = safePage,
                 pageSize = pageSize,
-                totalElements = templates.size,
+                totalElements = totalElements.toInt(),
                 infoText = run {
                     val from = safePage * pageSize + 1
-                    val to = minOf((safePage + 1) * pageSize, templates.size)
-                    "$from - $to / ${templates.size} ta shablon"
+                    val to = minOf((safePage + 1) * pageSize, totalElements.toInt())
+                    "$from - $to / $totalElements ta shablon"
                 },
                 onPageChange = { page = it },
                 onPageSizeChange = { pageSize = it; page = 0 },

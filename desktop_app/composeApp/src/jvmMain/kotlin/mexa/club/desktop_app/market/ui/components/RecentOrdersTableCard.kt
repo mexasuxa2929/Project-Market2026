@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.components
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -160,8 +163,7 @@ fun RecentOrdersTableCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    "Barchasi",
+                Text(AppStrings.allOrders(appLanguage()),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MexaWarehouseColors.primary,

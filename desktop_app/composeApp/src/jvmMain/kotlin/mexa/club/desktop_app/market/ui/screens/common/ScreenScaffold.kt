@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.screens.common
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +29,7 @@ fun ScreenScaffold(
             loading -> LoadingBlock()
             error != null -> {
                 Text(error, color = MaterialTheme.colorScheme.error)
-                Button(onClick = onRetry) { Text("Qayta urinish") }
+                Button(onClick = onRetry) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
             }
             else -> content()
         }

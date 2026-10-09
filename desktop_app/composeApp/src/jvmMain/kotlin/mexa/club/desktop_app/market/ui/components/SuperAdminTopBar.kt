@@ -13,32 +13,52 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 @Composable
 fun SuperAdminTopBar(
     searchQuery: String,
     onSearchChange: (String) -> Unit,
+    searchTargets: Map<String, String>,
+    onSearchNavigate: (targetKey: String, query: String) -> Unit,
     displayName: String,
     subtitle: String,
     avatarInitials: String,
     modifier: Modifier = Modifier,
 ) {
+    val lang = appLanguage()
+    var searchMenuExpanded by remember { mutableStateOf(false) }
+
+    fun navigateFirst() {
+        searchTargets.entries.firstOrNull()?.let { onSearchNavigate(it.key, searchQuery) }
+        searchMenuExpanded = false
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -56,12 +76,17 @@ fun SuperAdminTopBar(
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = onSearchChange,
+                onValueChange = {
+                    onSearchChange(it)
+                    searchMenuExpanded = it.isNotBlank() && searchTargets.isNotEmpty()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { navigateFirst() }),
                 placeholder = {
                     Text(
-                        "Tizim bo'ylab qidiruv…",
+                        AppStrings.globalSearchPlaceholder(lang),
                         color = MexaWarehouseColors.outline,
                         fontSize = 14.sp,
                     )
@@ -84,6 +109,24 @@ fun SuperAdminTopBar(
                     unfocusedTextColor = MexaWarehouseColors.onSurface,
                 ),
             )
+            // T-H1: global qidiruv → bo'lim tanlash (Enter = birinchi bo'lim)
+            if (searchMenuExpanded && searchQuery.isNotBlank()) {
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { searchMenuExpanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                ) {
+                    searchTargets.forEach { (key, label) ->
+                        DropdownMenuItem(
+                            text = { Text("«${searchQuery.trim()}» — $label", fontSize = 14.sp) },
+                            onClick = {
+                                onSearchNavigate(key, searchQuery)
+                                searchMenuExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

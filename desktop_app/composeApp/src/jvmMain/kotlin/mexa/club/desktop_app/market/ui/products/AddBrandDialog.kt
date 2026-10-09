@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -276,8 +279,7 @@ fun AddBrandDialog(
                                             fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier.clickable { pickLogo() },
                                         )
-                                        Text(
-                                            "O'chirish",
+                                        Text(AppStrings.deleteUserSubmit(appLanguage()),
                                             fontSize = 12.sp,
                                             color = MexaWarehouseColors.danger,
                                             modifier = Modifier.clickable { logoFile = null; logoBitmap = null },
@@ -382,7 +384,7 @@ fun AddBrandDialog(
                         border = BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
                     ) {
-                        Text("Bekor qilish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.cancel(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                     Button(
                         onClick = { save() },

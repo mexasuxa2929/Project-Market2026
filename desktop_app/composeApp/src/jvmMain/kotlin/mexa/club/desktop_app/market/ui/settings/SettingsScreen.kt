@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.settings
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -184,7 +186,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             )
             OutlinedTextField(
                 value = newPassword, onValueChange = { newPassword = it; saveError = null },
-                label = { Text("Yangi parol") },
+                label = { Text(AppStrings.resetNewPasswordLabel(appLanguage())) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(8.dp),
@@ -213,7 +215,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                 }
             }
         }

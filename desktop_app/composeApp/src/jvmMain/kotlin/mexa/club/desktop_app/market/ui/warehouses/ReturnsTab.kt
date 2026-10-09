@@ -1,5 +1,7 @@
 ﻿package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -205,12 +207,12 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int
                         }
                     }
                 }) {
-                    Text("Tasdiqlash", color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.verifySubmit(appLanguage()), color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { approvingReturn = null }) {
-                    Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                 }
             },
         )
@@ -245,12 +247,12 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int
                         }
                     }
                 }) {
-                    Text("Rad etish", color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.t(appLanguage(), "Rad etish"), color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { rejectingReturn = null }) {
-                    Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                 }
             },
         )
@@ -259,11 +261,11 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int
     actionError?.let { msg ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { actionError = null },
-            title = { Text("Xatolik", fontWeight = FontWeight.Bold) },
+            title = { Text(AppStrings.t(appLanguage(), "Xatolik"), fontWeight = FontWeight.Bold) },
             text = { Text(msg, color = MexaWarehouseColors.textMuted) },
             confirmButton = {
                 TextButton(onClick = { actionError = null }) {
-                    Text("OK", fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
+                    Text(AppStrings.ok(appLanguage()), fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
                 }
             },
         )
@@ -286,7 +288,7 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Qaytarma yaratish", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(AppStrings.t(appLanguage(), "Qaytarma yaratish"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
         }
 
@@ -307,9 +309,9 @@ internal fun ReturnsTab(warehouseId: String, onChanged: () -> Unit, syncKey: Int
                 ) {
                     Text("SANASI", Modifier.weight(1.1f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("SABAB", Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("MAHSULOTLAR", Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("HOLATI", Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("AMALLAR", Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "MAHSULOTLAR"), Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.usersColStatus(appLanguage()), Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "AMALLAR"), Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                 }
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
@@ -493,7 +495,7 @@ private fun CreateReturnDialog(
         ) {
             Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Qaytarma yaratish", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                    Text(AppStrings.t(appLanguage(), "Qaytarma yaratish"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.Close, contentDescription = "Yopish", tint = MexaWarehouseColors.textMuted, modifier = Modifier.size(18.dp))
                     }
@@ -536,7 +538,7 @@ private fun CreateReturnDialog(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("IZOH (ixtiyoriy)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "IZOH (ixtiyoriy)"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it },
@@ -556,14 +558,14 @@ private fun CreateReturnDialog(
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("MAHSULOTLAR", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "MAHSULOTLAR"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     OutlinedButton(
                         onClick = { items = items + ReturnDraftItem() },
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Qator qo'shish", fontSize = 13.sp)
+                        Text(AppStrings.t(appLanguage(), "Qator qo'shish"), fontSize = 13.sp)
                     }
                 }
 
@@ -597,7 +599,7 @@ private fun CreateReturnDialog(
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(8.dp)) {
-                        Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                        Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                     }
                     Button(
                         onClick = { save() },
@@ -606,7 +608,7 @@ private fun CreateReturnDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary),
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Yuborish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.forgotSend(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -800,14 +802,14 @@ private fun ReturnDetailDialog(
                             Modifier.fillMaxWidth().background(MexaWarehouseColors.tableHeaderBg).padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("MAHSULOT", Modifier.weight(1.6f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.t(appLanguage(), "MAHSULOT"), Modifier.weight(1.6f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                             Text("MIQDOR", Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                            Text("HOLAT", Modifier.width(120.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.devicesColStatus(appLanguage()), Modifier.width(120.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                         }
                         HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
                         if (returnRow.items.isEmpty()) {
                             Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                                Text("Ma'lumot yo'q", fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
+                                Text(AppStrings.t(appLanguage(), "Ma'lumot yo'q"), fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
                             }
                         } else {
                             val itemsTotalPages = (returnRow.items.size + itemsPageSize - 1) / itemsPageSize
@@ -868,7 +870,7 @@ private fun ReturnDetailDialog(
                         ) {
                             Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Rad etish", color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.t(appLanguage(), "Rad etish"), color = MexaWarehouseColors.danger, fontWeight = FontWeight.SemiBold)
                         }
                         Button(
                             onClick = {
@@ -889,7 +891,7 @@ private fun ReturnDetailDialog(
                         ) {
                             Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                             Spacer(Modifier.width(6.dp))
-                            Text("Tasdiqlash", fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Text(AppStrings.verifySubmit(appLanguage()), fontWeight = FontWeight.SemiBold, color = Color.White)
                         }
                     }
                 }

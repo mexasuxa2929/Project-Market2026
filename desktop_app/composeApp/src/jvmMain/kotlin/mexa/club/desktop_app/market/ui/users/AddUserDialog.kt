@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.users
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +60,7 @@ import mexa.club.desktop_app.market.ui.users.common.RoleBadge
 fun AddUserDialog(
     onDismiss: () -> Unit,
     onSave: (CreateUserForm) -> Unit,
+    error: String? = null,
 ) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -105,7 +108,7 @@ fun AddUserDialog(
         ) {
             Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Yangi foydalanuvchi", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(AppStrings.addUserTitle(appLanguage()), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "Yopish")
                     }
@@ -114,8 +117,8 @@ fun AddUserDialog(
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("USERNAME") },
-                    placeholder = { Text("Masalan: alisher01") },
+                    label = { Text(AppStrings.addUserUsername(appLanguage())) },
+                    placeholder = { Text(AppStrings.addUserUsernamePlaceholder(appLanguage())) },
                     isError = usernameError != null,
                     supportingText = usernameError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth(),
@@ -126,7 +129,7 @@ fun AddUserDialog(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("EMAIL") },
-                    placeholder = { Text("example@mexa.uz") },
+                    placeholder = { Text(AppStrings.addUserEmailPlaceholder(appLanguage())) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     isError = emailError != null,
                     supportingText = emailError?.let { { Text(it) } },
@@ -156,7 +159,7 @@ fun AddUserDialog(
                     color = if (passwordStrength == PasswordStrength.Strong) MexaWarehouseColors.statusActiveFg else MexaWarehouseColors.indigoAccent,
                 )
                 Spacer(Modifier.height(16.dp))
-                Text("ROLLAR", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                Text(AppStrings.addUserRoles(appLanguage()), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                 Spacer(Modifier.height(8.dp))
                 val roleGrid = listOf(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.COURIER)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -192,19 +195,26 @@ fun AddUserDialog(
                     )
                     Column(Modifier.padding(start = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Faol foydalanuvchi", fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.addUserActive(appLanguage()), fontWeight = FontWeight.SemiBold)
                             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.padding(start = 4.dp).height(16.dp))
                         }
-                        Text(
-                            "Yangi foydalanuvchi email orqali tasdiqlanishi kerak.",
+                        Text(AppStrings.addUserActiveHint(appLanguage()),
                             fontSize = 12.sp,
                             color = MexaWarehouseColors.textMuted,
                         )
                     }
                 }
                 Spacer(Modifier.height(20.dp))
+                error?.let { msg ->
+                    Text(
+                        msg,
+                        fontSize = 13.sp,
+                        color = MexaWarehouseColors.error,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = onDismiss) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = onDismiss) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = {
                             onSave(
@@ -221,7 +231,7 @@ fun AddUserDialog(
                         modifier = Modifier.padding(start = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.indigoAccent),
                     ) {
-                        Text("Saqlash")
+                        Text(AppStrings.settingsSave(appLanguage()))
                     }
                 }
             }

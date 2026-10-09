@@ -204,7 +204,7 @@ fun BlockUserDialog(
                         shape = RoundedCornerShape(8.dp),
                         enabled = !isSaving,
                     ) {
-                        Text("Bekor qilish")
+                        Text(AppStrings.cancel(appLanguage()))
                     }
                     Button(
                         onClick = { onConfirmed(reason.trim()) },

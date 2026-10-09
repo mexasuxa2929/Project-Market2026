@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -199,12 +201,12 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit, syncKey: I
                         }
                     }
                 }) {
-                    Text("Yakunlash", color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
+                    Text(AppStrings.t(appLanguage(), "Yakunlash"), color = MexaWarehouseColors.statusActiveFg, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { completingSession = null }) {
-                    Text("Orqaga", color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "Orqaga"), color = MexaWarehouseColors.textMuted)
                 }
             },
         )
@@ -213,11 +215,11 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit, syncKey: I
     actionError?.let { msg ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { actionError = null },
-            title = { Text("Xatolik", fontWeight = FontWeight.Bold) },
+            title = { Text(AppStrings.t(appLanguage(), "Xatolik"), fontWeight = FontWeight.Bold) },
             text = { Text(msg, color = MexaWarehouseColors.textMuted) },
             confirmButton = {
                 TextButton(onClick = { actionError = null }) {
-                    Text("OK", fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
+                    Text(AppStrings.ok(appLanguage()), fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.indigoAccent)
                 }
             },
         )
@@ -240,7 +242,7 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit, syncKey: I
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Yangi inventarizatsiya", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(AppStrings.t(appLanguage(), "Yangi inventarizatsiya"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
         }
 
@@ -261,9 +263,9 @@ internal fun InventoryTab(warehouseId: String, onChanged: () -> Unit, syncKey: I
                 ) {
                     Text("BOSHLANGAN", Modifier.weight(1.1f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     Text("IZOH", Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("SANALDI", Modifier.width(80.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("HOLATI", Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                    Text("AMALLAR", Modifier.width(70.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "SANALDI"), Modifier.width(80.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.usersColStatus(appLanguage()), Modifier.width(110.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "AMALLAR"), Modifier.width(70.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                 }
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
@@ -369,11 +371,11 @@ private fun StartInventoryDialog(warehouseId: String, onDismiss: () -> Unit, onS
         ) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Yangi inventarizatsiya", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                    Text(AppStrings.t(appLanguage(), "Yangi inventarizatsiya"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                     Text("Barcha stok qatorlari suratga olinadi va sanash sessiyasi ochiladi.", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("IZOH (ixtiyoriy)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "IZOH (ixtiyoriy)"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it },
@@ -394,7 +396,7 @@ private fun StartInventoryDialog(warehouseId: String, onDismiss: () -> Unit, onS
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(8.dp)) {
-                        Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                        Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                     }
                     Button(
                         onClick = {
@@ -515,7 +517,7 @@ private fun InventorySessionDialog(
                                 enabled = !saving,
                                 shape = RoundedCornerShape(8.dp),
                             ) {
-                                Text("Bekor qilish", color = MexaWarehouseColors.textMuted)
+                                Text(AppStrings.cancel(appLanguage()), color = MexaWarehouseColors.textMuted)
                             }
                             Button(
                                 onClick = { confirmingAction = "COMPLETE" },
@@ -523,7 +525,7 @@ private fun InventorySessionDialog(
                                 colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.statusActiveFg),
                                 shape = RoundedCornerShape(8.dp),
                             ) {
-                                Text("Yakunlash", fontWeight = FontWeight.SemiBold, color = Color.White)
+                                Text(AppStrings.t(appLanguage(), "Yakunlash"), fontWeight = FontWeight.SemiBold, color = Color.White)
                             }
                         }
                     }
@@ -544,17 +546,17 @@ private fun InventorySessionDialog(
                             Modifier.fillMaxWidth().background(MexaWarehouseColors.tableHeaderBg).padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("MAHSULOT", Modifier.weight(1.6f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.t(appLanguage(), "MAHSULOT"), Modifier.weight(1.6f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                             Text("TIZIMDA", Modifier.weight(0.7f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                            Text("SANALDI", Modifier.weight(0.9f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.t(appLanguage(), "SANALDI"), Modifier.weight(0.9f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                             Text("FARQ", Modifier.weight(0.7f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
-                            Text("HOLATI", Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.usersColStatus(appLanguage()), Modifier.width(90.dp), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted)
                         }
                         HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
 
                         if (current.items.isEmpty()) {
                             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                                Text("Ma'lumot yo'q", fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
+                                Text(AppStrings.t(appLanguage(), "Ma'lumot yo'q"), fontSize = 14.sp, color = MexaWarehouseColors.textMuted)
                             }
                         } else {
                             val itemsTotalPages = (current.items.size + itemsPageSize - 1) / itemsPageSize
@@ -571,7 +573,7 @@ private fun InventorySessionDialog(
                                         OutlinedTextField(
                                             value = countedInputs.value[item.id] ?: item.countedQuantity?.let { formatQty(it) }.orEmpty(),
                                             onValueChange = { countedInputs.value[item.id] = it },
-                                            placeholder = { Text("—") },
+                                            placeholder = { Text(AppStrings.devicesCurrentHint(appLanguage())) },
                                             singleLine = true,
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.weight(0.9f).height(40.dp),
@@ -694,7 +696,7 @@ private fun InventorySessionDialog(
             },
             dismissButton = {
                 TextButton(onClick = { confirmingAction = null }) {
-                    Text("Orqaga", color = MexaWarehouseColors.textMuted)
+                    Text(AppStrings.t(appLanguage(), "Orqaga"), color = MexaWarehouseColors.textMuted)
                 }
             },
         )

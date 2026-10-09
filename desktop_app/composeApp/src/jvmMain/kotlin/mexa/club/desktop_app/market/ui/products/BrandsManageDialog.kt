@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -198,12 +200,12 @@ fun BrandsManageDialog(
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
                         Spacer(Modifier.width(6.dp))
                     }
-                    Text("O'chirish")
+                    Text(AppStrings.deleteUserSubmit(appLanguage()))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmItem = null }, enabled = deletingId == null) {
-                    Text("Bekor qilish")
+                    Text(AppStrings.cancel(appLanguage()))
                 }
             },
         )
@@ -227,8 +229,7 @@ fun BrandsManageDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column {
-                        Text(
-                            "Brendlarni boshqarish",
+                        Text(AppStrings.t(appLanguage(), "Brendlarni boshqarish"),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MexaWarehouseColors.textPrimary,
@@ -268,7 +269,7 @@ fun BrandsManageDialog(
                         error != null -> Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(error!!, color = MexaWarehouseColors.danger, fontSize = 13.sp)
-                                OutlinedButton(onClick = { load() }) { Text("Qayta urinish") }
+                                OutlinedButton(onClick = { load() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                             }
                         }
                         brands.isEmpty() -> Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
@@ -379,7 +380,7 @@ fun BrandsManageDialog(
                         colors  = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary),
                         shape   = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Yopish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.usersDetailClose(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

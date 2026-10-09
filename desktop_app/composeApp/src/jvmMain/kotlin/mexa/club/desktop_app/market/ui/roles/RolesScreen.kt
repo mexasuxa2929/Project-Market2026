@@ -141,9 +141,8 @@ fun RolesScreen(modifier: Modifier = Modifier) {
                 // Narrow: title on top, actions below
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column {
-                        Text("Rollar", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
-                        Text(
-                            "Tizim rollari va foydalanuvchilar bo'yicha taqsimot",
+                        Text(AppStrings.usersDetailRoles(appLanguage()), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Tizim rollari va foydalanuvchilar bo'yicha taqsimot"),
                             fontSize = 14.sp,
                             color = MexaWarehouseColors.textMuted,
                         )
@@ -170,7 +169,7 @@ fun RolesScreen(modifier: Modifier = Modifier) {
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Yangi rol")
+                            Text(AppStrings.t(appLanguage(), "Yangi rol"))
                         }
                     }
                 }
@@ -182,9 +181,8 @@ fun RolesScreen(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.Top,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Rollar", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
-                        Text(
-                            "Tizim rollari va foydalanuvchilar bo'yicha taqsimot",
+                        Text(AppStrings.usersDetailRoles(appLanguage()), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Tizim rollari va foydalanuvchilar bo'yicha taqsimot"),
                             fontSize = 14.sp,
                             color = MexaWarehouseColors.textMuted,
                         )
@@ -208,7 +206,7 @@ fun RolesScreen(modifier: Modifier = Modifier) {
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
-                            Text("Yangi rol")
+                            Text(AppStrings.t(appLanguage(), "Yangi rol"))
                         }
                     }
                 }

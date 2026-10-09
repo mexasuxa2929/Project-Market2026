@@ -20,7 +20,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,10 +62,15 @@ import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
 @Composable
-fun UsersScreen(modifier: Modifier = Modifier) {
+fun UsersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val lang = appLanguage()
     val vm: UsersScreenModel = koinInject { parametersOf(AppStrings.authNetwork(lang)) }
     val ui by vm.uiState.collectAsState()
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery, vm) {
+        if (initialQuery.isNotBlank()) vm.updateSearch(initialQuery)
+    }
 
     LaunchedEffect(vm) {
         MarketSessionGate.awaitReady()
@@ -75,6 +83,8 @@ fun UsersScreen(modifier: Modifier = Modifier) {
     var blockTarget by remember { mutableStateOf<AdminUser?>(null) }
     var unblockTarget by remember { mutableStateOf<AdminUser?>(null) }
     var editRoleTarget by remember { mutableStateOf<AdminUser?>(null) }
+    var showAddUser by remember { mutableStateOf(false) }
+    var addUserError by remember { mutableStateOf<String?>(null) }
     var editRoleSaving by remember { mutableStateOf(false) }
     var editRoleError by remember { mutableStateOf<String?>(null) }
     var blockSaving by remember { mutableStateOf(false) }
@@ -177,6 +187,27 @@ fun UsersScreen(modifier: Modifier = Modifier) {
         UserDetailDialog(user = target, onDismiss = { detailTarget = null })
     }
 
+    if (showAddUser) {
+        AddUserDialog(
+            onDismiss = {
+                showAddUser = false
+                addUserError = null
+            },
+            onSave = { form ->
+                vm.createUser(
+                    form = form,
+                    onSuccess = {
+                        showAddUser = false
+                        addUserError = null
+                        snackMessage = AppStrings.usersCreatedMessage(lang, form.username)
+                    },
+                    onError = { msg -> addUserError = msg },
+                )
+            },
+            error = addUserError,
+        )
+    }
+
     Column(
         modifier
             .fillMaxSize()
@@ -200,6 +231,18 @@ fun UsersScreen(modifier: Modifier = Modifier) {
                     Text(AppStrings.usersScreenTitle(lang), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                     Text(AppStrings.usersScreenSubtitle(lang), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                 }
+            }
+            Button(
+                onClick = {
+                    showAddUser = true
+                    addUserError = null
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.indigoAccent),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(AppStrings.usersAddButton(lang), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -310,7 +353,7 @@ private fun UsersFilterBar(
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column {
-                        Text("QIDIRUV", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                        Text(AppStrings.t(appLanguage(), "QIDIRUV"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = onSearchChange,
@@ -325,7 +368,7 @@ private fun UsersFilterBar(
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
                         Column(Modifier.weight(1f)) {
-                            Text("ROL", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                            Text(AppStrings.t(appLanguage(), "ROL"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                             ExposedDropdownMenuBox(expanded = roleExpanded, onExpandedChange = { roleExpanded = it }) {
                                 OutlinedTextField(
                                     value = roleLabel,
@@ -345,7 +388,7 @@ private fun UsersFilterBar(
                             }
                         }
                         Column(Modifier.weight(1f)) {
-                            Text("HOLAT", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                            Text(AppStrings.devicesColStatus(appLanguage()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                             ExposedDropdownMenuBox(expanded = statusExpanded, onExpandedChange = { statusExpanded = it }) {
                                 OutlinedTextField(
                                     value = statusLabel,
@@ -375,7 +418,7 @@ private fun UsersFilterBar(
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1.6f)) {
-                        Text("QIDIRUV", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                        Text(AppStrings.t(appLanguage(), "QIDIRUV"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = onSearchChange,
@@ -389,7 +432,7 @@ private fun UsersFilterBar(
                         )
                     }
                     Column(Modifier.width(190.dp)) {
-                        Text("ROL", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                        Text(AppStrings.t(appLanguage(), "ROL"), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                         ExposedDropdownMenuBox(expanded = roleExpanded, onExpandedChange = { roleExpanded = it }) {
                             OutlinedTextField(
                                 value = roleLabel,
@@ -409,7 +452,7 @@ private fun UsersFilterBar(
                         }
                     }
                     Column(Modifier.width(170.dp)) {
-                        Text("HOLAT", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
+                        Text(AppStrings.devicesColStatus(appLanguage()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 5.dp))
                         ExposedDropdownMenuBox(expanded = statusExpanded, onExpandedChange = { statusExpanded = it }) {
                             OutlinedTextField(
                                 value = statusLabel,

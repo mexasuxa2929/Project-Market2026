@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.couriers
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -286,21 +289,21 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
                     },
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Holat") },
+                    label = { Text(AppStrings.tableStatus(appLanguage())) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
                     modifier = Modifier.menuAnchor().widthIn(min = 130.dp, max = 160.dp),
                     shape = RoundedCornerShape(8.dp),
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
                     DropdownMenuItem(text = { Text("Barcha") }, onClick = { statusFilter = ALL_FILTER; statusExpanded = false })
-                    DropdownMenuItem(text = { Text("Faol") }, onClick = { statusFilter = "true"; statusExpanded = false })
-                    DropdownMenuItem(text = { Text("Nofaol") }, onClick = { statusFilter = "false"; statusExpanded = false })
+                    DropdownMenuItem(text = { Text(AppStrings.devicesActiveBadge(appLanguage())) }, onClick = { statusFilter = "true"; statusExpanded = false })
+                    DropdownMenuItem(text = { Text(AppStrings.t(appLanguage(), "Nofaol")) }, onClick = { statusFilter = "false"; statusExpanded = false })
                 }
             }
             OutlinedTextField(
                 value = regionFilter,
                 onValueChange = { regionFilter = it },
-                label = { Text("Hudud") },
+                label = { Text(AppStrings.t(appLanguage(), "Hudud")) },
                 placeholder = { Text("Filter...") },
                 modifier = Modifier.widthIn(min = 130.dp, max = 160.dp),
                 singleLine = true,
@@ -316,7 +319,7 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
             couriers.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {

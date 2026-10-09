@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -773,8 +775,7 @@ fun WarehouseDetailScreen(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(Icons.AutoMirrored.Default.ArrowBack, null, modifier = Modifier.size(16.dp).clickable { onBack() }, tint = MexaWarehouseColors.indigoAccent)
-            Text(
-                "Omborlar",
+            Text(AppStrings.t(appLanguage(), "Omborlar"),
                 fontSize = 13.sp,
                 color = MexaWarehouseColors.indigoAccent,
                 modifier = Modifier.clickable { onBack() },
@@ -870,7 +871,7 @@ fun WarehouseDetailScreen(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.indigoAccent)
-                                            Text("Transfer qilish", fontSize = 14.sp)
+                                            Text(AppStrings.t(appLanguage(), "Transfer qilish"), fontSize = 14.sp)
                                         }
                                     },
                                     onClick = {
@@ -895,7 +896,7 @@ fun WarehouseDetailScreen(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.indigoAccent)
-                                            Text("Admin tayinlash", fontSize = 14.sp)
+                                            Text(AppStrings.t(appLanguage(), "Admin tayinlash"), fontSize = 14.sp)
                                         }
                                     },
                                     onClick = {
@@ -907,7 +908,7 @@ fun WarehouseDetailScreen(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             Icon(Icons.Default.DeliveryDining, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.indigoAccent)
-                                            Text("Kuryer biriktirish", fontSize = 14.sp)
+                                            Text(AppStrings.t(appLanguage(), "Kuryer biriktirish"), fontSize = 14.sp)
                                         }
                                     },
                                     onClick = {
@@ -919,7 +920,7 @@ fun WarehouseDetailScreen(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = MexaWarehouseColors.danger)
-                                            Text("O'chirish", fontSize = 14.sp, color = MexaWarehouseColors.danger)
+                                            Text(AppStrings.deleteUserSubmit(appLanguage()), fontSize = 14.sp, color = MexaWarehouseColors.danger)
                                         }
                                     },
                                     onClick = {
@@ -1184,7 +1185,7 @@ fun WarehouseDetailScreen(
                         Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(formatNum(bottomMetrics.currentUnits.toInt()), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
-                            Text("dona", fontSize = 14.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 3.dp))
+                            Text(AppStrings.unitsPiece(appLanguage()), fontSize = 14.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.padding(bottom = 3.dp))
                         }
                     }
                     // ENG KO'P HARAKAT
@@ -1203,7 +1204,7 @@ fun WarehouseDetailScreen(
                                 }
                             }
                         } else {
-                            Text("Ma'lumot yo'q", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                            Text(AppStrings.t(appLanguage(), "Ma'lumot yo'q"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                         }
                     }
                     // SIG'IM
@@ -1804,7 +1805,7 @@ private fun MovementDetailDialog(row: MovementRow, onDismiss: () -> Unit) {
                 }
                 if (statusLabel != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Holat", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                        Text(AppStrings.tableStatus(appLanguage()), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                         Box(Modifier.background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 3.dp)) {
                             Text(statusLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = statusColor)
                         }
@@ -1818,7 +1819,7 @@ private fun MovementDetailDialog(row: MovementRow, onDismiss: () -> Unit) {
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                     Button(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
-                        Text("Yopish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.usersDetailClose(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -1991,7 +1992,7 @@ private fun LotsTab(
                                         Text("Kirim", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                     Text("${formatNum(groupQty.toInt())}", Modifier.weight(numW), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("—", Modifier.weight(numW), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                                    Text(AppStrings.devicesCurrentHint(appLanguage()), Modifier.weight(numW), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                                     Text("${formatMoney(groupValue)}", Modifier.weight(numW), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(group.lines.first().receivedDate.ifEmpty { "—" }, Modifier.weight(numW), fontSize = 12.sp, color = MexaWarehouseColors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Box(Modifier.weight(actW), contentAlignment = Alignment.CenterEnd) {
@@ -2076,13 +2077,13 @@ private fun LotsTab(
                         value = cancelReason,
                         onValueChange = { cancelReason = it },
                         label = { Text("Bekor qilish sababi *") },
-                        placeholder = { Text("Sababni kiriting...") },
+                        placeholder = { Text(AppStrings.t(appLanguage(), "Sababni kiriting...")) },
                         singleLine = false,
                         minLines = 2,
                         maxLines = 4,
                         isError = !cancelReasonValid,
                         supportingText = {
-                            if (!cancelReasonValid) Text("Sabab majburiy — o'chirish tarixiga yoziladi")
+                            if (!cancelReasonValid) Text(AppStrings.t(appLanguage(), "Sabab majburiy — o'chirish tarixiga yoziladi"))
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -2091,7 +2092,7 @@ private fun LotsTab(
                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
                     ) {
                         OutlinedButton(onClick = { cancelTarget = null }, shape = RoundedCornerShape(8.dp)) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = {
@@ -2103,7 +2104,7 @@ private fun LotsTab(
                             colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.danger),
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Tasdiqlash", fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.verifySubmit(appLanguage()), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -2135,13 +2136,13 @@ private fun LotsTab(
                         value = deleteReason,
                         onValueChange = { deleteReason = it },
                         label = { Text("O'chirish sababi *") },
-                        placeholder = { Text("Sababni kiriting...") },
+                        placeholder = { Text(AppStrings.t(appLanguage(), "Sababni kiriting...")) },
                         singleLine = false,
                         minLines = 2,
                         maxLines = 4,
                         isError = !deleteReasonValid,
                         supportingText = {
-                            if (!deleteReasonValid) Text("Sabab majburiy — o'chirish tarixiga yoziladi")
+                            if (!deleteReasonValid) Text(AppStrings.t(appLanguage(), "Sabab majburiy — o'chirish tarixiga yoziladi"))
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -2150,7 +2151,7 @@ private fun LotsTab(
                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
                     ) {
                         OutlinedButton(onClick = { deleteLotTarget = null }, shape = RoundedCornerShape(8.dp)) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = {
@@ -2162,7 +2163,7 @@ private fun LotsTab(
                             colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.danger),
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Tasdiqlash", fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.verifySubmit(appLanguage()), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -2459,7 +2460,7 @@ private fun CourierDetailDialog(
                 }
 
                 HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
-                Text("Oxirgi buyurtmalar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
+                Text(AppStrings.recentOrders(appLanguage()), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
 
                 when {
                     loading -> Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
@@ -2498,7 +2499,7 @@ private fun CourierDetailDialog(
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                     Button(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
-                        Text("Yopish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.usersDetailClose(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -2600,7 +2601,7 @@ private fun AdminsTab(
                 modifier = Modifier.widthIn(min = 380.dp, max = 520.dp),
             ) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Adminni olib tashlash", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                    Text(AppStrings.t(appLanguage(), "Adminni olib tashlash"), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                     Text(
                         "\"${admin.username.ifEmpty { "Admin" }}\" ushbu ombordan olib tashlanadi. Tasdiqlaysizmi?",
                         fontSize = 13.sp,
@@ -2608,7 +2609,7 @@ private fun AdminsTab(
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                         OutlinedButton(onClick = { removeTarget = null }, shape = RoundedCornerShape(8.dp)) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = {
@@ -2618,7 +2619,7 @@ private fun AdminsTab(
                             colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.danger),
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Tasdiqlash", fontWeight = FontWeight.SemiBold)
+                            Text(AppStrings.verifySubmit(appLanguage()), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

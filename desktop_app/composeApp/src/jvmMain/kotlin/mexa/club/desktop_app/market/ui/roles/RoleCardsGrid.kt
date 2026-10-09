@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.roles
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -374,8 +376,7 @@ private fun RolePermissionsDialog(
                             .padding(14.dp),
                     ) {
                         if (role.permissions.isEmpty()) {
-                            Text(
-                                "Bu rol uchun maxsus ruxsatlar belgilanmagan.",
+                            Text(AppStrings.editRolePermissionsEmpty(appLanguage()),
                                 fontSize = 13.sp,
                                 color = MexaWarehouseColors.textMuted,
                             )
@@ -424,7 +425,7 @@ private fun RolePermissionsDialog(
                         ),
                     ) {
                         Spacer(Modifier.width(2.dp))
-                        Text("Yopish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.usersDetailClose(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -465,7 +466,7 @@ fun RolesEmptyState(onClearFilters: () -> Unit, modifier: Modifier = Modifier) {
             border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.indigoAccent),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Filtrni tozalash", modifier = Modifier.padding(start = 6.dp))
+            Text(AppStrings.usersClearFilters(appLanguage()), modifier = Modifier.padding(start = 6.dp))
         }
     }
 }

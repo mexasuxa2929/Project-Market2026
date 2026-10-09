@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -370,7 +372,7 @@ fun ProductViewDialog(
                             Button(
                                 onClick = {},
                                 colors  = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary),
-                            ) { Text("Qayta urinish") }
+                            ) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                         }
                     }
                 } else {
@@ -700,8 +702,7 @@ fun ProductViewDialog(
                                                             )
                                                             .padding(horizontal = 8.dp, vertical = 3.dp),
                                                     ) {
-                                                        Text(
-                                                            "Tez sinuvchan",
+                                                        Text(AppStrings.t(appLanguage(), "Tez sinuvchan"),
                                                             fontSize   = 12.sp,
                                                             fontWeight = FontWeight.SemiBold,
                                                             color      = MexaWarehouseColors.amberBadgeFg,
@@ -802,7 +803,7 @@ fun ProductViewDialog(
                         border  = BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
                         colors  = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
                     ) {
-                        Text("Yopish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.usersDetailClose(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                     if (onEdit != null) {
                         Button(
@@ -810,7 +811,7 @@ fun ProductViewDialog(
                             colors  = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary),
                             shape   = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Tahrirlash", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(AppStrings.t(appLanguage(), "Tahrirlash"), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         }
                     }
                 }

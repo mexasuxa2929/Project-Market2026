@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.orders
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -277,7 +280,7 @@ fun OrderDetailDialog(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                        OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                     }
                 }
                 else -> {
@@ -314,7 +317,7 @@ fun OrderDetailDialog(
                         }
 
                         // ── Items ────────────────────────────────────────────────
-                        Text("Mahsulotlar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Mahsulotlar"), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
                         Column(
                             Modifier
                                 .fillMaxWidth()
@@ -323,7 +326,7 @@ fun OrderDetailDialog(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             if (d.items.isEmpty()) {
-                                Text("Mahsulotlar topilmadi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                                Text(AppStrings.t(appLanguage(), "Mahsulotlar topilmadi"), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                             } else {
                                 val itemsTotalPages = (d.items.size + itemsPageSize - 1) / itemsPageSize
                                 val itemsSafePage = itemsPage.coerceIn(0, itemsTotalPages - 1)
@@ -362,7 +365,7 @@ fun OrderDetailDialog(
                         }
 
                         // ── Admin Note ───────────────────────────────────────────
-                        Text("Admin izohi", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
+                        Text(AppStrings.t(appLanguage(), "Admin izohi"), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
                         OutlinedTextField(
                             value = adminNoteText,
                             onValueChange = { adminNoteText = it },
@@ -407,7 +410,7 @@ fun OrderDetailDialog(
                         OutlinedTextField(
                             value = reason,
                             onValueChange = { reason = it },
-                            placeholder = { Text("Izoh (ixtiyoriy)") },
+                            placeholder = { Text(AppStrings.t(appLanguage(), "Izoh (ixtiyoriy)")) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                         )
@@ -416,7 +419,7 @@ fun OrderDetailDialog(
                         }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            OutlinedButton(onClick = onDismiss) { Text("Yopish") }
+                            OutlinedButton(onClick = onDismiss) { Text(AppStrings.usersDetailClose(appLanguage())) }
                             Spacer(Modifier.width(8.dp))
                             Button(
                                 onClick = { saveStatus() },
@@ -426,7 +429,7 @@ fun OrderDetailDialog(
                                 if (saving) {
                                     CircularProgressIndicator(modifier = Modifier.height(16.dp), color = Color.White)
                                 } else {
-                                    Text("Saqlash")
+                                    Text(AppStrings.settingsSave(appLanguage()))
                                 }
                             }
                         }
@@ -446,7 +449,7 @@ fun OrderDetailDialog(
                                     onClick = { deleteOrder() },
                                     colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.danger),
                                 ) {
-                                    Text("O'chirish")
+                                    Text(AppStrings.deleteUserSubmit(appLanguage()))
                                 }
                             }
                             OutlinedButton(onClick = { toggleHistory() }) {

@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.roles
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -159,8 +161,7 @@ fun CreateRoleDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                "RUXSATLAR",
+                            Text(AppStrings.t(appLanguage(), "RUXSATLAR"),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MexaWarehouseColors.textMuted,
@@ -197,8 +198,7 @@ fun CreateRoleDialog(
                                     strokeWidth = 2.dp,
                                     color = MexaWarehouseColors.indigoAccent,
                                 )
-                                Text(
-                                    "Ruxsatlar yuklanmoqda…",
+                                Text(AppStrings.t(appLanguage(), "Ruxsatlar yuklanmoqda…"),
                                     fontSize = 13.sp,
                                     color = MexaWarehouseColors.textMuted,
                                 )
@@ -333,8 +333,7 @@ fun CreateRoleDialog(
                             onValueChange = { description = it },
                             modifier = Modifier.fillMaxWidth().height(88.dp),
                             placeholder = {
-                                Text(
-                                    "Bu rol haqida qisqacha ma'lumot…",
+                                Text(AppStrings.t(appLanguage(), "Bu rol haqida qisqacha ma'lumot…"),
                                     color = MexaWarehouseColors.textCaption,
                                 )
                             },
@@ -376,7 +375,7 @@ fun CreateRoleDialog(
                             ),
                             shape = RoundedCornerShape(8.dp),
                         ) {
-                            Text("Bekor qilish")
+                            Text(AppStrings.cancel(appLanguage()))
                         }
                         Button(
                             onClick = {

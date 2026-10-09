@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.roles
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -150,7 +152,7 @@ fun DeleteRoleConfirmDialog(
                         ),
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Bekor qilish")
+                        Text(AppStrings.cancel(appLanguage()))
                     }
 
                     Button(

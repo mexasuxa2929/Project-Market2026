@@ -55,6 +55,7 @@ fun lastActivityLabel(iso: String?, online: Boolean, lang: AppLanguage = AppLang
         return when (lang) {
             AppLanguage.UZ -> "Onlayn"
             AppLanguage.RU -> "Онлайн"
+            AppLanguage.EN -> "Online"
         }
     }
     val parsed = parseIso(iso) ?: return "—"
@@ -75,5 +76,6 @@ fun blockedInfoLabel(blockedAt: String?, lang: AppLanguage): String? {
     return when (lang) {
         AppLanguage.UZ -> "Bloklangan: $local"
         AppLanguage.RU -> "Заблокирован: $local"
+        AppLanguage.EN -> "Blocked: $local"
     }
 }

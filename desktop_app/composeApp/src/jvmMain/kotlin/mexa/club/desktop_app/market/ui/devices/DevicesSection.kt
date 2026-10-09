@@ -161,7 +161,7 @@ fun DevicesSection(modifier: Modifier = Modifier) {
                             fontSize = 13.sp,
                         )
                         Spacer(Modifier.height(10.dp))
-                        Button(onClick = { reload() }) { Text("Qayta urinish", fontSize = 13.sp) }
+                        Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish"), fontSize = 13.sp) }
                     }
                 }
 
@@ -352,7 +352,7 @@ private fun DevicesTable(
                 }
                 Box(Modifier.weight(1f)) {
                     if (s.current) {
-                        Text("—", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                        Text(AppStrings.devicesCurrentHint(appLanguage()), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                     } else {
                         TextButton(onClick = { onCloseRequest(s) }) {
                             Text(

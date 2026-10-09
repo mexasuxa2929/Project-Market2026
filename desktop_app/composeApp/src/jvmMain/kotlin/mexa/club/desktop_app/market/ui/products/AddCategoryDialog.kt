@@ -1,5 +1,7 @@
 ﻿package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -247,7 +249,7 @@ fun AddCategoryDialog(
                                 onDismissRequest = { parentExpanded = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Asosiy kategoriya (yo'q)", fontSize = 13.sp) },
+                                    text = { Text(AppStrings.t(appLanguage(), "Asosiy kategoriya (yo'q)"), fontSize = 13.sp) },
                                     onClick = {
                                         selParentId = ""
                                         selParentName = "Asosiy kategoriya (yo'q)"
@@ -303,7 +305,7 @@ fun AddCategoryDialog(
                                     border = BorderStroke(1.dp, MexaWarehouseColors.primary),
                                     colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.primary),
                                 ) {
-                                    Text("Rasm tanlash", fontSize = 13.sp)
+                                    Text(AppStrings.t(appLanguage(), "Rasm tanlash"), fontSize = 13.sp)
                                 }
                                 if (selectedImageFile != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -346,8 +348,7 @@ fun AddCategoryDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "Kategoriya holati",
+                            Text(AppStrings.t(appLanguage(), "Kategoriya holati"),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MexaWarehouseColors.textPrimary,
@@ -406,7 +407,7 @@ fun AddCategoryDialog(
                         border = BorderStroke(1.dp, MexaWarehouseColors.outlineVariant),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textPrimary),
                     ) {
-                        Text("Bekor qilish", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.cancel(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                     Button(
                         onClick = { save() },
@@ -418,7 +419,7 @@ fun AddCategoryDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
             }

@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.delivery
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -120,7 +123,7 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Yangi zona", fontSize = 13.sp)
+                            Text(AppStrings.t(appLanguage(), "Yangi zona"), fontSize = 13.sp)
                         }
                         IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Default.Close, contentDescription = "Yopish", tint = MexaWarehouseColors.textMuted)
@@ -140,7 +143,7 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
                     // Header
                     Row(Modifier.fillMaxWidth().background(MexaWarehouseColors.tableHeaderBg, RoundedCornerShape(8.dp)).padding(vertical = 10.dp, horizontal = 12.dp)) {
                         Text("Viloyat", modifier = Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.outline)
-                        Text("Tuman", modifier = Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.outline)
+                        Text(AppStrings.t(appLanguage(), "Tuman"), modifier = Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.outline)
                         Text("Narx", modifier = Modifier.weight(0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.outline)
                         Text("Kun", modifier = Modifier.weight(0.4f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.outline)
                         Text("", modifier = Modifier.weight(0.3f))
@@ -168,7 +171,7 @@ fun DeliveryZonesDialog(onDismiss: () -> Unit) {
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) { Text("Yopish") }
+                    OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.usersDetailClose(appLanguage())) }
                 }
             }
         }

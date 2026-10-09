@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.orders
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
@@ -156,13 +160,18 @@ fun formatOrderDate(iso: String): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OrdersScreen(modifier: Modifier = Modifier) {
+fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var orders by remember { mutableStateOf<List<OrderRow>>(emptyList()) }
     var stats by remember { mutableStateOf<OrderStatsData?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialQuery) }
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) searchQuery = initialQuery
+    }
     var statusFilter by remember { mutableStateOf("Barcha holatlar") }
     var statusExpanded by remember { mutableStateOf(false) }
     var paymentFilter by remember { mutableStateOf("Barcha to'lovlar") }
@@ -170,12 +179,23 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
     var selectedOrder by remember { mutableStateOf<OrderRow?>(null) }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
+    // Server pagination (T-H4): jami soni serverdan
+    var totalElements by remember { mutableStateOf(0L) }
 
-    suspend fun fetchOrders(): List<OrderRow> = withContext(Dispatchers.IO) {
-        val text = ApiClient.get("/api/admin/orders?page=0&size=100")
+    suspend fun fetchOrders(): Pair<List<OrderRow>, Long> = withContext(Dispatchers.IO) {
+        val params = buildList {
+            add("page=$page")
+            add("size=$pageSize")
+            if (statusFilter != "Barcha holatlar") add("status=$statusFilter")
+            if (paymentFilter != "Barcha to'lovlar") add("paymentStatus=$paymentFilter")
+            if (searchQuery.isNotBlank()) {
+                add("search=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
+            }
+        }
+        val text = ApiClient.get("/api/admin/orders?${params.joinToString("&")}")
         val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
         val items = data?.itemsOrContentArray() ?: JsonArray(emptyList())
-        items.mapNotNull { el ->
+        val rows = items.mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null
             val id = o.stringField("id").ifEmpty { return@mapNotNull null }
             val itemsArr = o["items"] as? JsonArray
@@ -191,7 +211,10 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                 deliveryAddress = o.stringField("deliveryAddress"),
                 itemsCount = itemsArr?.size ?: 0,
             )
-        }.sortedByDescending { it.createdAt }
+        }
+        val total = (data?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
     }
 
     suspend fun fetchStats(): OrderStatsData? = withContext(Dispatchers.IO) {
@@ -216,14 +239,26 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
             loading = true
             error = null
             runCatching { fetchOrders() }
-                .onSuccess { orders = it }
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi
+                    } else {
+                        orders = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
             stats = fetchStats()
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    // Debounce: filtr/qidiruv o'zgarishi → 300ms so'ng server so'rovi (T-H4)
+    LaunchedEffect(searchQuery, statusFilter, paymentFilter, page, pageSize) {
+        delay(300)
+        reload()
+    }
 
     selectedOrder?.let { sel ->
         OrderDetailDialog(
@@ -238,18 +273,9 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
 
     val statusOptions = listOf("Barcha holatlar") + ORDER_STATUS_OPTIONS
     val paymentOptions = listOf("Barcha to'lovlar", "PAID", "UNPAID", "REFUNDED")
-    val filtered = orders.filter { o ->
-        val matchSearch = searchQuery.isBlank() ||
-            o.orderNumber.contains(searchQuery, ignoreCase = true) ||
-            o.userId.contains(searchQuery, ignoreCase = true)
-        val matchStatus = statusFilter == "Barcha holatlar" || o.status.equals(statusFilter, ignoreCase = true)
-        val matchPayment = paymentFilter == "Barcha to'lovlar" || o.paymentStatus.equals(paymentFilter, ignoreCase = true)
-        matchSearch && matchStatus && matchPayment
-    }
-    // Client paging (umumiy andoza)
-    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    // Filtrlar server tomonida qo'llanadi (T-H4) — `orders` joriy sahifaning o'zi
+    val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
-    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
     Column(
         modifier
@@ -319,7 +345,7 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                     value = if (statusFilter == "Barcha holatlar") statusFilter else orderStatusLabel(statusFilter),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Holat") },
+                    label = { Text(AppStrings.tableStatus(appLanguage())) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
                     modifier = Modifier.menuAnchor().widthIn(min = 140.dp, max = 180.dp),
                     shape = RoundedCornerShape(8.dp),
@@ -395,28 +421,28 @@ fun OrdersScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
 
-            filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            orders.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Buyurtmalar topilmadi", color = MexaWarehouseColors.textMuted)
             }
 
-            else -> OrdersTable(orders = paged, onRowClick = { selectedOrder = it })
+            else -> OrdersTable(orders = orders, onRowClick = { selectedOrder = it })
         }
 
-        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
-        if (!loading && error == null && filtered.isNotEmpty()) {
+        // ── Pagination (umumiy andoza: PaginationBar) — server total (T-H4) ──
+        if (!loading && error == null && orders.isNotEmpty()) {
             HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
             PaginationBar(
                 page = safePage,
                 pageSize = pageSize,
-                totalElements = filtered.size,
+                totalElements = totalElements.toInt(),
                 infoText = run {
                     val from = safePage * pageSize + 1
-                    val to = minOf((safePage + 1) * pageSize, filtered.size)
-                    "$from - $to / ${filtered.size} ta buyurtma"
+                    val to = minOf((safePage + 1) * pageSize, totalElements.toInt())
+                    "$from - $to / $totalElements ta buyurtma"
                 },
                 onPageChange = { page = it },
                 onPageSizeChange = { pageSize = it; page = 0 },

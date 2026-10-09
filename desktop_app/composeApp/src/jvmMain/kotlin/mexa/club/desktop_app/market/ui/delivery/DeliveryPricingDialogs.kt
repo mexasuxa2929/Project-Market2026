@@ -1,4 +1,7 @@
 package mexa.club.desktop_app.market.ui.delivery
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -223,7 +226,7 @@ fun PricingEditorDialog(
 
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = { if (!saving) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = { save() },
                         enabled = !saving,
@@ -234,7 +237,7 @@ fun PricingEditorDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Saqlash", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.settingsSave(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -262,7 +265,7 @@ private fun PricingSelectField(field: PricingField.Sel, onChange: (String) -> Un
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 if (field.allowEmpty) {
                     DropdownMenuItem(
-                        text = { Text("— tanlanmagan —") },
+                        text = { Text(AppStrings.t(appLanguage(), "— tanlanmagan —")) },
                         onClick = { onChange(""); expanded = false },
                     )
                 }
@@ -311,7 +314,7 @@ fun ConfirmDeleteDialog(
                 }
                 error?.let { Text(it, color = MexaWarehouseColors.danger, fontSize = 13.sp) }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                    OutlinedButton(onClick = { if (!busy) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text("Bekor qilish") }
+                    OutlinedButton(onClick = { if (!busy) onDismiss() }, shape = RoundedCornerShape(8.dp)) { Text(AppStrings.cancel(appLanguage())) }
                     Button(
                         onClick = {
                             if (requireReason && reason.isBlank()) {
@@ -334,7 +337,7 @@ fun ConfirmDeleteDialog(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("O'chirish", fontWeight = FontWeight.SemiBold)
+                        Text(AppStrings.deleteUserSubmit(appLanguage()), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

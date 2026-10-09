@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -161,7 +163,7 @@ fun DeleteWarehouseConfirmDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textMuted),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MexaWarehouseColors.borderSubtle),
                         shape = RoundedCornerShape(8.dp),
-                    ) { Text("Bekor qilish") }
+                    ) { Text(AppStrings.cancel(appLanguage())) }
                     if (showForceOption) {
                         Button(
                             onClick = onForceConfirm,

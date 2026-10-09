@@ -42,9 +42,19 @@ object TokenRefreshManager {
                             )
                         }
                         is AuthApiResult.Err -> {
-                            AuthSession.clear()
-                            withContext(Dispatchers.Main) { onSessionExpired() }
-                            break
+                            // Server aniq rad etganda (400: refresh yaroqsiz/eskirgan,
+                            // 401/403: bekor qilingan/bloklangan) — sessiya tugaydi.
+                            // Tarmoq xati / 5xx / 429 da esa sessiya saqlanadi va
+                            // keyingi poll'da qayta uriniladi (audit T-H3).
+                            val definitive =
+                                result.httpStatus == 400 ||
+                                    result.httpStatus == 401 ||
+                                    result.httpStatus == 403
+                            if (definitive) {
+                                AuthSession.clear()
+                                withContext(Dispatchers.Main) { onSessionExpired() }
+                                break
+                            }
                         }
                     }
                 }

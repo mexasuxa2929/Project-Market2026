@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.products
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -294,8 +296,7 @@ fun ProductPriceTierSection(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Box(Modifier.padding(horizontal = 14.dp, vertical = 20.dp)) {
-                                Text(
-                                    "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing.",
+                                Text(AppStrings.t(appLanguage(), "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing."),
                                     fontSize = 12.sp, color = MexaWarehouseColors.textMuted,
                                     lineHeight = 18.sp,
                                 )
@@ -387,8 +388,7 @@ private fun EmptyTiersPlaceholder() {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Box(Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
-            Text(
-                "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing.",
+            Text(AppStrings.t(appLanguage(), "Narx bosqichlari yo'q.\nQuyidagi tugma orqali qo'shing."),
                 fontSize = 13.sp,
                 color = MexaWarehouseColors.textMuted,
                 lineHeight = 20.sp,
@@ -446,7 +446,7 @@ private fun TierCard(
                             Icon(Icons.Filled.AllInclusive, contentDescription = null,
                                 tint = color, modifier = Modifier.size(13.dp))
                         }
-                        Text("dona", fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
+                        Text(AppStrings.unitsPiece(appLanguage()), fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
                     }
                     Text(
                         "${fmtPrice(tier.price)} ${tier.currency} / dona",
@@ -625,7 +625,7 @@ private fun TierFormPanel(
                     colors   = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.textMuted),
                     modifier = Modifier.height(42.dp),
                 ) {
-                    Text("Bekor", fontSize = 13.sp)
+                    Text(AppStrings.t(appLanguage(), "Bekor"), fontSize = 13.sp)
                 }
             }
         }
@@ -651,7 +651,7 @@ private fun GlobalStrategyCard(tierCount: Int) {
                     Icon(Icons.Filled.TrendingDown, contentDescription = null,
                         tint = PrimaryColor, modifier = Modifier.size(20.dp))
                 }
-                Text("Narx bosqichlari",
+                Text(AppStrings.t(appLanguage(), "Narx bosqichlari"),
                     fontSize = 14.sp, fontWeight = FontWeight.Bold,
                     color = MexaWarehouseColors.textPrimary)
             }
@@ -706,7 +706,7 @@ private fun PriceCheckerBar(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
-            Text("dona", fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+            Text(AppStrings.unitsPiece(appLanguage()), fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
 
             if (checkedPrice != null) {
                 Icon(Icons.Filled.TrendingDown, contentDescription = null,

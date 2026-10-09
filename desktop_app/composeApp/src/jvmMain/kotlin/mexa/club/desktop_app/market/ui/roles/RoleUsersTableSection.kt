@@ -1,5 +1,7 @@
 package mexa.club.desktop_app.market.ui.roles
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -84,7 +86,7 @@ fun RoleUsersTableSection(
                 Modifier.fillMaxWidth().height(120.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Foydalanuvchilar topilmadi", color = MexaWarehouseColors.textMuted, fontSize = 14.sp)
+                Text(AppStrings.usersEmptyTitle(appLanguage()), color = MexaWarehouseColors.textMuted, fontSize = 14.sp)
             }
         } else {
             LazyColumn(Modifier.height((paged.size.coerceAtMost(8) * 56).dp.coerceAtLeast(168.dp))) {

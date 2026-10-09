@@ -1,5 +1,7 @@
 ﻿package mexa.club.desktop_app.market.ui.warehouses
 
+import mexa.club.desktop_app.localization.AppStrings
+import mexa.club.desktop_app.localization.appLanguage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -94,16 +96,29 @@ private data class WarehouseCardData(
         get() = capacityPct
 }
 
+/** Global ombor statistikasi — /api/warehouses/stats (T-H4, ro'yxatdan mustaqil) */
+private data class WarehouseStatsData(
+    val totalCount: Long = 0,
+    val activeCount: Long = 0,
+    val totalCapacity: Long = 0,
+    val totalLowStock: Long = 0,
+)
+
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WarehousesScreen(modifier: Modifier = Modifier) {
+fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var warehouses by remember { mutableStateOf<List<WarehouseCardData>>(emptyList()) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(initialQuery) }
+
+    // T-H1: global qidiruvdan kelgan so'rovni qo'llash (ekran allaqachon ochiq bo'lsa ham)
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) searchQuery = initialQuery
+    }
     var statusFilter by remember { mutableStateOf("Barcha holatlar") }
     var gridView by remember { mutableStateOf(true) }
     var statusExpanded by remember { mutableStateOf(false) }
@@ -111,15 +126,28 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
     var editTarget by remember { mutableStateOf<WarehouseCardData?>(null) }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
+    var totalElements by remember { mutableStateOf(0L) }
+    var stats by remember { mutableStateOf(WarehouseStatsData()) }
     var selectedWarehouse by remember { mutableStateOf<WarehouseCardData?>(null) }
     val isSuperAdmin = AuthSession.isSuperAdmin
 
-    suspend fun fetchWarehouses(): List<WarehouseCardData> = withContext(Dispatchers.IO) {
-        val whText = ApiClient.get("/api/warehouses?page=0&size=100")
+    suspend fun fetchWarehouses(): Pair<List<WarehouseCardData>, Long> = withContext(Dispatchers.IO) {
+        val params = buildList {
+            add("page=$page")
+            add("size=$pageSize")
+            if (searchQuery.isNotBlank()) {
+                add("q=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
+            }
+            when (statusFilter) {
+                "Faol" -> add("active=true")
+                "Nofaol" -> add("active=false")
+            }
+        }
+        val whText = ApiClient.get("/api/warehouses?${params.joinToString("&")}")
         val whData = ApiClient.parseJsonObject(whText)?.let { ApiClient.dataObject(it) }
         val items = whData?.itemsOrContentArray() ?: JsonArray(emptyList())
 
-        items.mapNotNull { el ->
+        val rows = items.mapNotNull { el ->
             val w = el as? JsonObject ?: return@mapNotNull null
             val id = w.stringField("id").ifEmpty { return@mapNotNull null }
 
@@ -137,15 +165,41 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                 capacityPct = (w["capacityPct"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
             )
         }
+        val total = (whData?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
+    }
+
+    suspend fun fetchStats(): WarehouseStatsData = withContext(Dispatchers.IO) {
+        val text = ApiClient.get("/api/warehouses/stats")
+        val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) }
+        if (data == null) WarehouseStatsData()
+        else WarehouseStatsData(
+            totalCount = data.stringField("totalCount").toLongOrNull() ?: 0L,
+            activeCount = data.stringField("activeCount").toLongOrNull() ?: 0L,
+            totalCapacity = data.stringField("totalCapacity").toLongOrNull() ?: 0L,
+            totalLowStock = data.stringField("totalLowStock").toLongOrNull() ?: 0L,
+        )
     }
 
     fun reload() {
         scope.launch {
             loading = true
             error = null
-            runCatching { fetchWarehouses() }
-                .onSuccess { warehouses = it }
+            val listResult = runCatching { fetchWarehouses() }
+            val statsResult = runCatching { fetchStats() }
+            listResult
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi
+                    } else {
+                        warehouses = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
+            statsResult.onSuccess { stats = it }
             loading = false
         }
     }
@@ -153,8 +207,10 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
     fun refreshAfterEdit() {
         scope.launch {
             runCatching { fetchWarehouses() }
-                .onSuccess { list ->
+                .onSuccess { (list, total) ->
+                    totalElements = total
                     warehouses = list
+                    runCatching { fetchStats() }.onSuccess { stats = it }
                     selectedWarehouse?.let { sel ->
                         selectedWarehouse = list.find { it.id == sel.id } ?: sel
                     }
@@ -176,8 +232,13 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
         return
     }
 
-    LaunchedEffect(Unit) {
+    // Debounce: filtr/qidiruv/paging → 300ms so'ng server so'rovi (T-H4)
+    LaunchedEffect(searchQuery, statusFilter, page, pageSize) {
+        delay(300)
         reload()
+    }
+
+    LaunchedEffect(Unit) {
         // Real-time: boshqa klient/mutatsiya → SSE → jim yangilash (spinner chiqmaydi)
         GatewayRealtimeHub.dashboardRefresh.drop(1).collect {
             refreshAfterEdit()
@@ -216,28 +277,16 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    // Filtering
+    // Filtering server tomonida (T-H4) — `warehouses` joriy sahifaning o'zi
     val statusOptions = listOf("Barcha holatlar", "Faol", "Nofaol")
-    val filtered = warehouses.filter { w ->
-        val matchSearch = searchQuery.isBlank() || w.name.contains(searchQuery, ignoreCase = true)
-            || w.location.contains(searchQuery, ignoreCase = true)
-        val matchStatus = when (statusFilter) {
-            "Faol" -> w.isActive
-            "Nofaol" -> !w.isActive
-            else -> true
-        }
-        matchSearch && matchStatus
-    }
-
-    val totalPages = if (filtered.isEmpty()) 1 else (filtered.size + pageSize - 1) / pageSize
+    val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
-    val paged = filtered.drop(safePage * pageSize).take(pageSize)
 
-    // Stats
-    val totalCount = warehouses.size
-    val activeCount = warehouses.count { it.isActive }
-    val totalCapacity = warehouses.sumOf { it.capacity }
-    val totalLowStock = warehouses.sumOf { it.lowStockCount }
+    // Stats — global endpoint (sahifadan mustaqil, T-H4)
+    val totalCount = stats.totalCount.toInt()
+    val activeCount = stats.activeCount.toInt()
+    val totalCapacity = stats.totalCapacity.toInt()
+    val totalLowStock = stats.totalLowStock.toInt()
 
     Column(
         modifier
@@ -259,7 +308,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                     Icon(Icons.Default.Warehouse, contentDescription = null, tint = MexaWarehouseColors.indigoAccent, modifier = Modifier.size(22.dp))
                 }
                 Column {
-                    Text("Omborlar", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
+                    Text(AppStrings.t(appLanguage(), "Omborlar"), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textPrimary)
                     Text("Ombor boshqaruv tizimi", fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
                 }
             }
@@ -381,7 +430,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                     value = statusFilter,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Holat") },
+                    label = { Text(AppStrings.tableStatus(appLanguage())) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
                     modifier = Modifier.menuAnchor().widthIn(min = 140.dp, max = 200.dp),
                     shape = RoundedCornerShape(8.dp),
@@ -439,13 +488,13 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error ?: "Xatolik", color = MexaWarehouseColors.danger)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { reload() }) { Text("Qayta urinish") }
+                    Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
 
             else -> if (gridView) {
                 WarehousesGrid(
-                    warehouses = paged,
+                    warehouses = warehouses,
                     onCardClick = { selectedWarehouse = it },
                     onAddClick = { showAddDialog = true },
                     showAddCard = isSuperAdmin,
@@ -453,24 +502,24 @@ fun WarehousesScreen(modifier: Modifier = Modifier) {
                 )
             } else {
                 WarehousesList(
-                    warehouses = paged,
+                    warehouses = warehouses,
                     onRowClick = { selectedWarehouse = it },
                     onEditClick = { editTarget = it },
                 )
             }
         }
 
-        // ── Pagination (umumiy andoza: PaginationBar) ──────────────────────
-        if (!loading && error == null && filtered.isNotEmpty()) {
+        // ── Pagination (umumiy andoza: PaginationBar) — server total (T-H4) ──
+        if (!loading && error == null && warehouses.isNotEmpty()) {
             HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
             PaginationBar(
                 page = safePage,
                 pageSize = pageSize,
-                totalElements = filtered.size,
+                totalElements = totalElements.toInt(),
                 infoText = run {
                     val from = safePage * pageSize + 1
-                    val to = minOf((safePage + 1) * pageSize, filtered.size)
-                    "$from - $to / ${filtered.size} ta ombor"
+                    val to = minOf((safePage + 1) * pageSize, totalElements.toInt())
+                    "$from - $to / $totalElements ta ombor"
                 },
                 onPageChange = { page = it },
                 onPageSizeChange = { pageSize = it; page = 0 },
@@ -542,9 +591,9 @@ private fun WarehousesList(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Text("Ombor", Modifier.weight(2f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
-                Text("Holat", Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
+                Text(AppStrings.tableStatus(appLanguage()), Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Text("Sig'im", Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
-                Text("Mahsulotlar", Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
+                Text(AppStrings.t(appLanguage(), "Mahsulotlar"), Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Text("Bugungi kirim", Modifier.weight(0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Text("Kam qolgan", Modifier.weight(0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MexaWarehouseColors.textMuted)
                 Spacer(Modifier.width(32.dp))
