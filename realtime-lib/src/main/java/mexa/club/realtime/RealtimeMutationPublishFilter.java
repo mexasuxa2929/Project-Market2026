@@ -67,6 +67,7 @@ public class RealtimeMutationPublishFilter extends OncePerRequestFilter {
             payload.put("service", applicationName);
             payload.put("method", request.getMethod());
             payload.put("path", request.getRequestURI());
+            payload.put("resource", RealtimePaths.normalize(request.getRequestURI()));
             payload.put("query", request.getQueryString());
             payload.put("status", status);
             payload.put("timestamp", Instant.now().toString());

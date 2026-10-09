@@ -47,7 +47,11 @@ public class OrderRealtimePublisher {
 
     private void publish(Map<String, String> payload) {
         try {
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
+            Map<String, String> enriched = new LinkedHashMap<>(payload);
+            enriched.putIfAbsent("service", "order-service");
+            enriched.putIfAbsent("path", "/api/orders");
+            enriched.putIfAbsent("resource", "/api/orders");
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(enriched);
             redisTemplate.convertAndSend(CHANNEL, json);
             log.debug("Realtime event sent: {}", json);
         } catch (Exception e) {

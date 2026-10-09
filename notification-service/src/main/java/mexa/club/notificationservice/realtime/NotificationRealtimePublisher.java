@@ -31,6 +31,9 @@ public class NotificationRealtimePublisher {
         payload.put("notificationId", notificationId.toString());
         payload.put("userId", userId.toString());
         payload.put("notificationType", type == null ? "" : type);
+        payload.put("service", "notification-service");
+        payload.put("path", "/api/admin/notifications");
+        payload.put("resource", "/api/admin/notifications");
         try {
             String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
             redisTemplate.convertAndSend(CHANNEL, json);

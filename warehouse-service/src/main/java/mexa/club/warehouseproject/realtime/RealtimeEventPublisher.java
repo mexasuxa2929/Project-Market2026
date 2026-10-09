@@ -29,7 +29,10 @@ public class RealtimeEventPublisher {
     public void publishMutation(String method, String path) {
         try {
             String json = objectMapper.writeValueAsString(
-                    Map.of("method", method, "path", path, "service", SERVICE));
+                    Map.of("method", method,
+                            "path", path,
+                            "resource", mexa.club.realtime.RealtimePaths.normalize(path),
+                            "service", SERVICE));
             redisTemplate.convertAndSend(channel, json);
         } catch (Exception ignored) {
             // Redis down or serialization failure — must not affect the main transaction

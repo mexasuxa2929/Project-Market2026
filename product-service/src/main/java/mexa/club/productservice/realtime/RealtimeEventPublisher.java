@@ -58,7 +58,11 @@ public class RealtimeEventPublisher {
 
     private void publish(Map<String, String> payload) {
         try {
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
+            Map<String, String> enriched = new java.util.LinkedHashMap<>(payload);
+            enriched.putIfAbsent("service", "product-service");
+            enriched.putIfAbsent("path", "/api/products");
+            enriched.putIfAbsent("resource", "/api/products");
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(enriched);
             redisTemplate.convertAndSend(CHANNEL, json);
             log.debug("Realtime event sent: {}", json);
         } catch (Exception e) {
