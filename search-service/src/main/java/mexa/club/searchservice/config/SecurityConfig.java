@@ -28,6 +28,8 @@ public class SecurityConfig {
                         // Error dispatch (sendError/exception) xato statusini to'g'ri qaytarsin
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
+                        // Admin boshqaruvi (T-H8) — /api/search/** ochiq bo'lgani uchun oldin tekshiriladi
+                        .requestMatchers("/api/search/admin/**").hasAuthority("PRODUCT_MANAGE")
                         .requestMatchers("/api/search/**").permitAll()
                         .requestMatchers("/internal/**").permitAll()
                         .anyRequest().authenticated()

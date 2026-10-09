@@ -55,8 +55,13 @@ public class AdminNotificationController {
             @Parameter(description = "Zero-based page index")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Number of notifications per page")
-            @RequestParam(defaultValue = "20") int size) {
-        Page<NotificationResponse> result = notificationService.all(page, size).map(notificationMapper::toResponse);
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Filter by delivery status (PENDING, SENT, FAILED, ...)")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "Free-text search across recipient email/phone and subject")
+            @RequestParam(required = false) String q) {
+        Page<NotificationResponse> result =
+                notificationService.all(page, size, status, q).map(notificationMapper::toResponse);
         return ApiResponse.ok(Map.of(
                 "content", result.getContent(),
                 "page", result.getNumber(),
@@ -111,8 +116,25 @@ public class AdminNotificationController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "NOTIFICATION_MANAGE authority required")
     })
     @GetMapping("/templates")
-    public ApiResponse<java.util.List<NotificationTemplate>> templates() {
-        return ApiResponse.ok(notificationService.templates());
+    public ApiResponse<Object> templates(
+            @Parameter(description = "Zero-based page index (berilsa — sahifalangan javob, aks holda to'liq ro'yxat)")
+            @RequestParam(required = false) Integer page,
+            @Parameter(description = "Page size (1..100)")
+            @RequestParam(required = false) Integer size) {
+        if (page == null && size == null) {
+            // Backward compatibility: parametrsiz — eski to'liq ro'yxat
+            return ApiResponse.ok(notificationService.templates());
+        }
+        int p = Math.max(0, page == null ? 0 : page);
+        int s = Math.min(100, Math.max(1, size == null ? 20 : size));
+        var result = notificationService.templates(p, s);
+        return ApiResponse.ok(Map.of(
+                "content", result.getContent(),
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalElements", result.getTotalElements(),
+                "totalPages", result.getTotalPages()
+        ));
     }
 
     @Operation(

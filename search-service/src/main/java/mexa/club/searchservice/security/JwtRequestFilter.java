@@ -31,7 +31,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String p = request.getRequestURI();
         return p.startsWith("/internal/")
-                || p.startsWith("/api/search/")
+                || (p.startsWith("/api/search/") && !p.startsWith("/api/search/admin/"))
                 || p.startsWith("/v3/api-docs")
                 || p.startsWith("/swagger-ui")
                 || p.startsWith("/actuator/");

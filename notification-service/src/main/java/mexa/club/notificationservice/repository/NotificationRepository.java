@@ -20,6 +20,20 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     long countByUserIdAndIsReadFalse(UUID userId);
 
+    /** Admin ro'yxati: status + bepul matn bo'yicha filtr (T-H4 server pagination) */
+    @Query("""
+            SELECT n FROM Notification n
+            WHERE (:status IS NULL OR n.status = :status)
+              AND (:q IS NULL OR LOWER(COALESCE(n.recipientEmail, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                  OR LOWER(COALESCE(n.recipientPhone, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                  OR LOWER(COALESCE(n.subject, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
+            """)
+    Page<Notification> search(
+            @Param("status") NotificationStatus status,
+            @Param("q") String q,
+            Pageable pageable
+    );
+
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.id = :id AND n.userId = :userId")
     int markRead(@Param("id") UUID id, @Param("userId") UUID userId);

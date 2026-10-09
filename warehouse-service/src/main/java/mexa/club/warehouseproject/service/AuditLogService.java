@@ -40,10 +40,11 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> search(String targetType, String targetId, UUID warehouseId, Pageable pageable) {
+    public Page<AuditLogResponse> search(String targetType, String targetId, UUID warehouseId, String q, Pageable pageable) {
         String type = normalize(targetType);
         String id = normalize(targetId);
-        return auditLogRepository.search(type, id, warehouseId, pageable).map(AuditLogResponse::fromEntity);
+        String text = normalize(q);
+        return auditLogRepository.search(type, id, warehouseId, text, pageable).map(AuditLogResponse::fromEntity);
     }
 
     private UUID resolveCurrentUserIdOrNull() {

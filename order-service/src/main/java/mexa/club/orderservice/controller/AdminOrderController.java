@@ -75,13 +75,15 @@ public class AdminOrderController {
             @RequestParam(required = false) String orderNumber,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo,
-            @RequestParam(required = false) UUID warehouseId
+            @RequestParam(required = false) UUID warehouseId,
+            @RequestParam(required = false) String search
     ) {
         boolean hasFilters = status != null || paymentStatus != null || userId != null
-                || orderNumber != null || dateFrom != null || dateTo != null || warehouseId != null;
+                || orderNumber != null || dateFrom != null || dateTo != null || warehouseId != null
+                || (search != null && !search.isBlank());
         if (hasFilters) {
             return ApiResponse.ok(orderService.searchOrders(
-                    status, paymentStatus, userId, orderNumber, dateFrom, dateTo, warehouseId, page, size));
+                    status, paymentStatus, userId, orderNumber, dateFrom, dateTo, warehouseId, search, page, size));
         }
         return ApiResponse.ok(orderService.allOrders(page, size));
     }

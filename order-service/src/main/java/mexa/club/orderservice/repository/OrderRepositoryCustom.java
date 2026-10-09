@@ -10,6 +10,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface OrderRepositoryCustom {
+    /**
+     * Dinamik admin qidiruv. search — erkin matn: orderNumber bo'yicha LIKE yoki
+     * to'liq UUID bo'lsa userId tenglik (T-H4).
+     */
     Page<Order> searchOrders(
             OrderStatus status,
             PaymentStatus paymentStatus,
@@ -18,5 +22,6 @@ public interface OrderRepositoryCustom {
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
             UUID warehouseId,
+            String search,
             Pageable pageable);
 }

@@ -418,11 +418,12 @@ public class OrderService {
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
             UUID warehouseId,
+            String search,
             int page,
             int size
     ) {
         Page<Order> result = orderRepository.searchOrders(
-                status, paymentStatus, userId, orderNumber, dateFrom, dateTo, warehouseId,
+                status, paymentStatus, userId, orderNumber, dateFrom, dateTo, warehouseId, search,
                 PageRequest.of(page, size));
         return new PagePayload<>(
                 result.getContent().stream().map(orderMapper::toResponse).toList(),
@@ -863,7 +864,7 @@ public class OrderService {
             LocalDateTime dateFrom, LocalDateTime dateTo
     ) {
         Page<Order> result = orderRepository.searchOrders(
-                status, paymentStatus, null, null, dateFrom, dateTo, null,
+                status, paymentStatus, null, null, dateFrom, dateTo, null, null,
                 PageRequest.of(0, Integer.MAX_VALUE));
         return result.getContent().stream().map(orderMapper::toResponse).toList();
     }

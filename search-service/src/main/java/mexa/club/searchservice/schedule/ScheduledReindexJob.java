@@ -22,15 +22,31 @@ public class ScheduledReindexJob {
     private final ProductServiceClient productServiceClient;
     private final SearchService searchService;
 
+    private volatile LocalDateTime lastReindexAt;
+    private volatile Integer lastReindexCount;
+    private volatile Boolean lastReindexOk;
+
     public ScheduledReindexJob(ProductServiceClient productServiceClient, SearchService searchService) {
         this.productServiceClient = productServiceClient;
         this.searchService = searchService;
     }
 
+    public LocalDateTime getLastReindexAt() { return lastReindexAt; }
+    public Integer getLastReindexCount() { return lastReindexCount; }
+    public Boolean getLastReindexOk() { return lastReindexOk; }
+
     @Scheduled(
             fixedDelayString = "${app.search.reindex-interval-ms:600000}",
             initialDelayString = "${app.search.reindex-initial-delay-ms:30000}")
     public void reindex() {
+        runReindex();
+    }
+
+    /**
+     * To'liq reindex (scheduler va admin endpointdan umumiy).
+     * Indekslangan mahsulotlar sonini qaytaradi; xatoda -1 va holat yoziladi.
+     */
+    public int runReindex() {
         try {
             List<Map<String, Object>> products = extractContent(productServiceClient.products(0, 1000).data());
             for (Map<String, Object> p : products) {
@@ -51,9 +67,17 @@ public class ScheduledReindexJob {
                         LocalDateTime.now()
                 ));
             }
+            lastReindexAt = LocalDateTime.now();
+            lastReindexCount = products.size();
+            lastReindexOk = true;
             log.debug("Search reindex completed: {} products", products.size());
+            return products.size();
         } catch (Exception e) {
+            lastReindexAt = LocalDateTime.now();
+            lastReindexCount = null;
+            lastReindexOk = false;
             log.warn("Search reindex failed: {}", e.getMessage());
+            return -1;
         }
     }
 

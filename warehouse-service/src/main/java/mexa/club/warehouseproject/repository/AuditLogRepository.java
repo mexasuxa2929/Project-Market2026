@@ -18,12 +18,17 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             WHERE (:targetType IS NULL OR a.targetType = :targetType)
               AND (:targetId IS NULL OR a.targetId = :targetId)
               AND (:warehouseId IS NULL OR a.warehouseId = :warehouseId)
+              AND (:q IS NULL OR LOWER(a.action) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                  OR LOWER(a.targetType) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                  OR LOWER(COALESCE(a.actorUsername, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                  OR LOWER(COALESCE(a.details, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
             ORDER BY a.createdAt DESC, a.id DESC
             """)
     Page<AuditLog> search(
             @Param("targetType") String targetType,
             @Param("targetId") String targetId,
             @Param("warehouseId") UUID warehouseId,
+            @Param("q") String q,
             Pageable pageable
     );
 

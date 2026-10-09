@@ -14,9 +14,9 @@ public interface CourierRepository extends JpaRepository<Courier, UUID> {
 
     @Query("""
             SELECT c FROM Courier c WHERE
-            (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(c.phone) LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(c.region) LIKE LOWER(CONCAT('%', :search, '%')))
+            (:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:search AS text), '%'))
+                OR LOWER(c.phone) LIKE LOWER(CONCAT('%', CAST(:search AS text), '%'))
+                OR LOWER(c.region) LIKE LOWER(CONCAT('%', CAST(:search AS text), '%')))
             AND (:active IS NULL OR c.active = :active)
             AND (:region IS NULL OR LOWER(c.region) = LOWER(:region))
             ORDER BY c.name ASC

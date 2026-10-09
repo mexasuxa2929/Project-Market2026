@@ -71,9 +71,27 @@ public class NotificationService {
         return request.notifications().stream().map(this::enqueue).toList();
     }
 
+    /**
+     * Admin ro'yxati (T-H4): server pagination + status/q filtri, createdAt DESC
+     * (oldingi `findAll(PageRequest)` da sort yo'q edi — sahifalar barqaror emas edi).
+     */
     @Transactional(readOnly = true)
-    public Page<Notification> all(int page, int size) {
-        return notificationRepository.findAll(PageRequest.of(page, size));
+    public Page<Notification> all(int page, int size, String status, String q) {
+        NotificationStatus statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                statusEnum = NotificationStatus.valueOf(status.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                statusEnum = null;
+            }
+        }
+        String text = (q == null || q.trim().isEmpty()) ? null : q.trim();
+        return notificationRepository.search(
+                statusEnum,
+                text,
+                PageRequest.of(page, size, org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        );
     }
 
     @Transactional(readOnly = true)
@@ -114,6 +132,16 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationTemplate> templates() {
         return templateRepository.findAll();
+    }
+
+    /** Sahifalangan shablonlar ro'yxati (T-H4) — barqaror sort: type, channel. */
+    @Transactional(readOnly = true)
+    public Page<NotificationTemplate> templates(int page, int size) {
+        return templateRepository.findAll(PageRequest.of(
+                page, size,
+                org.springframework.data.domain.Sort.by("type")
+                        .and(org.springframework.data.domain.Sort.by("channel"))
+        ));
     }
 
     @Transactional

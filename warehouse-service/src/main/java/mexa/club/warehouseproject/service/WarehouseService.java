@@ -3,6 +3,7 @@ package mexa.club.warehouseproject.service;
 import mexa.club.warehouseproject.dto.WarehouseAdminsRequest;
 import mexa.club.warehouseproject.dto.WarehouseCreateRequest;
 import mexa.club.warehouseproject.dto.WarehouseResponse;
+import mexa.club.warehouseproject.dto.WarehouseStatsResponse;
 import mexa.club.warehouseproject.entity.Warehouse;
 import mexa.club.warehouseproject.entity.WarehouseAdmin;
 import mexa.club.warehouseproject.client.GeoServiceClient;
@@ -81,15 +82,16 @@ public class WarehouseService {
     }
 
     @Transactional(readOnly = true)
-    public Page<WarehouseResponse> listWarehouses(Pageable pageable) {
+    public Page<WarehouseResponse> listWarehouses(Pageable pageable, String q, Boolean active) {
+        String query = (q == null || q.trim().isEmpty()) ? null : q.trim();
         Page<Warehouse> page;
         if (warehouseAccessService.hasSuperAdminRole()) {
-            page = warehouseRepository.findAllWithAdmins(pageable);
+            page = warehouseRepository.findAllWithAdmins(query, active, pageable);
         } else if (warehouseAccessService.hasWarehouseAdminRole()) {
             UUID uid = warehouseAccessService.requireCurrentUserId();
-            page = warehouseRepository.findByAdminUserId(uid, pageable);
+            page = warehouseRepository.findByAdminUserId(uid, query, active, pageable);
         } else {
-            page = warehouseRepository.findAllWithAdmins(pageable);
+            page = warehouseRepository.findAllWithAdmins(query, active, pageable);
         }
 
         List<UUID> ids = page.getContent().stream().map(Warehouse::getId).toList();
@@ -115,6 +117,23 @@ public class WarehouseService {
             }
             return r;
         });
+    }
+
+    /**
+     * Global ombor statistikasi (T-H4): ro'yxat sahifalanganda ham kartalar
+     * butun tizim bo'yicha hisoblanadi (jami, faol, sig'im, kam zaxira).
+     */
+    @Transactional(readOnly = true)
+    public WarehouseStatsResponse warehouseStats() {
+        long total = warehouseRepository.count();
+        long active = warehouseRepository.countActive();
+        long capacity = warehouseRepository.sumCapacity();
+        List<UUID> ids = warehouseRepository.findAllIds();
+        Map<UUID, WarehouseStockService.WarehouseSummaryStats> sums = ids.isEmpty()
+                ? Map.of()
+                : warehouseStockService.summarizeWarehouses(ids, LocalDate.now().atStartOfDay());
+        long lowStock = sums.values().stream().mapToLong(WarehouseStockService.WarehouseSummaryStats::lowStockCount).sum();
+        return new WarehouseStatsResponse(total, active, capacity, lowStock);
     }
 
     @Transactional(readOnly = true)

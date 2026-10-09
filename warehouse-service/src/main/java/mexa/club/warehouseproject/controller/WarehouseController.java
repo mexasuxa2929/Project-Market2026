@@ -42,10 +42,27 @@ public class WarehouseController {
     @GetMapping
     @PreAuthorize("hasAuthority('WAREHOUSE_VIEW')")
     public ResponseEntity<mexa.club.warehouseproject.api.ApiResponse<PagePayload<WarehouseResponse>>> list(
-            @PageableDefault(size = 20, sort = "name") Pageable pageable
+            @PageableDefault(size = 20, sort = "name") Pageable pageable,
+            @Parameter(description = "Free-text search across name, location and address") @RequestParam(required = false) String q,
+            @Parameter(description = "Filter by active status (true/false)") @RequestParam(required = false) Boolean active
     ) {
-        var page = warehouseService.listWarehouses(pageable);
+        var page = warehouseService.listWarehouses(pageable, q, active);
         return ResponseEntity.ok(mexa.club.warehouseproject.api.ApiResponse.ok(PagePayload.of(page)));
+    }
+
+    @Operation(
+        summary = "Warehouse aggregate statistics",
+        description = "Global counters used by dashboard cards: total/active warehouses, total capacity and low-stock products (independent from list pagination)."
+    )
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Statistics returned successfully"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient authority — WAREHOUSE_VIEW required")
+    })
+    @GetMapping("/stats")
+    @PreAuthorize("hasAuthority('WAREHOUSE_VIEW')")
+    public ResponseEntity<mexa.club.warehouseproject.api.ApiResponse<mexa.club.warehouseproject.dto.WarehouseStatsResponse>> stats() {
+        return ResponseEntity.ok(mexa.club.warehouseproject.api.ApiResponse.ok(warehouseService.warehouseStats()));
     }
 
     @Operation(summary = "Get warehouse by ID", description = "Returns a single warehouse by its UUID. Requires WAREHOUSE_VIEW authority.")

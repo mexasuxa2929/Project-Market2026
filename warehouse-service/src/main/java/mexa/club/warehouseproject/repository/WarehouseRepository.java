@@ -22,17 +22,57 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, UUID> {
 
     @EntityGraph(attributePaths = {"adminAssignments"})
     @Query(
-            value = "SELECT w FROM Warehouse w",
-            countQuery = "SELECT COUNT(w) FROM Warehouse w"
+            value = """
+                    SELECT w FROM Warehouse w
+                    WHERE (:q IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.location, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.address, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
+                      AND (:active IS NULL OR w.active = :active)
+                    """,
+            countQuery = """
+                    SELECT COUNT(w) FROM Warehouse w
+                    WHERE (:q IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.location, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.address, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
+                      AND (:active IS NULL OR w.active = :active)
+                    """
     )
-    Page<Warehouse> findAllWithAdmins(Pageable pageable);
+    Page<Warehouse> findAllWithAdmins(@Param("q") String q, @Param("active") Boolean active, Pageable pageable);
 
     @EntityGraph(attributePaths = {"adminAssignments"})
     @Query(
-            value = "SELECT DISTINCT w FROM Warehouse w JOIN w.adminAssignments a WHERE a.userId = :userId",
-            countQuery = "SELECT COUNT(DISTINCT w) FROM Warehouse w JOIN w.adminAssignments a WHERE a.userId = :userId"
+            value = """
+                    SELECT DISTINCT w FROM Warehouse w JOIN w.adminAssignments a
+                    WHERE a.userId = :userId
+                      AND (:q IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.location, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.address, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
+                      AND (:active IS NULL OR w.active = :active)
+                    """,
+            countQuery = """
+                    SELECT COUNT(DISTINCT w) FROM Warehouse w JOIN w.adminAssignments a
+                    WHERE a.userId = :userId
+                      AND (:q IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.location, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%'))
+                        OR LOWER(COALESCE(w.address, '')) LIKE LOWER(CONCAT('%', CAST(:q AS text), '%')))
+                      AND (:active IS NULL OR w.active = :active)
+                    """
     )
-    Page<Warehouse> findByAdminUserId(@Param("userId") UUID userId, Pageable pageable);
+    Page<Warehouse> findByAdminUserId(
+            @Param("userId") UUID userId,
+            @Param("q") String q,
+            @Param("active") Boolean active,
+            Pageable pageable);
+
+    /** Umumiy statistika (T-H4 — ro'yxat sahifalanadi, kartalar esa global hisoblanadi) */
+    @Query("SELECT COUNT(w) FROM Warehouse w WHERE w.active = true")
+    long countActive();
+
+    @Query("SELECT COALESCE(SUM(w.capacity), 0) FROM Warehouse w")
+    long sumCapacity();
+
+    @Query("SELECT w.id FROM Warehouse w")
+    List<UUID> findAllIds();
 
     @Query("SELECT w FROM Warehouse w WHERE w.active = true")
     List<Warehouse> findAllActive();

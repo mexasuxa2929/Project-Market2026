@@ -44,9 +44,10 @@ public class AuditLogController {
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable,
             @Parameter(description = "Filter by entity type (e.g. WAREHOUSE, PURCHASE, STOCK_RETURN)") @RequestParam(required = false) String targetType,
             @Parameter(description = "Filter by the UUID of the target entity (as a string)") @RequestParam(required = false) String targetId,
-            @Parameter(description = "Filter by the warehouse UUID to which the log entry belongs") @RequestParam(required = false) UUID warehouseId
+            @Parameter(description = "Filter by the warehouse UUID to which the log entry belongs") @RequestParam(required = false) UUID warehouseId,
+            @Parameter(description = "Free-text search across action, targetType, actor and details") @RequestParam(required = false) String q
     ) {
-        var page = auditLogService.search(targetType, targetId, warehouseId, pageable);
+        var page = auditLogService.search(targetType, targetId, warehouseId, q, pageable);
         return ResponseEntity.ok(ApiResponse.ok(PagePayload.of(page)));
     }
 }

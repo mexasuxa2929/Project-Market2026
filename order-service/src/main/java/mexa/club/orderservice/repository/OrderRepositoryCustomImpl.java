@@ -43,6 +43,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
             UUID warehouseId,
+            String search,
             Pageable pageable) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
 
@@ -50,7 +51,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
         Root<Order> o = cq.from(Order.class);
         cq.select(o).distinct(warehouseId != null);
         cq.where(buildPredicates(cb, cq, o, status, paymentStatus, userId,
-                orderNumber, dateFrom, dateTo, warehouseId).toArray(new Predicate[0]));
+                orderNumber, dateFrom, dateTo, warehouseId, search).toArray(new Predicate[0]));
         cq.orderBy(cb.desc(o.get("createdAt")));
 
         TypedQuery<Order> query = em.createQuery(cq);
@@ -62,7 +63,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
         Root<Order> co = countCq.from(Order.class);
         countCq.select(cb.countDistinct(co));
         countCq.where(buildPredicates(cb, countCq, co, status, paymentStatus, userId,
-                orderNumber, dateFrom, dateTo, warehouseId).toArray(new Predicate[0]));
+                orderNumber, dateFrom, dateTo, warehouseId, search).toArray(new Predicate[0]));
         Long total = em.createQuery(countCq).getSingleResult();
 
         return new PageImpl<>(content, pageable, total);
@@ -78,7 +79,8 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
             String orderNumber,
             LocalDateTime dateFrom,
             LocalDateTime dateTo,
-            UUID warehouseId) {
+            UUID warehouseId,
+            String search) {
         List<Predicate> predicates = new ArrayList<>();
         if (status != null) {
             predicates.add(cb.equal(o.get("status"), status));
@@ -91,6 +93,21 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
         }
         if (orderNumber != null && !orderNumber.isBlank()) {
             predicates.add(cb.like(o.get("orderNumber"), "%" + orderNumber + "%"));
+        }
+        if (search != null && !search.isBlank()) {
+            String s = search.trim();
+            Predicate numberLike = cb.like(o.get("orderNumber"), "%" + s + "%");
+            UUID parsed = null;
+            try {
+                parsed = UUID.fromString(s);
+            } catch (IllegalArgumentException ignored) {
+                parsed = null;
+            }
+            if (parsed != null) {
+                predicates.add(cb.or(numberLike, cb.equal(o.get("userId"), parsed)));
+            } else {
+                predicates.add(numberLike);
+            }
         }
         if (dateFrom != null) {
             predicates.add(cb.greaterThanOrEqualTo(o.get("createdAt"), dateFrom));
