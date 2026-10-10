@@ -8,8 +8,11 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
   elasticsearch:
     uris: ${ES_URIS:http://localhost:9200}
+    username: ${ES_USERNAME:elastic}
+    password: ${ES_PASSWORD:}
 
 jwt:
   secret: ${JWT_SECRET}

@@ -8,6 +8,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
       repositories:
         # JPA va Redis bir modulda: Redis repository skanini o'chiramiz (faqat pub/sub realtime-lib)
         enabled: false
