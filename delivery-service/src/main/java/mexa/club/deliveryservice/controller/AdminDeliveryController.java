@@ -74,9 +74,9 @@ public class AdminDeliveryController {
         boolean hasFilters = status != null || courierId != null || dateFrom != null
                 || dateTo != null || region != null || (search != null && !search.isBlank());
         if (hasFilters) {
-            return ApiResponse.ok(deliveryService.search(status, courierId, dateFrom, dateTo, region, search, page, size));
+            return ApiResponse.ok(deliveryService.search(status, courierId, dateFrom, dateTo, region, search, Math.max(0, page), Math.max(1, Math.min(size, 200))));
         }
-        return ApiResponse.ok(deliveryService.all(page, size));
+        return ApiResponse.ok(deliveryService.all(Math.max(0, page), Math.max(1, Math.min(size, 200))));
     }
 
     @GetMapping("/deliveries/{id}")

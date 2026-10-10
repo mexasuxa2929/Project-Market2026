@@ -85,7 +85,8 @@ public class OrderController {
             @Parameter(description = "Number of orders per page", example = "20") @RequestParam(defaultValue = "20") int size,
             Authentication authentication
     ) {
-        return ApiResponse.ok(orderService.myOrders(userId(authentication), page, size));
+        // M-29: ?size=100000 butun bazani yuklamaydi
+        return ApiResponse.ok(orderService.myOrders(userId(authentication), Math.max(0, page), Math.max(1, Math.min(size, 200))));
     }
 
     @GetMapping("/{id}")

@@ -122,7 +122,7 @@ public class AdminPromotionController {
     })
     public ResponseEntity<ApiResponse<PromotionResponse>> update(
             @Parameter(description = "Unique identifier of the promotion to update", required = true) @PathVariable UUID id,
-            @RequestBody UpdatePromotionRequest request
+            @jakarta.validation.Valid @RequestBody UpdatePromotionRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.ok(promotionAdminService.update(id, request)));
     }

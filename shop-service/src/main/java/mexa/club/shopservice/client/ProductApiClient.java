@@ -61,6 +61,11 @@ public class ProductApiClient {
 
     /** Paginatsiyali ro'yxat + narx filtri (M-H6) */
     public PagePayload<ProductResponse> fetchProductsPage(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String bearerToken) {
+        return fetchProductsPage(search, categoryId, minPrice, maxPrice, page, size, bearerToken, null);
+    }
+
+    public PagePayload<ProductResponse> fetchProductsPage(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String bearerToken, String sort) {
+        this.lastSort = sort;
         ApiResponse<PagePayload<ProductResponse>> response = productRestClient.get()
                 .uri(productsUri(search, categoryId, minPrice, maxPrice, page, size))
                 .headers(headers -> addBearerToken(headers, bearerToken))
@@ -197,10 +202,27 @@ public class ProductApiClient {
                 .queryParamIfPresent("categoryId", Optional.ofNullable(categoryId))
                 .queryParamIfPresent("minPrice", Optional.ofNullable(minPrice))
                 .queryParamIfPresent("maxPrice", Optional.ofNullable(maxPrice))
+                .queryParamIfPresent("sort", Optional.ofNullable(toServerSort(lastSort)))
                 .queryParam("page", page)
                 .queryParam("size", size)
+                // M-23: active serverda filtrlangan → totalElements/hasMore to'g'ri
+                .queryParam("active", true)
                 .build();
     }
+
+    /** M-24: shop sort formatini product-service pageable sort'iga moslash. */
+    static String toServerSort(String sort) {
+        if (sort == null || sort.isBlank()) return null;
+        return switch (sort) {
+            case "name_asc" -> "name,asc";
+            case "name_desc" -> "name,desc";
+            case "newest" -> "createdAt,desc";
+            default -> null; // price/rating/popular uchun serverda field yo'q — Java applySort qoladi
+        };
+    }
+
+    /** Oxirgi fetch uchun sort — productsUri ichida ishlatiladi (M-24). */
+    private volatile String lastSort;
 
     private Function<UriBuilder, java.net.URI> productsAfterUri(String search, UUID categoryId, BigDecimal minPrice, BigDecimal maxPrice, UUID afterId, int size) {
         return uriBuilder -> uriBuilder.path("/api/products")

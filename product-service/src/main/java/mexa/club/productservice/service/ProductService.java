@@ -1194,16 +1194,28 @@ public class ProductService {
                 h.createCell(i).setCellValue(headers[i]);
             }
             int rowNum = 1;
+            // M-26: N+1 — narx/kategoriya/brend/ishlab chiqaruvchi bitta batch bilan yig'iladi
+            List<UUID> productIds = products.stream().map(Product::getId).toList();
+            java.util.Map<UUID, ProductPrice> priceByProduct = new java.util.HashMap<>();
+            productPriceRepository.findByProductIdInOrderByEffectiveDateDesc(productIds).stream()
+                    .filter(pp -> pp.getEndDate() == null)
+                    .forEach(pp -> priceByProduct.putIfAbsent(pp.getProductId(), pp));
+            java.util.Map<UUID, String> categoryNames = referenceDataService.resolveCategoryNames(
+                    products.stream().map(Product::getCategoryId).filter(java.util.Objects::nonNull).distinct().toList());
+            java.util.Map<UUID, String> brandNames = referenceDataService.resolveBrandNames(
+                    products.stream().map(Product::getBrandId).filter(java.util.Objects::nonNull).distinct().toList());
+            java.util.Map<UUID, String> manufacturerNames = referenceDataService.resolveManufacturerNames(
+                    products.stream().map(Product::getManufacturerId).filter(java.util.Objects::nonNull).distinct().toList());
             for (Product p : products) {
                 Row row = sheet.createRow(rowNum++);
-                ProductPrice price = productPriceRepository.findByProductIdOrderByEffectiveDateDesc(p.getId()).stream().findFirst().orElse(null);
+                ProductPrice price = priceByProduct.get(p.getId());
                 row.createCell(0).setCellValue(String.valueOf(p.getId()));
                 row.createCell(1).setCellValue(p.getName());
                 row.createCell(2).setCellValue(p.getBarcode());
                 row.createCell(3).setCellValue(p.getUnit());
-                row.createCell(4).setCellValue(referenceDataService.resolveCategoryName(p.getCategoryId()));
-                row.createCell(5).setCellValue(referenceDataService.resolveBrandName(p.getBrandId()));
-                row.createCell(6).setCellValue(referenceDataService.resolveManufacturerName(p.getManufacturerId()));
+                row.createCell(4).setCellValue(categoryNames.get(p.getCategoryId()));
+                row.createCell(5).setCellValue(brandNames.get(p.getBrandId()));
+                row.createCell(6).setCellValue(manufacturerNames.get(p.getManufacturerId()));
                 row.createCell(7).setCellValue(p.getWeight());
                 row.createCell(8).setCellValue(price != null && price.getSalePrice() != null ? price.getSalePrice().toPlainString() : "");
                 row.createCell(9).setCellValue(p.isActive());

@@ -40,8 +40,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
                     WHERE pp2.productId = p.id
                       AND (pp2.endDate IS NULL OR pp2.endDate > CURRENT_TIMESTAMP)
                )
-            WHERE (:name IS NULL OR TRIM(:name) = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', TRIM(:name), '%')))
-              AND (:barcode IS NULL OR TRIM(:barcode) = '' OR p.barcode = TRIM(:barcode))
+            WHERE (:name IS NULL OR TRIM(CAST(:name AS text)) = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', TRIM(CAST(:name AS text)), '%')))
+              AND (:barcode IS NULL OR TRIM(CAST(:barcode AS text)) = '' OR p.barcode = TRIM(CAST(:barcode AS text)))
               AND (:categoryId IS NULL OR p.categoryId = :categoryId)
               AND (:brandId IS NULL OR p.brandId = :brandId)
               AND (:manufacturerId IS NULL OR p.manufacturerId = :manufacturerId)

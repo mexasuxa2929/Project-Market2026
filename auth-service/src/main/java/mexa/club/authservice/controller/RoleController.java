@@ -128,7 +128,7 @@ public class RoleController {
             @ApiResponse(responseCode = "404", description = "User or one of the specified roles not found")
     })
     @PostMapping("/assign")
-    public ResponseEntity<Map<String, Object>> assignRolesToUser(@RequestBody AssignRoleRequest request) {
+    public ResponseEntity<Map<String, Object>> assignRolesToUser(@Valid @RequestBody AssignRoleRequest request) {
         roleService.assignRolesToUser(request.userId(), request.roleIds(), userRepository);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", true);

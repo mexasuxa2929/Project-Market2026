@@ -197,7 +197,7 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public List<DeliveryResponse> all(int page, int size) {
-        return deliveryRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+        return deliveryRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200))))
                 .stream().map(this::toResponse).toList();
     }
 
@@ -645,6 +645,8 @@ public class DeliveryService {
     ) {
         // Dinamik Specification: faqat berilgan filtrlar WHERE qo'shadi
         // (eski @Query null-param tipi aniqlanmasligi tufayli buzilgan edi).
+        // M-29: size clamp — Integer.MAX_VALUE OOM xavfi
+        size = Math.max(1, Math.min(size, 10_000));
         Specification<Delivery> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) {
@@ -660,15 +662,15 @@ public class DeliveryService {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), dateTo));
             }
             if (region != null && !region.isBlank()) {
-                predicates.add(cb.like(root.get("region"), "%" + region.trim() + "%"));
+                predicates.add(cb.like(root.get("region"), "%" + escLike(region.trim()) + "%", '\\'));
             }
             if (search != null && !search.isBlank()) {
-                String like = "%" + search.trim() + "%";
+                String like = "%" + escLike(search.trim()) + "%";
                 predicates.add(cb.or(
-                        cb.like(root.get("recipientName"), like),
-                        cb.like(root.get("recipientPhone"), like),
-                        cb.like(root.get("deliveryAddress"), like),
-                        cb.like(root.get("trackingCode"), like)
+                        cb.like(root.get("recipientName"), like, '\\'),
+                        cb.like(root.get("recipientPhone"), like, '\\'),
+                        cb.like(root.get("deliveryAddress"), like, '\\'),
+                        cb.like(root.get("trackingCode"), like, '\\')
                 ));
             }
             query.orderBy(cb.desc(root.get("createdAt")));
@@ -900,6 +902,11 @@ public class DeliveryService {
 
     private DeliveryResponse toResponse(Delivery d) {
         return mapper.toResponse(d, eventRepository.findByDeliveryIdOrderByCreatedAtAsc(d.getId()));
+    }
+
+    /** M-22: LIKE wildcard injection — foydalanuvchi '%'/'_' ni zararsizlantirish. */
+    private static String escLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private void logEvent(UUID deliveryId, DeliveryStatus status, String location, String description) {

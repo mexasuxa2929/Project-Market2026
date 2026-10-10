@@ -34,6 +34,11 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
     @PersistenceContext
     private EntityManager em;
 
+    /** M-22: LIKE wildcard injection — foydalanuvchi '%'/'_' ni zararsizlantirish. */
+    private static String escLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
     @Override
     public Page<Order> searchOrders(
             OrderStatus status,
@@ -92,11 +97,11 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
             predicates.add(cb.equal(o.get("userId"), userId));
         }
         if (orderNumber != null && !orderNumber.isBlank()) {
-            predicates.add(cb.like(o.get("orderNumber"), "%" + orderNumber + "%"));
+            predicates.add(cb.like(o.get("orderNumber"), "%" + escLike(orderNumber) + "%", '\\'));
         }
         if (search != null && !search.isBlank()) {
             String s = search.trim();
-            Predicate numberLike = cb.like(o.get("orderNumber"), "%" + s + "%");
+            Predicate numberLike = cb.like(o.get("orderNumber"), "%" + escLike(s) + "%", '\\');
             UUID parsed = null;
             try {
                 parsed = UUID.fromString(s);

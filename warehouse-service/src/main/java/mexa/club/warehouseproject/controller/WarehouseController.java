@@ -108,7 +108,7 @@ public class WarehouseController {
     @PreAuthorize("hasAuthority('WAREHOUSE_MANAGE')")
     public ResponseEntity<mexa.club.warehouseproject.api.ApiResponse<WarehouseResponse>> update(
             @Parameter(description = "UUID of the warehouse to update", required = true) @PathVariable UUID id,
-            @RequestBody WarehouseCreateRequest request
+            @Valid @RequestBody WarehouseCreateRequest request
     ) {
         return ResponseEntity.ok(mexa.club.warehouseproject.api.ApiResponse.ok(warehouseService.updateWarehouse(id, request)));
     }

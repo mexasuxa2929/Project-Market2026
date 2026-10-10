@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import mexa.club.searchservice.client.ProductServiceClient;
 import mexa.club.searchservice.dto.ApiResponse;
 import mexa.club.searchservice.dto.ProductIndexRequest;
+import mexa.club.searchservice.schedule.ScheduledReindexJob;
 import mexa.club.searchservice.service.SearchService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,14 +29,17 @@ import java.util.Map;
 @RequestMapping("/internal/search/products")
 @ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "true", matchIfMissing = true)
 public class InternalSearchController {
+    private final mexa.club.searchservice.schedule.ScheduledReindexJob reindexJob;
     private final SearchService searchService;
     private final ProductServiceClient productServiceClient;
     private final String internalSecret;
 
     public InternalSearchController(SearchService searchService, ProductServiceClient productServiceClient,
+                                    ScheduledReindexJob reindexJob,
                                     @Value("${app.internal-secret}") String internalSecret) {
         this.searchService = searchService;
         this.productServiceClient = productServiceClient;
+        this.reindexJob = reindexJob;
         this.internalSecret = internalSecret;
     }
 
@@ -116,11 +120,9 @@ public class InternalSearchController {
             @Parameter(description = "Internal service secret key", required = true)
             @RequestHeader("X-Internal-Secret") String secret) {
         ensure(secret);
-        List<Map<String, Object>> products = extractContent(productServiceClient.products(0, 1000).data());
-        for (Map<String, Object> p : products) {
-            searchService.index(mapProduct(p));
-        }
-        return ApiResponse.ok(Map.of("reindexedCount", products.size()));
+        // M-27: chegarasiz, sahifalab butun katalog (umumiy runReindex)
+        int count = reindexJob.runReindex();
+        return ApiResponse.ok(Map.of("reindexedCount", count));
     }
 
     private ProductIndexRequest mapProduct(Map<String, Object> p) {

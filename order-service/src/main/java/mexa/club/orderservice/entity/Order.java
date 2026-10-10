@@ -80,6 +80,8 @@ public class Order {
     /** Yopilgan vaqti: DELIVERED/CANCELLED/REFUNDED da set qilinadi, daromad shu sanaga bog'lanadi. */
     private LocalDateTime closedAt;
 
+    // M-25: ro'yxat mappingida N+1 — batch fetch (20 ta order uchun bitta query)
+    @org.hibernate.annotations.BatchSize(size = 20)
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 

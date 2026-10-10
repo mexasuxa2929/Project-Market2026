@@ -893,10 +893,21 @@ public class OrderService {
             OrderStatus status, PaymentStatus paymentStatus,
             LocalDateTime dateFrom, LocalDateTime dateTo
     ) {
-        Page<Order> result = orderRepository.searchOrders(
-                status, paymentStatus, null, null, dateFrom, dateTo, null, null,
-                PageRequest.of(0, Integer.MAX_VALUE));
-        return result.getContent().stream().map(orderMapper::toResponse).toList();
+        // M-29: Integer.MAX_VALUE → batch'larga bo'linadi (OOM xavfi yo'q)
+        java.util.List<OrderResponse> all = new java.util.ArrayList<>();
+        int page = 0;
+        final int batchSize = 1000;
+        while (true) {
+            Page<Order> batch = orderRepository.searchOrders(
+                    status, paymentStatus, null, null, dateFrom, dateTo, null, null,
+                    PageRequest.of(page, batchSize));
+            all.addAll(batch.getContent().stream().map(orderMapper::toResponse).toList());
+            if (!batch.hasNext() || batch.getContent().isEmpty()) {
+                break;
+            }
+            page++;
+        }
+        return all;
     }
 
     @Transactional

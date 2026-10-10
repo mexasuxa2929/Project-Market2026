@@ -49,15 +49,18 @@ public class ProductCatalogService {
         String normalizedSearch = normalize(search);
         int limited = Math.max(1, Math.min(size <= 0 ? DEFAULT_PAGE_SIZE : size, MAX_PAGE_SIZE));
         try {
+            // M-23/M-24: active serverda filtrlanadi, sort serverga uzatiladi
+            // (name/newest uchun) — hasMore server totalElements bo'yicha.
             PagePayload<ProductResponse> raw = productApiClient.fetchProductsPage(
                     normalizedSearch, categoryId, minPrice, maxPrice, page, limited + 1,
-                    requestTokenProvider.resolveAuthorizationHeader()
+                    requestTokenProvider.resolveAuthorizationHeader(), sort
             );
             List<ProductResponse> items = raw.content().stream()
                     .filter(ProductResponse::active)
                     .toList();
-            boolean hasMore = items.size() > limited;
-            List<ProductResponse> content = hasMore ? new ArrayList<>(items.subList(0, limited)) : new ArrayList<>(items);
+            boolean hasMore = (long) (page + 1) * limited < raw.totalElements()
+                    || items.size() > limited;
+            List<ProductResponse> content = hasMore && items.size() > limited ? new ArrayList<>(items.subList(0, limited)) : new ArrayList<>(items);
             content = applySort(content, sort);
             UUID nextCursor = content.isEmpty() ? null : content.get(content.size() - 1).id();
             int totalPages = (int) Math.ceil((double) raw.totalElements() / limited);

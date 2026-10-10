@@ -1,7 +1,6 @@
 package mexa.club.searchservice.schedule;
 
 import mexa.club.searchservice.client.ProductServiceClient;
-import mexa.club.searchservice.controller.InternalSearchController;
 import mexa.club.searchservice.dto.ProductIndexRequest;
 import mexa.club.searchservice.service.SearchService;
 import org.slf4j.Logger;
@@ -44,34 +43,36 @@ public class ScheduledReindexJob {
 
     /**
      * To'liq reindex (scheduler va admin endpointdan umumiy).
+     * M-27: 1000 hujjat chegarasi olib tashlandi — sahifalab butun katalog indekslanadi.
      * Indekslangan mahsulotlar sonini qaytaradi; xatoda -1 va holat yoziladi.
      */
     public int runReindex() {
         try {
-            List<Map<String, Object>> products = extractContent(productServiceClient.products(0, 1000).data());
-            for (Map<String, Object> p : products) {
-                searchService.index(new ProductIndexRequest(
-                        String.valueOf(p.get("id")),
-                        String.valueOf(p.get("name")),
-                        String.valueOf(p.getOrDefault("barcode", "")),
-                        String.valueOf(p.getOrDefault("description", "")),
-                        String.valueOf(p.getOrDefault("categoryId", "")),
-                        String.valueOf(p.getOrDefault("categoryName", "")),
-                        String.valueOf(p.getOrDefault("brandId", "")),
-                        String.valueOf(p.getOrDefault("brandName", "")),
-                        List.of(),
-                        parseDouble(p.get("salePrice")),
-                        Boolean.TRUE.equals(p.get("active")),
-                        String.valueOf(p.getOrDefault("imageUrl", "")),
-                        true,
-                        LocalDateTime.now()
-                ));
+            int pageSize = 1000;
+            int page = 0;
+            int totalIndexed = 0;
+            while (true) {
+                Map<String, Object> data = productServiceClient.products(page, pageSize).data();
+                List<Map<String, Object>> batch = extractContent(data);
+                if (batch.isEmpty()) {
+                    break;
+                }
+                long totalElements = data != null && data.get("totalElements") instanceof Number n
+                        ? n.longValue() : (long) (page + 1) * pageSize;
+                for (Map<String, Object> p : batch) {
+                    searchService.index(mapProduct(p));
+                }
+                totalIndexed += batch.size();
+                page++;
+                if ((long) page * pageSize >= totalElements || batch.size() < pageSize) {
+                    break;
+                }
             }
             lastReindexAt = LocalDateTime.now();
-            lastReindexCount = products.size();
+            lastReindexCount = totalIndexed;
             lastReindexOk = true;
-            log.debug("Search reindex completed: {} products", products.size());
-            return products.size();
+            log.debug("Search reindex completed: {} products ({} pages)", totalIndexed, page);
+            return totalIndexed;
         } catch (Exception e) {
             lastReindexAt = LocalDateTime.now();
             lastReindexCount = null;
@@ -79,6 +80,25 @@ public class ScheduledReindexJob {
             log.warn("Search reindex failed: {}", e.getMessage());
             return -1;
         }
+    }
+
+    private ProductIndexRequest mapProduct(Map<String, Object> p) {
+        return new ProductIndexRequest(
+                String.valueOf(p.get("id")),
+                String.valueOf(p.get("name")),
+                String.valueOf(p.getOrDefault("barcode", "")),
+                String.valueOf(p.getOrDefault("description", "")),
+                String.valueOf(p.getOrDefault("categoryId", "")),
+                String.valueOf(p.getOrDefault("categoryName", "")),
+                String.valueOf(p.getOrDefault("brandId", "")),
+                String.valueOf(p.getOrDefault("brandName", "")),
+                List.of(),
+                parseDouble(p.get("salePrice")),
+                Boolean.TRUE.equals(p.get("active")),
+                String.valueOf(p.getOrDefault("imageUrl", "")),
+                true,
+                LocalDateTime.now()
+        );
     }
 
     @SuppressWarnings("unchecked")
