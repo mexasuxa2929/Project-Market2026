@@ -34,10 +34,10 @@ services:
     url: ${ORDER_SERVICE_URL:http://localhost:8085}
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -54,9 +54,9 @@ payme:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
 
 logging:
   level:

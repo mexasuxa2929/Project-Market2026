@@ -38,31 +38,32 @@ public class OrderServiceClient {
         this.outboxRepository = outboxRepository;
     }
 
-    public void confirmPayment(UUID orderServiceId) {
-        call(orderServiceId, "payment-confirmed");
+    public void confirmPayment(UUID orderServiceId, java.math.BigDecimal amountSom) {
+        call(orderServiceId, "payment-confirmed", amountSom);
     }
 
     public void failPayment(UUID orderServiceId) {
-        call(orderServiceId, "payment-failed");
+        call(orderServiceId, "payment-failed", null);
     }
 
-    private void call(UUID orderServiceId, String action) {
-        if (!send(orderServiceId, action)) {
+    private void call(UUID orderServiceId, String action, java.math.BigDecimal amountSom) {
+        if (!send(orderServiceId, action, amountSom)) {
             // H4: xabar yetkazilmadi → outbox'ga yoziladi, retry job qayta yuboradi.
-            enqueue(orderServiceId, action);
+            enqueue(orderServiceId, action, amountSom);
         }
     }
 
     /** H4: xabarni yuboradi — muvaffaqiyat = true, xato = false. */
-    public boolean send(UUID orderServiceId, String action) {
+    public boolean send(UUID orderServiceId, String action, java.math.BigDecimal amountSom) {
         try {
             HttpHeaders headers = headers();
             HttpEntity<Void> entity = new HttpEntity<>(headers);
-            restTemplate.postForEntity(
-                    orderServiceUrl + "/internal/orders/" + orderServiceId + "/" + action,
-                    entity,
-                    Void.class
-            );
+            StringBuilder url = new StringBuilder(orderServiceUrl)
+                    .append("/internal/orders/").append(orderServiceId).append("/").append(action);
+            if (amountSom != null) {
+                url.append("?amount=").append(amountSom.toPlainString());
+            }
+            restTemplate.postForEntity(url.toString(), entity, Void.class);
             return true;
         } catch (Exception ex) {
             log.warn("order-service {} failed for orderServiceId={}: {}", action, orderServiceId, ex.getMessage());
@@ -70,15 +71,22 @@ public class OrderServiceClient {
         }
     }
 
-    void enqueue(UUID orderServiceId, String action) {
+    void enqueue(UUID orderServiceId, String action, java.math.BigDecimal amountSom) {
         try {
-            if (outboxRepository.findByOrderServiceIdAndActionAndSentAtIsNull(orderServiceId, action).isPresent()) {
+            var existing = outboxRepository.findByOrderServiceIdAndActionAndSentAtIsNull(orderServiceId, action);
+            if (existing.isPresent()) {
+                // M-10: pending qatorda amount yangi bo'lsa yangilansin (retry ham tekshirsin).
+                if (amountSom != null && existing.get().getAmountSom() == null) {
+                    existing.get().setAmountSom(amountSom);
+                    outboxRepository.save(existing.get());
+                }
                 return;
             }
             PaymentOrderNotifyOutbox row = new PaymentOrderNotifyOutbox();
             row.setId(UUID.randomUUID());
             row.setOrderServiceId(orderServiceId);
             row.setAction(action);
+            row.setAmountSom(amountSom);
             row.setAttempts(0);
             row.setNextAttemptAt(LocalDateTime.now().plusSeconds(30));
             outboxRepository.save(row);

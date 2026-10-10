@@ -29,6 +29,10 @@ public class PaymentOrderNotifyOutbox {
     @Column(nullable = false)
     private String action;
 
+    /** M-10: kutilgan to'lov summasi (som); confirmation solishtirishida ishlatiladi. */
+    @Column(name = "amount_som")
+    private java.math.BigDecimal amountSom;
+
     @Column(nullable = false)
     private int attempts;
 

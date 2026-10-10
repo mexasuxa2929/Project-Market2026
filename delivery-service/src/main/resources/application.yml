@@ -30,11 +30,11 @@ spring:
     table: delivery_flyway_schema_history
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
   internal:
-    secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+    secret: ${APP_INTERNAL_SECRET}
   # Eski kalit nomi (ichki controller / Flyign)
   internal-secret: ${app.internal.secret}
   realtime:
@@ -51,9 +51,9 @@ order:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
 
 management:
   endpoints:

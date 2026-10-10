@@ -33,6 +33,9 @@ public class Order {
     private String orderNumber;
     @Column(nullable = false)
     private UUID userId;
+    /** M-16: client Idempotency-Key — (user_id, idempotency_key) unique (V10). */
+    @Column(name = "idempotency_key", length = 64)
+    private String idempotencyKey;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private OrderStatus status;

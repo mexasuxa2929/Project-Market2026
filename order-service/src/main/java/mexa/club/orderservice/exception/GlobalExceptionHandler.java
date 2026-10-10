@@ -56,4 +56,25 @@ public class GlobalExceptionHandler {
                 "message", "An unexpected error occurred"
         ));
     }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<java.util.Map<String, Object>> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        java.util.Map<String, Object> error = new java.util.LinkedHashMap<>();
+        error.put("code", String.valueOf(ex.getStatusCode().value()));
+        error.put("message", ex.getReason() != null ? ex.getReason() : ex.getLocalizedMessage());
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("success", false);
+        body.put("error", error);
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<java.util.Map<String, Object>> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+        // M-16: (user_id, idempotency_key) race'da dublikat order → 409.
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("success", false);
+        body.put("error", java.util.Map.of("code", "DUPLICATE_ORDER",
+                "message", "Duplicate order request (idempotency conflict)"));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
 }

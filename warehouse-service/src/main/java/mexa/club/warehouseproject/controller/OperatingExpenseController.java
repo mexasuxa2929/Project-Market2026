@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/warehouses/{warehouseId}/operating-expenses")
+@PreAuthorize("hasAnyAuthority('REPORT_WAREHOUSE', 'STOCK_MANAGE')")
 public class OperatingExpenseController {
 
     private final OperatingExpenseService expenseService;

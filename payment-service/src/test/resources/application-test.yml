@@ -12,6 +12,9 @@ spring:
   flyway:
     enabled: false
 
+jwt:
+  secret: test-jwt-secret-for-it-long-enough-0123456789abcdef
+
 app:
   internal-secret: test-internal-secret-payment-it
 

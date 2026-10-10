@@ -54,7 +54,9 @@ public class InternalPaymentController {
     }
 
     private void ensureInternalSecret(String secret) {
-        if (secret == null || !secret.equals(internalSecret)) {
+        if (secret == null || !java.security.MessageDigest.isEqual(
+                secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                internalSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             throw new PaymentException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Invalid internal secret");
         }
     }

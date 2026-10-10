@@ -15,6 +15,7 @@ import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<Order, UUID>, OrderRepositoryCustom {
     Page<Order> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    java.util.Optional<Order> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
     @Query("select count(o) from Order o where o.createdAt between :from and :to")
     long countBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
     @Query("select coalesce(sum(o.totalAmount),0) from Order o where o.closedAt between :from and :to and o.status <> mexa.club.orderservice.entity.OrderStatus.CANCELLED")

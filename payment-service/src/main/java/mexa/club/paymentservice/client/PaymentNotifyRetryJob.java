@@ -36,7 +36,7 @@ public class PaymentNotifyRetryJob {
     @Transactional
     public void retryDue() {
         for (PaymentOrderNotifyOutbox row : outboxRepository.findDue(LocalDateTime.now())) {
-            if (orderServiceClient.send(row.getOrderServiceId(), row.getAction())) {
+            if (orderServiceClient.send(row.getOrderServiceId(), row.getAction(), row.getAmountSom())) {
                 row.setSentAt(LocalDateTime.now());
                 outboxRepository.save(row);
                 log.info("Payment outbox delivered: orderServiceId={} action={} attempts={}",
@@ -77,7 +77,8 @@ public class PaymentNotifyRetryJob {
                 if (!"PAID".equals(paymentStatus)) {
                     log.warn("Reconcile: order {} paymentStatus={} (payment PAID) → re-enqueue confirm",
                             o.getOrderServiceId(), paymentStatus);
-                    orderServiceClient.enqueue(o.getOrderServiceId(), ACTION_CONFIRMED);
+                    orderServiceClient.enqueue(o.getOrderServiceId(), ACTION_CONFIRMED,
+                            o.getAmount() == null ? null : java.math.BigDecimal.valueOf(o.getAmount(), 2));
                 }
             }
         } catch (Exception ex) {

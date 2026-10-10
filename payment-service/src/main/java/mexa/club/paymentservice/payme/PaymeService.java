@@ -177,7 +177,8 @@ public class PaymeService {
         orderRepository.save(order);
 
         if (order.getOrderServiceId() != null) {
-            orderServiceClient.confirmPayment(order.getOrderServiceId());
+            orderServiceClient.confirmPayment(order.getOrderServiceId(),
+                    order.getAmount() == null ? null : java.math.BigDecimal.valueOf(order.getAmount(), 2));
         }
 
         return JsonRpcResponse.ok(

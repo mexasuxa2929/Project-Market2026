@@ -191,7 +191,9 @@ public class InternalUserController {
     }
 
     private void ensureSecret(String secret) {
-        if (secret == null || !secret.equals(internalSecret)) {
+        if (secret == null || !java.security.MessageDigest.isEqual(
+                secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                internalSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal secret");
         }
     }

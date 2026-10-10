@@ -20,12 +20,17 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final String initialAdminPassword;
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DataInitializer.class);
 
     public DataInitializer(RoleRepository roleRepository, UserRepository userRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           @org.springframework.beans.factory.annotation.Value("${ADMIN_INITIAL_PASSWORD:}") String initialAdminPassword) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.initialAdminPassword = initialAdminPassword;
     }
 
     @Override
@@ -158,13 +163,21 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         // ── Seed default superadmin user ──────────────────────────────────────
+        // M-6: har muhitda "super123" emas — ADMIN_INITIAL_PASSWORD bo'sh bo'lsa
+        // tasodifiy parol generatsiya qilinadi va faqat bir martalik logga yoziladi.
 
         if (!userRepository.existsByUsername("superadmin")) {
+            String password = (initialAdminPassword != null && !initialAdminPassword.isBlank())
+                    ? initialAdminPassword
+                    : generateInitialPassword();
+            if (initialAdminPassword == null || initialAdminPassword.isBlank()) {
+                log.warn("ADMIN_INITIAL_PASSWORD kiritilmagan — superadmin uchun tasodifiy parol generatsiya qilindi (faqat shu logda): {}", password);
+            }
             User superAdmin = new User();
             superAdmin.setUsername("superadmin");
             superAdmin.setEmail("superadmin@example.com");
             superAdmin.setFullName("System Admin");
-            superAdmin.setPassword(passwordEncoder.encode("super123"));
+            superAdmin.setPassword(passwordEncoder.encode(password));
             superAdmin.setEnabled(true);
             superAdmin.setVerified(true);
             Set<Role> roles = new HashSet<>();
@@ -172,5 +185,15 @@ public class DataInitializer implements CommandLineRunner {
             superAdmin.setRoles(roles);
             userRepository.save(superAdmin);
         }
+    }
+
+    private static String generateInitialPassword() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        StringBuilder sb = new StringBuilder(16);
+        for (int i = 0; i < 16; i++) {
+            sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        }
+        return sb.toString() + "!7";
     }
 }

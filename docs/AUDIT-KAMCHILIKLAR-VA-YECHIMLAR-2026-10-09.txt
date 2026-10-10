@@ -1,0 +1,782 @@
+================================================================================
+KAMCHILIKLAR TAHLILI VA YECHIMLARI — 2026-10-09
+Repo: Project_Market-master (backend microservices + Compose Desktop + Android)
+Usul: 4 ta mustaqil kod tahlili (backend security, backend data/API, desktop,
+      mobile+infra); har bir topilgan band fayl:qator bo'yicha o'qib tasdiqlangan.
+Belgilar: [M] = MUHIM (tez tuzatish)  [O] = O'RTA  [S] = MAYDA
+Har bir band: JOY -> MUAMMO -> XAVF -> YECHIM (konkret qadamlar)
+================================================================================
+
+
+############################ XAVFSIZLIK (BACKEND) ###########################
+
+[M-1] JWT secret defaulti git'da — token soxtalashtirish
+JOY:   auth-service/src/main/resources/application.yml:52 (va yana 11 ta xizmatda:
+       gateway:315, order:50, product:61, shop:42, payment:37, search:15,
+       report:28, delivery:33, discount:31, analytics:31, notification:45, geo:26)
+       auth-service/.../security/JwtUtil.java:40-45
+MUAMMO: jwt.secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+       — default git'da. JwtUtil denylist'da faqat 3 ta "contains" tekshiruvi
+       bor (masalan "change-me"); ".env.example"dagi 42 belgili placeholder ham
+       o'tadi.
+XAVF:  Har kim shu default bilan SUPER_ADMIN rolidagi o'z tokenini yozib,
+       butun tizimga kiradi.
+YECHIM: 1) Barcha 12 ta application.yml'da defaultni olib tashlash:
+          jwt:
+            secret: ${JWT_SECRET:?JWT_SECRET must be set}
+       2) JwtUtil ochilishida fail-fast tekshiruv:
+          if (secret.startsWith("dev-only-") || secret.startsWith("replace-with-")
+              || secret.length() < 32) {
+              throw new IllegalStateException("JWT_SECRET noto'g'ri (dev default)");
+          }
+
+[M-2] Ichki (/internal) secret validatsiyasi yo'q yoki rad etmaydi
+JOY:   7 xizmatdagi InternalSecretValidator (masalan search-service/.../
+       InternalSecretValidator.java:5,11 = faqat "change-me-internal" tekshiruvi);
+       auth-service va payment-service'da InternalSecretValidator UMUMAN YO'Q
+       (search: app.internal-api.key uslubi hech bir validator olmagan)
+MUAMMO: Compose defaulti dev-only-insecure-internal-secret-0123456789abcdef
+       bilan ishga tushadi; validatorlar bu dev defaultni rad etmaydi;
+       auth/payment'da esa hech qanday validator yo'q.
+XAVF:  Tarmoqdan /internal/** ga ochiq secret bilan kirib, PII va
+       operatsiyalarga (refund va h.k.) erishish.
+YECHIM: 1) delivery-service'dagi naqshni barcha servislarga ko'chirish
+          (DeliveryServiceApplication.java:21-23 dagi ApplicationRunner):
+          ichki secret dev-only/replace-with bilan boshlansa — startup'da
+          IllegalStateException, ya'ni xizmat ishga tushmaydi.
+       2) auth-service va payment-service'ga shu validatorni qo'shish.
+
+[M-3] Refund endpointi ochiq portda + validator yo'q (moliyaviy xavf)
+JOY:   payment-service/.../controller/InternalPaymentController.java:23,33,57-60
+       + payment SecurityConfig.java:38 (/internal/** permitAll)
+       + docker-compose.yml:466 (ochiq secret defaulti), :470-471 (8091:8091)
+MUAMMO: POST /internal/payments/refund tekshiruvi faqat tenglik (timing-safe
+       emas); validator umuman yo'q; port tarmoqqa publish qilingan.
+XAVF:  curl -H "X-Internal-Secret: dev-only-..." http://host:8091/internal/payments/refund
+       bilan Payme CancelChain orqali pul qaytarish.
+YECHIM: 1) payment'ga InternalSecretValidator (M-2 naqshi) qo'shish.
+       2) compose'da 8091:8091 ni olib tashlash (faqat expose:).
+       3) tenglikni MessageDigest.isEqual(a, b) bilan almashtirish.
+
+[M-4] auth xizmatida ochiq portda PII oqimi + validator yo'q
+JOY:   auth-service/.../config/SecurityConfig.java:103 (/internal/** permitAll)
+       + controller/InternalUserController.java:108,138,162
+       + docker-compose.yml:93,103-104 (8081:8081)
+MUAMMO: GET /internal/auth/users (ro'yxat), /users/by-ids (userId -> email
+       map), /users/{id}/profile — auth'da validator yo'q, port ochiq.
+XAVF:  Butun foydalanuvchi email/profil bazasini o'g'irlash.
+YECHIM: 1) auth'ga startup validator qo'shish (M-2).
+       2) compose'dan 8081:8081 publish'ni olib tashlash.
+
+[M-5] shop ichki endpointlari /api prefiksida — gateway orqali ochiq
+JOY:   shop-service/.../config/SecurityConfig.java:45
+       + InternalAddressController.java, InternalReviewController.java
+         (@RequestMapping("/api/shops/internal/..."))
+       + gateway application.yml:151-161 (Path=/api/shops/internal/**)
+MUAMMO: Repo bo'ylab yagona anomaliya: boshqa xizmatlarning x-internal
+       endpointlari /internal/** da, shopniki /api/... da — gateway'da ochiq,
+       API-key validatsiyasi yo'q.
+XAVF:  Shop ichki ma'lumotlariga (manzil/izohlar) anonim kirish.
+YECHIM: 1) @RequestMapping'ni /internal/shop/... ga ko'chirish + gateway'dan
+          shu route'ni olib tashlash.
+       2) API-keyni gateway filteri yoki shop filterida tekshirish.
+
+[M-6] Har muhitda superadmin/super123 seed qilinadi
+JOY:   auth-service/.../config/DataInitializer.java:162-174
+MUAMMO: Admin parol muhitga qarab farq qilmaydi (prod'ga ham kirsa ishlaydi).
+XAVF:  Internetga ochiq hostda birinchi kirgan odam admin bo'ladi.
+YECHIM: 1) Parolni ${ADMIN_INITIAL_PASSWORD:} qilib, defaultni olib tashlash.
+       2) Bo'sh bo'lsa — parol random generatsiya + logga yozish (bir martalik).
+       3) Prod'da birinchi kirishda parolni o'zgartirishga majburlash
+          (passwordExpired flag).
+
+[M-7] Parol tiklash kodida limit yo'q + account enumeration
+JOY:   auth-service/.../service/PasswordResetService.java:45-61,88-99
+       + PasswordResetProperties.java:13 (faqat ttlMinutes bor)
+       + controller/AuthController.java:311-318 (404 EMAIL_NOT_FOUND)
+       + config/OpenApiConfig.java:37 (hujjatda "maks. 5 urinish" yozilgan —
+         bu faqat email-OTP uchun haq: EmailVerificationService.java:144-157)
+MUAMMO: 6 xonali kodga cheksiz urinish; resend intervali yo'q (yangi kod
+       yuborilganda eskinisi bekor qilinadi -> bombardimon); mavjud bo'lmagan
+       emailga 404 -> enumeration.
+XAVF:  Kodni 10^6 ichida tanlab parolni tiklash; email ro'yxatini yig'ish.
+YECHIM: 1) PasswordResetService.resolveValidToken ichida:
+          attemptsUsed++; maxAttempts (5) dan keyin -> delete token + 429.
+       2) forgotPassword'da resend interval (60s) Redis throttler bilan
+          (EmailVerificationService dagidek).
+       3) AuthController:314 — mavjud bo'lmagan email uchun ham
+          200 {"message":"Reset code sent"}, xatoni logda saqlash.
+
+[M-8] Parol tiklangach eski sessiyalar/refresh tokenlar ochiq qoladi
+JOY:   auth-service/.../service/PasswordResetService.java:69-81
+       (taqqoslang: AdminUserService.java:305-307 — bloklashda hammasi bor)
+MUAMMO: resetPassword faqat setPassword + token.setUsed(true) qiladi.
+XAVF:  Hisob o'g'irlanganida qurbon parolni tiklaydi, hujumchi refresh
+       tokeni bilan 14 kun (yml:77 ttl 1209600) ishlayveradi.
+YECHIM: resetPassword ichiga qo'shish:
+       userSessionService.closeAll(userId);
+       refreshTokenRepository.revokeAllByUserId(userId);
+
+[M-9] Track-kod 5 xonali + public tracking'da IDOR (PII)
+JOY:   delivery-service/.../service/DeliveryService.java:914-921 (5 xonali random)
+       + controller/DeliveryPublicController.java:52-59
+       + delivery SecurityConfig.java:34
+MUAMMO: 99999 ichida; track orqali order topilib, recipientName/phone/address
+       olinadi; egasi tekshirilmaydi.
+XAVF:  Kuryer/ID orqali mijoz PII'sini o'qish.
+YECHIM: 1) Kod uzunligini 10 xonaga oshirish (SecureRandom).
+       2) Public endpointda egasi tekshiruvi: order.userId == session user
+          YOKI track + OTP/qisqa TTL so'rash.
+
+[M-10] To'lov summasiz PAID (sandbox'da solishtirish yo'q)
+JOY:   payment-service/.../controller/OrderController.java:36-40 (Feign)
+       -> order-service/.../service/OrderService.java:756-758
+MUAMMO: Payme PerformTransaction -> order PAID; kutilgan summa
+       (amount/100 som) solishtirilmaydi.
+XAVF:  Kam to'lab PAID qilish (sandbox'da ham mantiq shu qolgan).
+YECHIM: OrderService'da to'lov callbackida:
+       if (expectedAmount.compareTo(order.totalAmount) != 0) reject;
+       + idempotency (M-16 ga qarang).
+
+[M-11] OperatingExpense'da @PreAuthorize yo'q
+JOY:   warehouse-service/.../controller/OperatingExpenseController.java:19-47
+       (0 ta @PreAuthorize; SecurityConfig:55-60 faqat .authenticated())
+MUAMMO: Har qanday oddiy authenticated user xarajatlar yozib/o'chirishi mumkin.
+XAVF:  Moliyaviy hisobotni buzish.
+YECHIM: Har bir mappingga @PreAuthorize("hasAuthority('REPORT_WAREHOUSE')")
+       yoki hasAuthority('STOCK_MANAGE') qo'shish.
+
+[M-12] Bloklangan user filtri o'lik kod
+JOY:   warehouse-service/.../filter/BlockedUserFilter.java:87
+       vs AdminUserService.java:311
+       + shop-service/.../security/JwtAuthenticationFilter.java:41-96
+MUAMMO: Filter blok tekshiruvini xatolik bilan jim yutadi yoki noto'g'ri
+       joyga qaraydi; shop filterida disabled user umuman tekshirilmaydi.
+XAVF:  Admin blok qilgan user shop orqali ishlashda davom etadi.
+YECHIM: 1) BlockedUserFilter'da blok holatini to'g'ri o'qish + xatoda
+          fail-closed (401) yoki kamida log.error.
+       2) shop JwtAuthenticationFilter'ga user.enabled + Redis "blocked:"
+          tekshiruvi (search-service JwtRequestFilter dagidek).
+
+[M-13] Logout blacklist in-memory (pod/qayta ishga tushganda ochiladi)
+JOY:   auth-service/.../service/TokenBlacklistService.java:12 (Set/Map in-memory)
+MUAMMO: Chiqarilgan token Redis'siz saqlanadi -> klasterda ishlamaydi.
+XAVF:  Logout qilingan token ishlashda davom etadi (restartgacha).
+YECHIM: Redis'e ko'chirish (StringRedisTemplate, TTL = token exp bo'yicha),
+       xuddi blocked: userId naqshi kabi.
+
+[M-14] Mahsulot export/stock-summary'da @PreAuthorize yo'q
+JOY:   product-service/.../controller/ProductController.java:471 (export),
+       :488 (stock-summary); SecurityConfig.java:54-57 faqat .authenticated()
+       (Swagger'da esa 403 yozilgan: :479)
+MUAMMO: Barcha foydalanuvchilar to'liq katalogni Excel qilib olishi va
+       ombor qoldiqlarini ko'rishi mumkin; dokumentatsiya-kod nomuvofiqlik.
+YECHIM: @PreAuthorize("hasAnyAuthority('PRODUCT_VIEW','PRODUCT_MANAGE')")
+       (export uchun PRODUCT_MANAGE) qo'shish; Swagger izohini tuzatish.
+
+[M-15] Ochiq Swagger + rate limitsiz
+JOY:   gateway application.yml:17-106 (14 ta /swagger/** route, ular
+       o'zgarmaslikka RequestRateLimiter YO'Q), :336-341 (springdoc enabled:true)
+       + docker-compose.yml:88 (swagger basic-auth default false)
+       + auth application.yml:63-64 (basic-auth.enabled:false)
+MUAMMO: Butun API sirti anonim ochiq; auth swagger uchun 20/s ham yo'q.
+XAVF:  Hujum yuzasini kengaytirish, ichki endpoint hujjatlarini o'qish.
+YECHIM: 1) ${APP_SWAGGER_ENABLED:false} (barcha servicelarga).
+       2) Gateway swagger route'lariga RequestRateLimiter qo'shish.
+       3) Prod'da basic-auth'ni majburiy qilish yoki umuman o'chirish.
+
+[M-16] Order yaratishda idempotency yo'q
+JOY:   order-service/.../controller/OrderController.java:51-53
+       + service/OrderService.java:152 (@Transactional) + Feign chaqiruvlar:
+       :241-243 (sendSalesOut), :313 (deliveryClient.quote), :374 (autoPurchase)
+MUAMMO: Dublikat POST (retry/tarmoq xatosi) -> dublikat order + zaxira
+       kamayishi + ikkita purchase.
+XAVF:  Moliyaviy/zaxira nomuvofiqligi.
+YECHIM: Clientdan Idempotency-Key header majburiy; order_service'da
+       uniq index (user_id, idempotency_key) + 409 Conflict;
+       Feign chaqiruvlarini shu key bilan yuborish.
+
+[O-17] CORS wildcard fallback (fail-open)
+JOY:   gateway-service/.../config/CorsConfig.java:33-35
+       + application.yml:319-321 (defaultlar bo'sh)
+MUAMMO: Originlar ro'yxati bo'sh -> addAllowedOriginPattern("*") (faqat warn).
+XAVF:  Env tozalansa har qanday domen APIga kiradi.
+YECHIM: Ro'yxat bo'sh bo'lsa IllegalStateException (startni to'xtatish);
+       .env.example'da prod originlarni majburiy qilish.
+
+[O-18] Login uchun ham 20/s + IP kaliti X-Forwarded-For'ni ko'rmaydi
+JOY:   gateway application.yml:133-137 (/api/auth/** replenishRate:20)
+       + config/GatewayConfig.java:39-42 (faqat getRemoteAddress())
+MUAMMO: 20 req/s -> parol tirnoqlash ~1.7 mln/IP/kun; nginx ortida barcha
+       foydalanuvchi bitta bucketga tushadi.
+YECHIM: 1) Auth route uchun alohida parametr:
+          replenishRate: ${AUTH_RATE_REPLENISH:1}, burstCapacity: ${AUTH_RATE_BURST:5}
+       2) KeyResolver'da X-Forwarded-For'ning birinchi qismini ishlatish
+          (faqat trusted proxy orqali).
+
+[O-19] Ichki xatolar mijozga + o'lik Windows logger + dev username git'da
+JOY:   auth-service/.../exception/AuthExceptionHandler.java:165-170
+       (FileWriter "C:\\Users\\Mehrob\\...\\auth_error.log" — Docker'da ishlamaydi,
+       ignored bilan yutiladi)
+       + shop-service/.../GlobalExceptionHandler.java:59,80,111
+         (ex.getMessage() mijozga chiqadi)
+       + product-service/.../GlobalExceptionHandler.java:126-130
+         (JSON parse detail)
+MUAMMO: O'lik kod; shaxsiy yo'l git'da; upstream xato tafsiloti tashqariga.
+YECHIM: 1) AuthExceptionHandler FileWriter blokini butun o'chirish
+          (:163 dagi log.error yetarli).
+       2) shop/product handlerlarda generik xabar:
+          "Buyurtma xizmati vaqtincha mavjud emas" kabi, detail'ni logga.
+
+[S-20] IP rate limit teshigi: swagger route'lari + /payment/** ratesiz
+JOY:   gateway application.yml (swagger route'lari va payment-payme'da
+       RequestRateLimiter yo'q)
+YECHIM: Barcha route'larga RequestRateLimiter qo'shish (default 20/40).
+
+
+############################ DATA / API (BACKEND) ###########################
+
+[M-21] PG'da ishlamaydigan qidiruv: TRIM(:param) CAST'siz
+JOY:   product-service/.../repository/ProductRepository.java:43-44
+       (WHERE ... OR LOWER(p.name) LIKE LOWER(CONCAT('%', TRIM(:name), '%'))
+        va TRIM(:barcode) bilan xuddi shunday)
+MUAMMO: Xuddi tuzatilgan "lower(bytea)" muammosi — PG'da unknown tipdagi
+       parametr TRIM/LIKE ichida noto'g'ri infer bo'ladi (H2 testda yashil).
+XAVF:  Mahsulot qidiruvi production'da 500 beradi (desktop barcode qidiruvi).
+YECHIM: CONCAT('%', TRIM(CAST(:name AS text)), '%') — barcha TRIM(:param)
+       joylariga CAST qo'shish; shu bilan birga grep bilan qolgan
+       "LIKE LOWER(CONCAT('%'," patternlarini yakuniy tekshirish.
+
+[M-22] LIKE uchun escape yo'q (wildcard injection)
+JOY:   order-service/.../repository/OrderRepositoryCustomImpl.java:95,99
+       (cb.like(..., "%"+q+"%") — escape'siz)
+       + delivery-service/.../service/DeliveryService.java:663,668-671
+MUAMMO: "%", "_" foydalanuvchidan kelsa — kutilmagan moslik (masalan
+       "%" hamma narsaga match); intention: qidiruv natijasi buziladi.
+YECHIM: Escape helper qo'shish va hammasida ishlatish:
+       static String esc(String s){ return s.replace("\\","\\\\")
+           .replace("%","\\%").replace("_","\\_"); }
+       cb.like(expr, "%"+esc(q)+"%", '\\')  (JPQL'da ESCAPE '\')
+
+[M-23] Shop katalogida active filtri xatosi (mantiqiy bug)
+JOY:   shop-service/.../service/ProductCatalogService.java:52-66
+       + client/ProductApiClient.java:194-203 vs :214
+MUAMMO: productsUri'ga active yuborilmaydi (afterUri:214'da yuboriladi);
+       keyin Java'da ProductResponse::active filterlanadi (q.56-58) va
+       hasMore = items.size() > limited (q.59) — filtered ro'yxatdan hisoblanadi.
+XAVF:  Sahifalarda nomuvofiqlik: kam ko'rinadi, "yanada ko'p" tugmasi
+       ishlamaydi yoki cheksiz sahifalash.
+YECHIM: 1) productsUri'ga .queryParam("active", true) qo'shish (afterUri kabi).
+       2) hasMore'ni serverga qaytarilgan totalElements/page bo'yicha hisoblash.
+
+[M-24] Sort sahifalashdan keyin — noto'g'ri tartib/pasayish
+JOY:   shop-service/.../service/ProductCatalogService.java:61
+MUAMMO: applySort(content, sort) sahifadan keyin chaqiriladi — bitta sahifa
+       ichida saralanadi, lekin sahifalar orasida emas.
+YECHIM: Sort'ni serverga uzatish (product-service pageable sort) yoki
+       applySort'ni sahifalashdan OLDIN chaqirish (server-side bo'lsa
+       pageable ga sort qo'shish).
+
+[M-25] Order N+1 (lazy items + resolve loop)
+JOY:   order-service/.../entity/Order.java:80-81 (@OneToMany, default LAZY)
+       + mapper/OrderMapper.java:14 + service/OrderService.java:391,403,428
+MUAMMO: Har bir order uchun alohida items select + mappingcha qo'shimcha
+       so'rovlar.
+XAVF:  100 orderlik ro'yxat = 100+ select; paginatsiyada sekinlik.
+YECHIM: @EntityGraph(attributePaths={"items"}) yoki join fetchqli
+       @Query bilan list endpointini almashtirish; orderlar uchun
+       @BatchSize(size=20) qo'shish.
+
+[M-26] Mahsulot ro'yxatida N+1 (narx/kategoriya/brend resolve)
+JOY:   product-service/.../service/ProductService.java:1197-1210
+       (loop ichida findByProductIdOrderByEffectiveDateDesc :1199 +
+        resolveCategoryName/BrandName/ManufacturerName :1204-1206)
+MUAMMO: Har mahsulot uchun 3-4 ta qo'shimcha select.
+YECHIM: Barcha resolve'larni bitta JOIN (yoki IN(...) batch) bilan
+       yig'ish; narx uchun window function yoki bitta IN query.
+
+[M-27] Reindex 1000 hujjat bilan cheklangan
+JOY:   search-service/.../schedule/ScheduledReindexJob.java:51
+       products(0, 1000)
+MUAMMO: 1000+ mahsulotli bazada indeks qisman to'ldiriladi; qolganlari
+       umuman indeksga tushmaydi (admin /reindex ham shu chegarada bo'lishi
+       mumkin).
+YECHIM: Scroll/page loop (har safar size=1000, size kamayguncha) +
+       yakunda indexedCount bilan solishtirib log/ogohlantirish.
+
+[M-28] @Valid yo'q yangilash endpointlarida
+JOY:   warehouse-service/.../WarehouseController.java:111 (@PutMapping, create:93'da
+       @Valid BOR — update'da yo'q)
+       + auth RoleController.java:131 (AssignRoleRequest constraintsiz)
+       + discount AdminPromotionController.java:125 (UpdatePromotionRequest
+         constraintsiz)
+MUAMMO: Null/noto'g'ri qiymatlar DB'gacha ketadi yoki 500 beradi.
+YECHIM: Har bir DTO'ga jakarta.validation annotatsiyalari (@NotBlank, @Size,
+       @Future) + controllerda @Valid qo'shish.
+
+[M-29] Daqiqasiz paginatsiya: size clamp yo'q + Integer.MAX_VALUE
+JOY:   order-service/.../controller/OrderController.java:81-85 (size clamp yo'q)
+       + AdminDeliveryController.java:66 (xuddi) va :124
+       + OrderService.java:867 (PageRequest.of(0, Integer.MAX_VALUE))
+MUAMMO: ?size=100000 butun bazani yuklaydi; Integer.MAX_VALUE — OOM xavfi.
+YECHIM: Controller'da size = Math.min(size, 200); OrderService:867'ni
+       batch'larga bo'lish (page loop, size=1000) bilan almashtirish.
+
+[M-30] Indekslar yo'q (tez-tez filter qilinadigan ustunlar)
+JOY:   warehouse-service Flyway: audit_log uchun CREATE INDEX umuman yo'q
+       (V1__create_warehouse_tables.sql:57 — 10+ boshqa indeks bor, audit'ga yo'q)
+       notification V1__init_notifications.sql:27-29 (created_at indeksiz)
+       order V9__order_closed_at.sql (closed_at indeksiz) + V1__init_orders.sql:48-52
+       (payment_status, warehouse_id indeksiz)
+MUAMMO: Audit log va bildirishnomalar qidiruvi full scan.
+YECHIM: Yangi migration fayllar:
+       CREATE INDEX idx_audit_log_created_at ON audit_log(created_at DESC);
+       CREATE INDEX idx_notification_created_at ON notification(created_at DESC);
+       CREATE INDEX idx_order_closed_at ON orders(closed_at);
+       CREATE INDEX idx_order_payment_status ON orders(payment_status);
+       CREATE INDEX idx_order_warehouse_id ON orders(warehouse_id);
+
+[O-31] GlobalExceptionHandler: hamma xato 500 + geo/delivery'da yo'q
+JOY:   order:50, notification:35, payment:43, discount:46 —
+       @ExceptionHandler(Exception.class) (ichki xato > mijozga)
+       + geo-service/.../GlobalExceptionHandler.java:11 (faqat GeoException)
+       + delivery .../GlobalExceptionHandler.java:11 (faqat DeliveryException)
+MUAMMO: Validatsiya/xato xabarlari ham 500 bo'ladi; geo/delivery'da
+       qayta ishlanmagan exception global fallback'ga tushadi.
+YECHIM: Har bir handler'ga @ExceptionHandler(MethodArgumentNotValidException)
+       (400 + field xabarlari) + @ExceptionHandler(IllegalArgumentException)
+       qo'shish; geo/delivery'ga umumiy Exception handler qo'shish.
+
+[O-32] Delivery ro'yxati hammasini yuklaydigan joylar
+JOY:   delivery-service/.../service/DeliveryService.java:499-504 (courierStats
+       findAll) + :859-865 (deleteZone: findAll + Java filter)
+       + pricing PricingAdminController.java:348-351 (findAll + sort +
+         subList(0,200))
+MUAMMO: O'sish bilan to'liq tablani o'qish.
+YECHIM: SQL agregat/count + WHERE bilan almashtirish (DELETE zone uchun
+       bitta DELETE WHERE id=?, stats uchun GROUP BY).
+
+
+############################# DESKTOP (COMPOSE) #############################
+
+[M-33] Roles ekraniga kirishda abadiy polling leak (koroutine + HTTP)
+JOY:   desktop_app/.../market/roles/RolesScreenModel.kt:68-81
+       (init { startPolling() } — while(isActive){delay(30_000); load()})
+       + di/AppModules.kt:32-33 (factory — har chaqiruvda yangi instance)
+       + market/ui/roles/RolesScreen.kt:50 (koinInject; dispose yo'q)
+MUAMMO: ScreenModelStore dispose qilinmaydi (rememberScreenModel ishlatilmagan).
+       Roles'ga 5 marta kirish = 5 ta parallel 30s polling + load()
+       abadiy ketaveradi.
+XAVF:  Fon juda ko'p so'rov; yig'ilgan sessiyalar soni ortib ketadi.
+YECHIM: Polling'ni ekran holatiga bog'lash:
+       RolesScreen.kt ichida:
+         LaunchedEffect(vm) {
+             vm.load()
+             val job = launch { while (isActive) { delay(30_000); vm.load() } }
+             try { awaitCancellation() } finally { job.cancel() }
+         }
+       va RolesScreenModel'dan init'dagi startPolling()ni o'chirish.
+
+[M-34] Dashboard 10s poll ekrandan keyin ham ishlaydi (4 ta API/so'rov)
+JOY:   desktop_app/.../market/presentation/DashboardScreenModel.kt:53,104-118
+       (POLLING_INTERVAL_MS=10_000; model single -> hech qachon dispose)
+       + market/api/DashboardDataLoader.kt:31-89 (4 ta ketma-ket GET)
+MUAMMO: Products ekranida ham 10 sekundda bir 4 ta so'rov ketaveradi.
+YECHIM: SuperAdminDashboardScreen.kt ichida:
+         DisposableEffect(vm) {
+             vm.startAfterSessionReady()
+             onDispose { vm.stopPolling() }
+         }
+       DashboardScreenModel'ga startPolling/stopPolling aniq metodlari.
+
+[M-35] JSON qo'lda quriladi — ko'p qatorli matn buzadi (80 joy)
+JOY:   desktop_app/.../market/ui/products/EditProductDialog.kt:522-565,
+       AddProductDialog.kt:242-290 (faqat " escape, \ va newline YO'Q)
+       + yana ~80 joy (grep replace("\"", "\\\\""): CourierFormDialog:171,
+       AddBrandDialog:124, OrderDetailDialog:189,208, DeliveryDetailDialog:152,
+       SettingsScreen:113 ...)
+MUAMMO: Tavsifda Enter yoki \ bo'lsa -> yaroqsiz JSON -> server 400.
+XAVF:  Foydalanuvchi mahsulotni saqlay olmaydi (sezilgan bug).
+YECHIM: Tayyor yordamchi (JsonHelpers.kt:16) ishlatilmagan:
+         fun String.jsonString(): String = Json.encodeToString(JsonPrimitive(this))
+       va barcha qo'lda qurilgan body'larni buildJsonObject { put("x", value) }
+       bilan almashtirish (kamida mahsulot/delivery/kuryer dialoglarida).
+
+[M-36] SSE'da timeout/401 ishlanmaydi + doimiy 4s retry + leak
+JOY:   desktop_app/.../market/api/ApiClient.kt:67-73
+       (sseClient socketTimeoutMillis = Long.MAX_VALUE — yarim ochiq TCP'da
+        abadiy blok)
+       + GatewayRealtimeHub.kt:78-83 (faqat delay(4_000), backoff emas,
+         401 alohida emas) + :88-91 (stop() da trailingRefreshJob qoladi)
+MUAMMO: Token o'lgach ham 4s da bir urinish; socket yopilsa reconnect bo'lmaydi;
+       logout'dan keyin trailingRefreshJob bir marta yana emit qiladi.
+YECHIM: 1) ApiClient sseClient: socketTimeoutMillis = 30_000 (server
+          heartbeat 10-15s bo'lsa).
+       2) Hub'da eksponensial backoff:
+            var backoff = 1_000L
+            catch (e: GatewayApiException) {
+                if (e.status == 401) { /* token refresh yoki sessiya toxtatish */ }
+                delay(backoff); backoff = (backoff * 2).coerceAtMost(30_000)
+            }
+       3) stop(): listenerJob + trailingRefreshJob ni bekor qilish.
+
+[M-37] ApiClient: retry o'lik + getBytes'da 401 yo'q + global mutex serial
+JOY:   desktop_app/.../market/api/ApiClient.kt:88
+       (get() = getWithRetry(path, attempts = 1) -> repeat(1) hech qachon
+        retry qilmaydi) + :90-94 (getBytes'da sessiya tozalash yo'q)
+       + :55,90,97,... (httpGate mutex butun GET/POST'larni seriallashtiradi;
+         katta export lock ushlaganda boshqa ekran 60sgacha kutadi)
+MUAMMO: Retry mexanizmi ishlamaydi; 401 eksportda boshqacha tutadi;
+       bitta sekin so'rov butun ilovani bloklaydi.
+YECHIM: 1) get(): attempts = 3.
+       2) getBytes'ga ham 401 holatini qo'shish (boshqa metodlar kabi).
+       3) Mutex'ni faqat window-fix uchun saqlash yoki kichik concurrency
+          (Semaphore(4)) bilan almashtirish.
+
+[M-38] Xatolar jim yutilgan (jim-yutish ro'yxati)
+JOY:   desktop_app/.../market/ui/orders/OrdersScreen.kt:397-403 (export
+         runCatching'siz; ~/Downloads bo'lmasa jim) — xuddi CouriersScreen:152-162,
+         DeliveryScreen:334-340
+       + orders/OrderDetailDialog.kt:203-212 (saveAdminNote onFailure ignore)
+       + delivery/DeliveryDetailDialog.kt:147-156 (saveNote'siz onFailure)
+       + users/UsersScreenModel.kt:56-57 (loadRoles Err -> {})
+       + roles/RolesScreenModel.kt:226-227 (loadPermissions Err -> {})
+       + session/SessionManager.kt:34-40 (bootstrap runCatching'siz)
+       + couriers/CouriersScreen.kt:146 (fetchStats onFailure'siz)
+       + warehouses/ReturnsTab.kt:425-446 (mahsulotlar xatoda bo'sh dropdown)
+MUAMMO: Foydalanuvchi xatoni umuman ko'rmaydi (yuklanmaydi = "ishlamaydi").
+YECHIM: Har biriga foydalanuvchiga ko'rinadigan natija qo'shish:
+         exportMsg = result.fold({ "Saqlandi: $path" },
+                                 { "Export xatosi: ${it.message}" })
+       yoki snackbarHostState.showSnackbar(...); loadRoles/loadPermissions'da
+       xato holati UI state'ga qo'shish (boshqa ekranlar kabi).
+
+[M-39] Buyurtma status tarixi — o'lik kod (hech chiqmaydi)
+JOY:   desktop_app/.../market/ui/orders/OrderDetailDialog.kt:155-156
+MUAMMO: val data = dataObject(...) -> JsonObject; keyin
+       data as? JsonArray ?: return emptyList() -> JsonObject hech qachon
+       JsonArray emas -> doim bo'sh.
+YECHIM: val data = ApiClient.parseJsonObject(text)
+             ?.let { ApiClient.dataObject(it) } ?: return emptyList()
+         val arr = data.itemsOrContentArray()   // JsonHelpers.kt:20
+
+[M-40] Realtime qamrovi nomuvofiq: bitta event hamma uchun + dublikat
+JOY:   desktop_app/.../market/api/GatewayRealtimeHub.kt:25 (replay=1, bitta
+         dashboardRefresh event 23 resource uchun)
+       + GatewayRealtime.kt:13-37 (resource maydoni emit qilinadi)
+       + ekranlar: RolesScreen.kt:59, SuperAdminDashboardScreen.kt:64
+         (drop(1) yo'q -> ochilishda darhol qo'shimcha reload)
+       + realtime'ga ULANMAGAN ekranlar: orders/, products/, users/,
+         couriers/, delivery/DeliveryScreen.kt (faqat mount reload)
+MUAMMO: Ombor o'zgarsa Orders ham qayta yuklanadi (keraksiz);
+       order o'zgarsa Orders ekranini xabar yetmaydi (kerakli ishlamaydi).
+YECHIM: 1) Hub'ga resource maydoni bilan SharedFlow:
+            val _events = MutableSharedFlow<String>(replay = 0,
+                                    extraBufferCapacity = 8)
+       2) Har ekran faqat o'z resurslarini tinglasin:
+            hub.events.filter { it in setOf("order","product") }.collect { reload() }
+       3) replay=0 bo'lgani uchun drop(1)larni olib tashlash.
+
+[M-41] Users qidiruvi sahifani reset qilmaydi + debounce yo'q
+JOY:   desktop_app/.../market/users/UsersScreenModel.kt:104-107
+       (updateSearch: currentPage=1 tushmaydi, loadUsers() darhol)
+       + ui/users/UsersScreen.kt:260 (har harfda API — Orders 300ms,
+         Products/Couriers 400ms debounce qiladi)
+MUAMMO: 5-sahifada turib qidirsangiz -> server 5-sahifani qaytaradi ->
+       "topilmadi" (xato ko'rinishi); har harfda so'rov.
+YECHIM:
+       private var searchJob: Job? = null
+       fun updateSearch(query: String) {
+           searchJob?.cancel()
+           searchJob = screenModelScope.launch {
+               delay(300)
+               _uiState.update { it.copy(searchQuery = query, currentPage = 1) }
+               loadUsers()
+           }
+       }
+
+[M-42] Lokalizatsiya sentinellari filtr qiymati sifatida
+JOY:   desktop_app/.../market/ui/warehouses/WarehousesScreen.kt:141-143,281
+         ("Faol"/"Nofaol" -> active; statusOptions o'zbekcha literal)
+       + orders/OrdersScreen.kt:175,189,274,345,365,381
+         ("Barcha holatlar"/"Barcha to'lovlar")
+MUAMMO: State qiymati ko'rinadigan matnga bog'langan -> EN/RU'ga o'tishda
+       filtr buziladi (yoki yorliq sentinel bo'lib qoladi).
+YECHIM: Sentinelni qiymatdan ajratish:
+         private const val ALL = "__all__"
+         statusOptions = listOf(ALL to t(lang,"Barcha holatlar"),
+                                "ACTIVE" to t(lang,"Faol"), ...)
+         when (statusFilter) { "ACTIVE" -> "active=true"; ... }
+
+[O-43] Tanlangan til restartda yo'qoladi
+JOY:   desktop_app/.../App.kt:43 (remember { AppLanguage.UZ })
+       + settings/AppPreferences.kt:32 (languageCode hech qayerda
+         o'qilmaydi/yozilmaydi — deklaratsiya xolos)
+YECHIM:
+       var appLanguage by remember { mutableStateOf(
+           AppLanguage.entries.firstOrNull { it.name == AppPreferences.languageCode }
+               ?: AppLanguage.UZ) }
+       // LanguageController topshiruvida:
+       appLanguage = it; AppPreferences.languageCode = it.name
+
+[O-44] Til = sessiya bootstrap kaliti (til almashtirish realtime uzadi)
+JOY:   desktop_app/.../App.kt:66 (LaunchedEffect(onDashboard, appLanguage):
+       til o'zgarsa -> hub stop + token refresh + bootstrap + delay(1500)
+       + hub start)
+       + App.kt:121-131 (SideEffect har recompositionda SessionManager'ga
+         sessiya qayta yozadi -> ApiClient 401'da clearGatewaySession()
+         keyingi recompositionda bekor bo'ladi)
+YECHIM: 1) LaunchedEffect kalibidan tildi olib tashlash:
+            LaunchedEffect(onDashboard) { ... }
+       2) SideEffect'ni sessiya kuzatuvchisiga almashtirish yoki shart:
+            SideEffect { if (SessionManager.token.isEmpty())
+                AuthSession.accessToken?.let { ... } }
+
+[O-45] Layout: beqaror kalit + sahifa holati saqlanmaydi
+JOY:   desktop_app/.../market/ui/layout/SuperAdminDashboardLayout.kt:159-163
+       (LaunchedEffect(items) — items har kompozitsiyada yangi List)
+       + :196-217 (when(current) — rememberSaveable/SaveableStateHolder yo'q:
+         Orders 5-sahifadan Dashboard'ga chiqib qaytsa sahifa yo'qoladi)
+YECHIM: 1) val items = remember(isSuperAdmin) { allItems.filter {...} }
+       2) SaveableStateHolder() { key(current) { when(current) { ... } } }
+
+[O-46] Delivery ro'yxati: 200 dan keyin jim kesiladi + noto'g'ri envelope
+JOY:   desktop_app/.../market/ui/delivery/DeliveryScreen.kt:147 (?page=0&size=200)
+       + :149,172 (root?.get("data") as? JsonArray — server Page qaytarsa
+         bo'sh; boshqa ekranlar dataObjectOrSelf()+itemsOrContentArray ishlatadi)
+YECHIM: Boshqa ekranlardagi naqshga o'tkazish:
+         val data = ApiClient.parseJsonObject(text)
+             ?.let { ApiClient.dataObjectOrSelf(it) }
+         val arr = data?.itemsOrContentArray() ?: JsonArray(emptyList())
+       + page/size state + PaginationBar (OrdersScreen:182-217 kabi)
+       + realtime collect qo'shish.
+
+[O-47] Roles: 200 dan keyingi foydalanuvchilar hisoblanmaydi
+JOY:   desktop_app/.../market/roles/RolesScreenModel.kt:139,157-166
+       (listUsersPage(token, page=0, size=200); stats.totalUsers/ userCount
+        200+ bazada noto'g'ri)
+YECHIM: Serverdan agregat so'rash (roles endpointi userCount qaytaradigan
+       bo'lsa) yoki pages loop bilan yig'ish (har 30s emas — cache bilan).
+
+[S-48] Panel matnlari hardcoded + o'lik tugmalar + soxta badge'lar
+JOY:   desktop_app/.../ui/layout/SuperAdminDashboardLayout.kt:134-155
+         (sidebar "Dashboard","Users",...,"Sharhlar"), :171-172, :228-235
+         (logout dialog hardcoded)
+       + ui/screens/SuperAdminDashboardScreen.kt:121,127,157,169
+         (onClick = {} — kalendar/export hech narsa qilmaydi)
+       + :196-290 (badgeText "+3.2%", "+24 yangi" — O'LCHALMAGAN soxta
+         ko'rsatkichlar; label hardcoded)
+YECHIM: 1) Sidebar matnlarini AppStrings.navX(lang) ga ko'chirish.
+       2) O'lik tugmalarni haqiqiy ishga ulash yoki olib tashlash.
+       3) Badge'larni haqiqiy qiymatdan (userGrowth) olish yoki olib tashlash;
+          label -> AppStrings.t(lang, "Jami foydalanuvchilar").
+
+[S-49] Token plaintext + Google implicit flow + http default
+JOY:   desktop_app/.../auth/TokenStore.kt:6-20 (java.util.prefs.Preferences;
+         OS keychain yo'q)
+       + auth/GoogleAuthFlow.kt:24-33 (hardcoded DEFAULT_CLIENT_ID, implicit
+         flow, PKCE yo'q; loopback /submit istalgan localhost source'dan)
+       + settings/AppPreferences.kt:17 (DEFAULT_URL = http://127.0.0.1:8080)
+YECHIM: 1) Token uchun OS keystore (Windows Credential Manager /
+          libsecret) yoki kamida faylga AES + machine key.
+       2) Google uchun Authorization Code + PKCE flow.
+       3) Prod'da https URL majburiy qilish (release'da http bo'lsa startni
+          to'xtatish).
+
+[S-50] Ikkita logout yo'li + snackbar event yo'qoladi
+JOY:   desktop_app/.../App.kt:73-113 (majburiy logout MapScreenStateHolder.reset()
+         CHAQIRMAYDI; navigation/AppScreens.kt:103 chaqiradi)
+       + market/api/UnauthorizedNotifier.kt:8,19 (MutableSharedFlow
+         extraBufferCapacity=1 replay'siz + tryEmit -> collector yo'qolsa
+         xabar yo'qoladi; clearDebounce():22 hech qayerda chaqirilmaydi)
+YECHIM: 1) App.kt logout blokiga MapScreenStateHolder.reset() qo'shish.
+       2) UnauthorizedNotifier: replay = 1 yoki LocalSnackbarHost orqali emit;
+          clearDebounce'ni 401 handler'iga ulash yoki metodni o'chirish.
+
+
+############################ MOBILE + INFRA ###############################
+
+[M-51] Elasticsearch xavfsizligi o'chirilgan + 9200 ochiq
+JOY:   docker-compose.yml:429-430 (xpack.security.enabled:false,
+         ELASTIC_PASSWORD default bo'sh), :437 (9200:9200 0.0.0.0'ga)
+       + docker-compose.infra.yml:78-81 (xuddi)
+       + search-service/.../application.yml:15-16 (ES_USERNAME/PASSWORD
+         hech qayerda ishlatilmaydi — o'lik env)
+XAVF:  ES'ga authsiz kirib indeksni o'chirish (qidiruvni to'xtatish) yoki
+       mahsulot/narx ma'lumotini o'g'irlash.
+YECHIM: 1) compose: xpack.security.enabled: "true",
+          ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?required}
+       2) portni 127.0.0.1:9200:9200 ga cheklash yoki ports'ni o'chirish.
+       3) search-service/application.yml'ga:
+          spring.elasticsearch.username: ${ES_USERNAME}
+          spring.elasticsearch.password: ${ES_PASSWORD}
+
+[M-52] Redis parolsiz + 6379 ochiq — gateway himoyasi buziladi
+JOY:   docker-compose.yml:62-72 (command'da requirepass yo'q, 6379:6379);
+       repoda REDIS_PASSWORD umuman yo'q
+XAVF:  Redis'da gateway rate-limit kalitlari, blocked-user listi, realtime
+       pub/sub; FLUSHALL -> rate-limit va blok tekshiruvi ishlamaydi.
+YECHIM: compose:
+         command: redis-server --requirepass "${REDIS_PASSWORD:?required}"
+                  --rename-command FLUSHALL "" --rename-command KEYS ""
+         ports: ["127.0.0.1:6379:6379"]
+       + barcha servislarga SPRING_DATA_REDIS_PASSWORD.
+
+[M-53] Barcha backend portlari 0.0.0.0 publish — gateway bypass
+JOY:   docker-compose.yml:104,149,185,223,267,313,349,379,411,437,471,502,533,
+       566,602 (+12 postgres, 51-52 minio, 66 redis, 619-620 mailpit)
+       — gateway SecurityConfig:29 (/internal/** denyAll) faqat gateway
+       orqali ishlaydi; http://host:8081/internal/... esa to'g'ridan-to'g'ri
+       (auth SecurityConfig:103 permitAll).
+XAVF:  Rate-limit/CORS/CSP chetlab o'tilib ichki PII endpointlariga kirish.
+YECHIM: Faqat gateway'ni publish qilish:
+         gateway-service: ports: ["8080:8080"]
+         boshqa app servislar: ports: yo'q (expose: kifoya)
+         infra: postgres/redis/minio -> 127.0.0.1:PORT:PORT
+
+[M-54] Mailpit ochiq — OTP/reset xatlari o'qiladi
+JOY:   docker-compose.yml:615-620 (8025:8025, 1025:1025), :95 (MAIL_HOST default)
+XAVF:  Prod'da Mailpit UI'ga kirgan har kim reset-kodni o'qib hisobni oladi.
+YECHIM: 127.0.0.1:8025:8025'ga cheklash; prod'ga ko'chirishda real SMTP
+       (MAIL_HOST + MAIL_SMTP_AUTH=true) va Mailpit'ni compose.override.yml'da
+       qoldirish.
+
+[M-55] Mobil token oddiy SharedPreferences + backup yoqilgan
+JOY:   mobile_app/app/src/main/java/com/example/mobile_app/data/local/
+       TokenManager.kt:8,19,21-30 (oddiy getSharedPreferences; EncryptedSharedPreferences
+       repoda yo'q, security-crypto gradle'da yo'q)
+       + AndroidManifest.xml:13 (android:allowBackup="true")
+       + @xml/backup_rules.xml, @xml/data_extraction_rules.xml (namuna —
+         barcha include/exclude kommentariyalangan, hamma narsa backupda)
+XAVF:  Root/adb/cloud backup orqali access+refresh token olinib sessiya egallanadi.
+YECHIM: 1) gradle'ga androidx.security:security-crypto qo'shish va
+          EncryptedSharedPreferences'ga o'tkazish (AES256_SIV/GCM).
+       2) android:allowBackup="false" YOKI cloud-backup'da
+          mexa_secure_prefs.xml'ni <exclude> qilish.
+
+[M-56] Mobile: http base URL + release debug-keystore + SSL pinning yo'q
+JOY:   mobile_app/app/build.gradle.kts:17 (fallback http://10.0.2.2:8080/)
+       + :56 (keystore yo'q bo'lsa release DEBUG kalitda imzolanadi)
+       + data/remote/RetrofitClient.kt:66-78 (CertificatePinner yo'q)
+       + app/src/debug/AndroidManifest.xml:4 (cleartext faqat debug; release'da
+         Android 9+ http'ni bloklaydi)
+XAVF:  Release'da yoki http'da token/plaintext ketadi; noto'g'ri imzo.
+YECHIM: 1) release'da API_BASE_URL https bo'lmasa buildni rad etish:
+            if (!apiBaseUrl.startsWith("https://") && !debuggable)
+                throw GradleException("https majburiy")
+       2) signingConfig fallback'ni olib tashlash (yo'q bo'lsa build xato).
+       3) CertificatePinner + res/xml/network_security_config.xml qo'shish.
+
+[M-57] Google Maps API kaliti tracked manifestda
+JOY:   mobile_app/app/src/main/AndroidManifest.xml:22-23 (AIzaSy... kalit)
+       + google-services.json:18 (ikkinchi kalit)
+XAVF:  Repo ommaviy bo'lsa — kvota o'g'irlanadi.
+YECHIM: 1) Google Cloud'da kalitni package + SHA-1 bilan cheklash.
+       2) manifestPlaceholder: value="${MAPS_API_KEY}" + lokal gradle
+          property'dan o'qish (CI secret).
+
+[M-58] Mobile xato handling: xom xato UI'da + cheksiz skeleton + jim yutilish
+JOY:   data/remote/AuthRepository.kt:105-106 -> ui/screens/auth/VerifyEmailScreen.kt:311
+         ("HTTP 400: {xom JSON}" foydalanuvchiga chiqadi)
+       + ui/screens/catalog/CatalogScreen.kt:132-140 (kategoriya bo'sh -> 6 ta
+         skeleton cheksiz aylanadi)
+       + ui/viewmodel/HomeViewModel.kt:180-182,196-198 (getCategories/getRecommended
+         onSuccess only — onFailure yo'q)
+       + data/repository/ReviewRepository.kt:44-48 (tarmoq xatosi ->
+         Result.success(null) = "review yo'q")
+       + data/repository/OrderRepository.kt:72 (response.body()!!.data!!)
+YECHIM: 1) AuthRepository: xom errorBody o'rniga generik matn (serverdan
+          kelgan message bo'lsa uni, yo'q bo'lsa lokal lokalizatsiyalangan).
+       2) HomeViewModel'ga onFailure -> UiState.Error + CatalogScreen'da
+          retry tugmasi (skeleton o'rniga).
+       3) ReviewRepository: 404 ni ajratish:
+            onFailure = { e -> if (e is HttpException && e.code()==404)
+                emit(Result.success(null)) else emit(Result.failure(e)) }
+       4) OrderRepository: !! o'rniga safe call + xato state.
+
+[M-59] Mobile lifecycle: 3 ta HomeViewModel + as Activity castlari
+JOY:   mobile_app/app/src/main/.../navigation/AppNavigation.kt:234,254,277
+       (Home/Catalog/CategoryProducts har biri ALOHIDA HomeViewModel —
+        init{loadAll()} har birida -> backendga 3 barobar yuk)
+       + :235,278,333,351,368,403,439,462,483 (LocalContext.current as
+         ComponentActivity — ContextThemeWrapper ichida ClassCastException crash)
+       + ui/screens/splash/SplashScreen.kt:57 (xuddi shunday cast)
+YECHIM: 1) HomeViewModel'ni activity-scoped qilish (CartViewModel naqshi):
+            viewModel(viewModelStoreOwner = activity, factory = Factory)
+       2) Castlarni xavfsiz qilish:
+            val activity = LocalContext.current as? ComponentActivity
+                ?: error("Activity topilmadi")
+
+[O-60] Resource limit / heap / restart / healthcheck zaif
+JOY:   docker-compose.yml'da deploy.resources — 0 ta natija;
+       auth-service/Dockerfile:15 (13 tasida xuddi shunday) java -jar — Xmx yo'q
+       (14 JVM x 25% host RAM -> OOM)
+       + restart: faqat :10, :41 (postgres); 14 ta app servisda yo'q
+       + healthcheck 14 marta "ps | grep '[j]ava'" — Spring tushmagan bo'lsa
+         ham healthy -> gateway service_healthy false-positive
+YECHIM: 1) Dockerfile: ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -Xmx512m"
+       2) compose: restart: unless-stopped (barchaga).
+       3) healthcheck: wget -q -O - http://localhost:PORT/actuator/health
+          | grep -q UP  (+ start_period: 60s).
+
+[O-61] ES bootstrap indeksni O'CHIRADI + mapping JSON o'lik
+JOY:   search-service/.../config/ElasticsearchIndexBootstrap.java:31-36
+       (uzbek_analyzer yo'q bo'lsa ops.delete() -> butun indeks yo'qoladi),
+       :57-59 (xatoni warn bilan yutadi)
+       + elasticsearch/products-settings.json (hech qayerda o'qilmaydi,
+         bootstrap'dan farqli analyzer)
+YECHIM: 1) delete() ni o'chirish; indeks yo'qsa yaratish + alias almashinish
+          (aliastagi eski indeksni keyin o'chirish).
+       2) products-settings.json'ni yoki o'chirish, yoki shundan yuklash
+          (yagona mapping manbai).
+       3) catch'da log.error(..., e) + startupda aniq ogohlantirish.
+
+[O-62] DEBUG log majburiy + SSE'da PII log
+JOY:   docker-compose.yml:246 (LOGGING_LEVEL_..._REALTIME: DEBUG — env'siz)
+       + gateway/.../realtime/RealtimeSseController.java:107,116
+         (log.debug("SSE connection opened for user {}", userId))
+YECHIM: ${GATEWAY_REALTIME_LOG_LEVEL:INFO}; debug'da userId'ni qisqartirish.
+
+[S-63] Yakuniy qidiruv: TRIM/LIKE patternlari bo'yicha grepsiz qolgan joylar
+JOY:   (M-21/M-22 tuzatishlaridan so'ng qoldiq)
+YECHIM: Tuzatishdan keyin bitta komanda bilan yakuniy nazorat:
+       grep -rn "LIKE LOWER(CONCAT('%'," --include=*.java . | grep -v CAST
+       grep -rn "TRIM(:" --include=*.java . | grep -v CAST
+       Ikkalasi ham bo'sh chiqishi shart (bazaviy test: mvnw test yashil).
+
+
+================================================================================
+TAVSIYA ETILGAN TARTIB (bosqichlar)
+================================================================================
+1-bosqich (bir kunda, xavfsizlik): M-1, M-2, M-3, M-4, M-6, M-7, M-8, M-11,
+  M-14, M-15 — default kalitlar/limitlar/authorization; keyin compose portlari
+  (M-53) va Mailpit (M-54).
+2-bosqich (ma'lumotlar): M-21 (PG qidiruv), M-22, M-28, M-29, M-30 (indexlar),
+  M-23, M-24.
+3-bosqich (desktop foydalanuvchi sezadigan): M-33, M-34, M-35, M-38, M-39,
+  M-40, M-41.
+4-bosqich (ishonchlilik): M-36, M-37, M-25, M-26, M-27, M-51, M-52.
+5-bosqich (mobile): M-55, M-56, M-57, M-58, M-59.
+6-bosqich (mayda/O'RTA): O-*, S-* qoldiqlari.
+
+Har bosqich yakunida:
+  ./mvnw -B -ntp test                        (backend)
+  cd desktop_app && ./gradlew :composeApp:compileKotlinJvm
+  cd mobile_app && ./gradlew :app:compileDebugKotlin
+  docker compose build <o'zgargan servislar> && smoke test (superadmin login,
+  /api/search/admin/status, /api/warehouses/stats, orders/notifications qidiruv)
+
+================================================================================
+YAKUNIY TAHLIL STATISTIKASI
+================================================================================
+Jami topilgan bandlar: 63
+  MUHIM [M]: 45   O'RTA [O]: 13   MAYDA [S]: 5
+Eng xavfli 3 tasini ko'rsatish:
+  1) M-1/M-2 — default JWT/ichki kalitlar -> butun tizimga kirish
+  2) M-3 — refund endpointi ochiq portda -> pul qaytarish
+  3) M-51/M-53 — ES/auth portlari ochiq -> ma'lumot o'g'irlash/buzish
+Ishonchli tomonlar (aniqlandi): auth'da OOB/OTP 5-urinish chegarasi bor;
+  HttpLoggingInterceptor release'da NONE; actuator cheklangan; receiverlar
+  to'g'ri unregister qilinadi; realtime pub/sub va idempotency delivery'da
+  mavjud; .env gitignore'da.
+================================================================================

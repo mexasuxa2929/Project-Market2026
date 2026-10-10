@@ -9,7 +9,7 @@ services:
     url: ${AUTH_SERVICE_URL:http://localhost:8081}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
 
 scheduler:
   low-stock:

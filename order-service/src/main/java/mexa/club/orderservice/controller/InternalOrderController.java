@@ -52,10 +52,11 @@ public class InternalOrderController {
     })
     public ApiResponse<OrderResponse> paymentConfirmed(
             @Parameter(description = "Unique identifier of the order", required = true) @PathVariable UUID id,
-            @Parameter(description = "Shared internal secret for service-to-service authentication", required = true) @RequestHeader("X-Internal-Secret") String secret
+            @Parameter(description = "Shared internal secret for service-to-service authentication", required = true) @RequestHeader("X-Internal-Secret") String secret,
+            @Parameter(description = "Expected payment amount in som (M-10); when provided it must match the order total") @RequestParam(value = "amount", required = false) java.math.BigDecimal amount
     ) {
         ensureInternalSecret(secret);
-        return ApiResponse.ok(orderService.markPayment(id, true));
+        return ApiResponse.ok(orderService.markPayment(id, true, amount));
     }
 
     @PostMapping("/{id}/payment-failed")
@@ -73,7 +74,7 @@ public class InternalOrderController {
             @Parameter(description = "Shared internal secret for service-to-service authentication", required = true) @RequestHeader("X-Internal-Secret") String secret
     ) {
         ensureInternalSecret(secret);
-        return ApiResponse.ok(orderService.markPayment(id, false));
+        return ApiResponse.ok(orderService.markPayment(id, false, null));
     }
 
     @PostMapping("/{id}/delivered")

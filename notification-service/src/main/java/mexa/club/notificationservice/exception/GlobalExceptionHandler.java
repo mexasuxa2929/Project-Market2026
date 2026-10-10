@@ -41,4 +41,15 @@ public class GlobalExceptionHandler {
                 "message", "An unexpected error occurred"
         ));
     }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<java.util.Map<String, Object>> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        java.util.Map<String, Object> error = new java.util.LinkedHashMap<>();
+        error.put("code", String.valueOf(ex.getStatusCode().value()));
+        error.put("message", ex.getReason() != null ? ex.getReason() : ex.getLocalizedMessage());
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("success", false);
+        body.put("error", error);
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
 }

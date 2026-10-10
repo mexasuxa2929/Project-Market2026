@@ -39,11 +39,11 @@ spring:
       allow-credentials: false
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
   internal:
-    secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+    secret: ${APP_INTERNAL_SECRET}
   internal-api:
     key: ${APP_INTERNAL_API_KEY:dev-only-insecure-internal-api-key-0123456789}
   order-service:
@@ -59,9 +59,9 @@ app:
 
 springdoc:
   api-docs:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
     persist-authorization: true
     operations-sorter: method
     tags-sorter: alpha

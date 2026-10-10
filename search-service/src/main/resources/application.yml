@@ -12,7 +12,7 @@ spring:
     uris: ${ES_URIS:http://localhost:9200}
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
   search:
@@ -22,7 +22,7 @@ app:
       enabled: true
     reindex-interval-ms: 600000
     reindex-initial-delay-ms: 30000
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -33,9 +33,9 @@ services:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
 
 management:
   endpoints:

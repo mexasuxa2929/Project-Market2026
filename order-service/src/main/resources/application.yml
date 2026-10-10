@@ -47,10 +47,10 @@ feign:
         readTimeout: 10000
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
   shop:
     internal-api-key: ${SHOP_INTERNAL_API_KEY:dev-only-insecure-internal-api-key-0123456789}
   realtime:
@@ -80,9 +80,9 @@ services:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
 
 management:
   endpoints:

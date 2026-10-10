@@ -28,13 +28,13 @@ spring:
     baseline-on-migrate: true
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 app:
   jwt:
     access-token-ttl: ${APP_JWT_ACCESS_TOKEN_TTL:900}
   # Boshqa servislar (auth, order, discount) bilan bir xil — bo'lmasa X-Internal-Secret 403
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -57,9 +57,9 @@ feign:
 
 springdoc:
   api-docs:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
     persist-authorization: true
     operations-sorter: method
     tags-sorter: alpha

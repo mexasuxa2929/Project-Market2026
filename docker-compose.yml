@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mexa1234}
     restart: unless-stopped
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
@@ -48,8 +48,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -63,7 +63,7 @@ services:
     image: redis:7-alpine
     container_name: warehouse-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -81,16 +81,16 @@ services:
       SPRING_DATASOURCE_URL: ${AUTH_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/auth_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       APP_SWAGGER_BASIC_AUTH_ENABLED: ${APP_SWAGGER_BASIC_AUTH_ENABLED:-false}
       APP_SWAGGER_USERNAME: ${APP_SWAGGER_USERNAME:-swagger}
-      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:-dev-only-swagger-password}
+      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:?APP_SWAGGER_PASSWORD required}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       SPRING_PROFILES_ACTIVE: ${AUTH_SPRING_PROFILES_ACTIVE:-default}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
       SPRING_MAIL_HOST: ${MAIL_HOST:-mailpit}
       SPRING_MAIL_PORT: ${MAIL_PORT:-1025}
@@ -101,7 +101,7 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-758985644197-6cg7sel08sg5mjubod3pdhsvt6q07h2s.apps.googleusercontent.com}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,7 +124,7 @@ services:
       SPRING_DATASOURCE_URL: ${PRODUCT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/products_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
@@ -141,12 +141,12 @@ services:
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
       WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
       SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
-      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:-dev-only-insecure-internal-api-key-0123456789}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:?APP_INTERNAL_API_KEY required}
     volumes:
       - ./storage:/app/storage
     ports:
-      - "8083:8083"
+      - "127.0.0.1:8083:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,18 +171,19 @@ services:
       SPRING_DATASOURCE_URL: ${SHOP_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       PRODUCT_SERVICE_TIMEOUT_MS: ${PRODUCT_SERVICE_TIMEOUT_MS:-3000}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
       GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:?APP_INTERNAL_API_KEY required}
       APP_SWAGGER_ENABLED: ${SHOP_APP_SWAGGER_ENABLED:-true}
       SPRING_PROFILES_ACTIVE: ${SHOP_SPRING_PROFILES_ACTIVE:-default}
     ports:
-      - "8094:8094"
+      - "127.0.0.1:8094:8094"
     depends_on:
       postgres:
         condition: service_healthy
@@ -209,18 +210,18 @@ services:
       SPRING_DATASOURCE_URL: ${WAREHOUSE_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:-dev-only-insecure-internal-api-key-0123456789}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:?APP_INTERNAL_API_KEY required}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       APP_SWAGGER_ENABLED: ${WAREHOUSE_APP_SWAGGER_ENABLED:-true}
       APP_SWAGGER_USERNAME: ${APP_SWAGGER_USERNAME:-swagger}
-      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:-dev-only-swagger-password}
+      APP_SWAGGER_PASSWORD: ${APP_SWAGGER_PASSWORD:?APP_SWAGGER_PASSWORD required}
       APP_SWAGGER_BASIC_AUTH_ENABLED: ${APP_SWAGGER_BASIC_AUTH_ENABLED:-false}
     ports:
-      - "8084:8084"
+      - "127.0.0.1:8084:8084"
     depends_on:
       postgres:
         condition: service_healthy
@@ -242,7 +243,7 @@ services:
     container_name: warehouse-gateway-service
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       LOGGING_LEVEL_MEXA_CLUB_GATEWAYSERVICE_REALTIME: DEBUG
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       PRODUCT_SERVICE_URL: ${GATEWAY_PRODUCT_SERVICE_URL:-http://product-service:8083}
@@ -264,7 +265,7 @@ services:
       SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:-http://search-service:8090}
       GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       auth-service:
         condition: service_healthy
@@ -297,10 +298,10 @@ services:
       SPRING_DATASOURCE_URL: ${ORDER_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
@@ -310,7 +311,7 @@ services:
       DELIVERY_SERVICE_URL: ${DELIVERY_SERVICE_URL:-http://delivery-service:8088}
       PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8091}
     ports:
-      - "8085:8085"
+      - "127.0.0.1:8085:8085"
     depends_on:
       postgres:
         condition: service_healthy
@@ -337,16 +338,16 @@ services:
       SPRING_DATASOURCE_URL: ${NOTIFICATION_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
       ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
     ports:
-      - "8087:8087"
+      - "127.0.0.1:8087:8087"
     depends_on:
       postgres:
         condition: service_healthy
@@ -369,14 +370,14 @@ services:
       SPRING_DATASOURCE_URL: ${DELIVERY_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
     ports:
-      - "8088:8088"
+      - "127.0.0.1:8088:8088"
     depends_on:
       postgres:
         condition: service_healthy
@@ -400,15 +401,15 @@ services:
     container_name: warehouse-report-service
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
       WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
     ports:
-      - "8089:8089"
+      - "127.0.0.1:8089:8089"
     depends_on:
       auth-service:
         condition: service_healthy
@@ -434,7 +435,7 @@ services:
         soft: -1
         hard: -1
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
     healthcheck:
@@ -463,12 +464,10 @@ services:
       PAYME_CALLBACK_PATH: ${PAYME_CALLBACK_PATH:-/payment/payme/callback}
       PAYME_TIMEOUT_MS: ${PAYME_TIMEOUT_MS:-12000}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
-      JWT_SECRET: ${JWT_SECRET}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-    ports:
-      - "${PAYMENT_SERVER_PORT:-8091}:${PAYMENT_SERVER_PORT:-8091}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -493,13 +492,13 @@ services:
       SPRING_DATASOURCE_URL: ${DISCOUNT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/discounts_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
     ports:
-      - "8092:8092"
+      - "127.0.0.1:8092:8092"
     depends_on:
       postgres:
         condition: service_healthy
@@ -521,16 +520,16 @@ services:
     container_name: warehouse-search-service
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
       ES_URIS: ${ES_URIS:-http://elasticsearch:9200}
       ES_USERNAME: ${ES_USERNAME:-}
       ES_PASSWORD: ${ES_PASSWORD:-}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -552,10 +551,11 @@ services:
       SPRING_DATASOURCE_URL: ${ANALYTICS_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/analytics_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
+      APP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:?APP_INTERNAL_API_KEY required}
       ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:8085}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
@@ -563,7 +563,7 @@ services:
       ANALYTICS_CACHE_TTL_MINUTES: ${ANALYTICS_CACHE_TTL_MINUTES:-5}
       ANALYTICS_LOW_STOCK_THRESHOLD: ${ANALYTICS_LOW_STOCK_THRESHOLD:-10}
     ports:
-      - "8096:8096"
+      - "127.0.0.1:8096:8096"
     depends_on:
       postgres:
         condition: service_healthy
@@ -594,12 +594,12 @@ services:
       SPRING_DATASOURCE_URL: ${GEO_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/geo_db}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-mexa}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-mexa1234}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:-dev-only-insecure-internal-secret-0123456789abcdef}
+      APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
     ports:
-      - "8095:8095"
+      - "127.0.0.1:8095:8095"
     depends_on:
       postgres:
         condition: service_healthy
@@ -616,8 +616,8 @@ services:
     image: axllent/mailpit:latest
     container_name: warehouse-mailpit
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
 
 volumes:
   postgres_data:

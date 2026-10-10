@@ -57,6 +57,8 @@ import java.util.UUID;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthController.class);
+
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -299,19 +301,16 @@ public class AuthController {
             description = "Accepts an email address and sends a 6-digit password reset code to that address if an account exists."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Reset code sent if the account exists"),
-            @ApiResponse(responseCode = "400", description = "Missing or invalid email in request body"),
-            @ApiResponse(responseCode = "404", description = "Email not found in system")
+            @ApiResponse(responseCode = "200", description = "Always returns 200 to prevent account enumeration"),
+            @ApiResponse(responseCode = "400", description = "Missing or invalid email in request body")
     })
     @SecurityRequirements
     public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         boolean sent = passwordResetService.forgotPassword(request.getEmail());
         if (!sent) {
-            Map<String, Object> err = Map.of("code", "EMAIL_NOT_FOUND", "message", "Bu email tizimda topilmadi");
-            Map<String, Object> body = new java.util.HashMap<>();
-            body.put("success", false);
-            body.put("error", err);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+            // M-7: account enumeration oldini olish — mavjud bo'lmagan email uchun ham
+            // xuddi shunday 200 qaytariladi; xatoni logda qayd etamiz.
+            log.warn("Password reset requested for non-existent email (masked): length={}", request.getEmail() == null ? 0 : request.getEmail().length());
         }
         return ResponseEntity.ok(Map.of(
                 "success", true,

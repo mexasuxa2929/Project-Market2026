@@ -21,7 +21,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 @Tag(name = "Internal — Reviews", description = "Internal service-to-service endpoint for deleting reviews when a product is hard-deleted. Protected by a shared API key header (X-Internal-Api-Key), not by JWT.")
 @RestController
-@RequestMapping("/api/shops/internal/products")
+@RequestMapping("/internal/shop/products")
 public class InternalReviewController {
 
     private final ProductReviewService reviewService;
@@ -50,7 +50,9 @@ public class InternalReviewController {
             @Parameter(description = "Internal API key for service-to-service authentication", required = true)
             @RequestHeader(value = "X-Internal-Api-Key", required = false) String providedKey
     ) {
-        if (providedKey == null || !providedKey.equals(internalApiKey)) {
+        if (providedKey == null || !java.security.MessageDigest.isEqual(
+                providedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                internalApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(FORBIDDEN, "Invalid internal API key");
         }
         reviewService.deleteByProductId(productId);

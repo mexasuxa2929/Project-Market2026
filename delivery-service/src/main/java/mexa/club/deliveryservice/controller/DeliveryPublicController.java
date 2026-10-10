@@ -4,10 +4,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import mexa.club.deliveryservice.client.OrderInternalClient;
 import mexa.club.deliveryservice.dto.ApiResponse;
 import mexa.club.deliveryservice.dto.DeliveryFeeResponse;
 import mexa.club.deliveryservice.dto.DeliveryResponse;
+import mexa.club.deliveryservice.exception.DeliveryException;
+import mexa.club.deliveryservice.security.JwtUserPrincipal;
 import mexa.club.deliveryservice.service.DeliveryService;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,9 +27,18 @@ import java.util.UUID;
 @RequestMapping
 public class DeliveryPublicController {
     private final DeliveryService deliveryService;
+    private final OrderInternalClient orderInternalClient;
 
-    public DeliveryPublicController(DeliveryService deliveryService) {
+    public DeliveryPublicController(DeliveryService deliveryService, OrderInternalClient orderInternalClient) {
         this.deliveryService = deliveryService;
+        this.orderInternalClient = orderInternalClient;
+    }
+
+    /** M-9: public tracking'da PII (ism/telefon/manzil/izoh) oshkor qilinmaydi. */
+    private static DeliveryResponse maskPii(DeliveryResponse r) {
+        return new DeliveryResponse(r.id(), r.orderId(), r.courierId(), r.status(), r.fromWarehouseId(),
+                null, null, null, r.region(), r.district(), r.estimatedDelivery(), r.actualDelivery(),
+                r.deliveryFee(), r.trackingCode(), null, r.failReason(), r.createdAt(), r.updatedAt(), r.events());
     }
 
     @Operation(
@@ -38,7 +53,7 @@ public class DeliveryPublicController {
     public ApiResponse<DeliveryResponse> track(
             @Parameter(description = "Delivery tracking code", required = true)
             @PathVariable String trackingCode) {
-        return ApiResponse.ok(deliveryService.getByTracking(trackingCode));
+        return ApiResponse.ok(maskPii(deliveryService.getByTracking(trackingCode)));
     }
 
     @Operation(
@@ -53,6 +68,25 @@ public class DeliveryPublicController {
     public ApiResponse<DeliveryResponse> byOrder(
             @Parameter(description = "UUID of the order to look up delivery for", required = true)
             @PathVariable UUID orderId) {
+        // M-9/IDOR: faqat order egasi o'z buyurtmasining yetkazishini ko'ra oladi.
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID currentUserId = null;
+        if (auth != null && auth.getPrincipal() instanceof JwtUserPrincipal principal) {
+            currentUserId = principal.userId();
+        }
+        boolean owner = false;
+        if (currentUserId != null) {
+            try {
+                var envelope = orderInternalClient.getOrder(orderId);
+                owner = envelope != null && envelope.data() != null
+                        && currentUserId.equals(envelope.data().userId());
+            } catch (Exception ex) {
+                owner = false; // fail-closed: order olinmasa — ruxsat yo'q
+            }
+        }
+        if (!owner) {
+            throw new DeliveryException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not the owner of this order");
+        }
         return ApiResponse.ok(deliveryService.getByOrderId(orderId));
     }
 

@@ -37,7 +37,9 @@ public class JwtUtil {
 
     @PostConstruct
     private void initSigningKey() {
-        if (secret.contains("default_dev_secret") || secret.contains("change-me") || secret.contains("min_32_chars")) {
+        if (secret.contains("default_dev_secret") || secret.contains("change-me")
+                || secret.contains("min_32_chars")
+                || secret.startsWith("dev-only-") || secret.startsWith("replace-with-")) {
             throw new IllegalStateException(
                     "JWT_SECRET environment variable is not set! " +
                     "Please set a strong, unique secret (at least 32 characters). " +

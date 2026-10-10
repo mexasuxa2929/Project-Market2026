@@ -51,7 +51,7 @@ public class ShopReviewClient {
             throw new UpstreamReferenceException("Shop service base URL is not configured", null);
         }
 
-        String url = shopBaseUrl + "/api/shops/internal/products/" + productId + "/reviews";
+        String url = shopBaseUrl + "/internal/shop/products/" + productId + "/reviews";
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(5))
                 .header(HttpHeaders.ACCEPT, "application/json")

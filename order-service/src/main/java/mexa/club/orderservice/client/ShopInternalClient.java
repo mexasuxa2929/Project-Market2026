@@ -10,6 +10,6 @@ import java.util.UUID;
 @FeignClient(name = "shopInternalClient", url = "${services.shop.url}", configuration = mexa.club.orderservice.config.FeignConfig.class, contextId = "shopInternalClient")
 public interface ShopInternalClient {
 
-    @GetMapping("/api/shops/internal/addresses/{id}")
+    @GetMapping("/internal/shop/addresses/{id}")
     InternalAddressPayload getAddress(@PathVariable("id") UUID id);
 }

@@ -312,7 +312,7 @@ spring:
                 key-resolver: "#{@userOrIpKeyResolver}"
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
 
 gateway:
   cors:
@@ -335,9 +335,9 @@ management:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: true
+    enabled: ${APP_SWAGGER_ENABLED:false}
     path: /swagger-ui.html
     urls:
       - name: auth

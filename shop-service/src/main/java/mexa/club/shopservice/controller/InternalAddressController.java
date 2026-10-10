@@ -21,7 +21,7 @@ import java.util.UUID;
 
 @Tag(name = "Internal — Addresses", description = "Internal service-to-service endpoint for resolving customer address details (region, district, phone) when creating deliveries. Protected by a shared API key header (X-Internal-Api-Key), not by JWT.")
 @RestController
-@RequestMapping("/api/shops/internal/addresses")
+@RequestMapping("/internal/shop/addresses")
 public class InternalAddressController {
 
     private final CustomerAddressRepository addressRepository;
@@ -51,7 +51,9 @@ public class InternalAddressController {
             @Parameter(description = "Internal API key for service-to-service authentication", required = true)
             @RequestHeader(value = "X-Internal-Api-Key", required = false) String providedKey
     ) {
-        if (providedKey == null || !providedKey.equals(internalApiKey)) {
+        if (providedKey == null || !java.security.MessageDigest.isEqual(
+                providedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                internalApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal API key");
         }
         CustomerAddress a = addressRepository.findById(id)

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import mexa.club.shopservice.security.JwtUserPrincipal;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -25,9 +26,11 @@ import java.nio.charset.StandardCharsets;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, StringRedisTemplate stringRedisTemplate) {
         this.jwtUtil = jwtUtil;
+        this.stringRedisTemplate = stringRedisTemplate;
     }
 
     @Override
@@ -79,6 +82,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .forEach(authorities::add);
 
             UUID userId = jwtUtil.extractUserId(token);
+            // M-12: admin blok qilgan user shop orqali ishlayvermasin —
+            // xuddi warehouse JwtRequestFilter dagidek Redis "blocked:" tekshiruvi (fail-closed).
+            if (userId != null) {
+                try {
+                    String blocked = stringRedisTemplate.opsForValue().get("blocked:" + userId);
+                    if ("1".equals(blocked)) {
+                        writeUnauthorized(response, "ACCOUNT_DISABLED", "Hisob bloklangan. Admin bilan bog'laning.");
+                        return;
+                    }
+                } catch (Exception redisEx) {
+                    writeUnauthorized(response, "AUTH_ERROR", "Xizmat vaqtincha mavjud emas");
+                    return;
+                }
+            }
             JwtUserPrincipal principal = new JwtUserPrincipal(userId, username);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     principal,

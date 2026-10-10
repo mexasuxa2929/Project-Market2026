@@ -185,5 +185,11 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.fail("INTERNAL_ERROR", "An unexpected error occurred"));
     }
-}
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        String code = String.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() != null ? ex.getReason() : ex.getLocalizedMessage();
+        return ResponseEntity.status(ex.getStatusCode()).body(ApiResponse.fail(code, message));
+    }
+}

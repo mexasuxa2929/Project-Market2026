@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/shops/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/shops/home").permitAll()
-                        .requestMatchers("/api/shops/internal/**").permitAll()
+                        .requestMatchers("/internal/shop/**").permitAll()
                         .requestMatchers("/api/shops/me/**").authenticated()
                         .anyRequest().authenticated()
                 )

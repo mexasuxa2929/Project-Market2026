@@ -58,11 +58,11 @@ spring:
             readTimeout: ${REFERENCE_DATA_READ_TIMEOUT_MS:3000}
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-0123456789abcdef}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 app:
-  internal-secret: ${APP_INTERNAL_SECRET:dev-only-insecure-internal-secret-0123456789abcdef}
+  internal-secret: ${APP_INTERNAL_SECRET}
   realtime:
     enabled: true
     channel: ${APP_REALTIME_CHANNEL:mexa:realtime:events}
@@ -102,9 +102,9 @@ app:
 
 springdoc:
   api-docs:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
   swagger-ui:
-    enabled: ${APP_SWAGGER_ENABLED:true}
+    enabled: ${APP_SWAGGER_ENABLED:false}
     persist-authorization: true
     operationsSorter: method
     tagsSorter: alpha

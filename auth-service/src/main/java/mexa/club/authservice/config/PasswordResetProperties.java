@@ -13,6 +13,10 @@ public class PasswordResetProperties {
 
     private long ttlMinutes = 15;
 
+    private int maxAttempts = 5;
+
+    private long resendIntervalSeconds = 60;
+
     private String resetUrlBase = "https://domain.com/reset-password";
 
     private Cleanup cleanup = new Cleanup();

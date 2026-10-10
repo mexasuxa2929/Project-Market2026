@@ -149,10 +149,31 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(UUID userId, CreateOrderRequest request) {
+        return create(userId, request, null);
+    }
+
+    /**
+     * M-16: idempotencyKey berilsa — shu key bilan avval yaratilgan order
+     * qayta yaratilmaydi (409); race'da unique index ham himoya qiladi.
+     */
+    @Transactional
+    public OrderResponse create(UUID userId, CreateOrderRequest request, String idempotencyKey) {
         if (userId == null) {
             throw new OrderServiceException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "JWT userId is missing");
         }
+        String key = (idempotencyKey == null || idempotencyKey.isBlank()) ? null : idempotencyKey.trim();
+        if (key != null && key.length() > 64) {
+            throw new OrderServiceException(HttpStatus.BAD_REQUEST, "IDEMPOTENCY_KEY_TOO_LONG", "Idempotency-Key must be <= 64 chars");
+        }
+        if (key != null) {
+            var existing = orderRepository.findByUserIdAndIdempotencyKey(userId, key);
+            if (existing.isPresent()) {
+                throw new OrderServiceException(HttpStatus.CONFLICT, "DUPLICATE_ORDER",
+                        "Order with this Idempotency-Key already exists: " + existing.get().getId());
+            }
+        }
         Order order = new Order();
+        order.setIdempotencyKey(key);
         order.setOrderNumber(orderNumberService.nextOrderNumber());
         order.setUserId(userId);
         order.setStatus(OrderStatus.PENDING);
@@ -753,8 +774,17 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse markPayment(UUID id, boolean paid) {
+    public OrderResponse markPayment(UUID id, boolean paid, java.math.BigDecimal paidAmountSom) {
         Order order = getOrder(id);
+        // M-10: to'lov callbackida kutilgan summa solishtiriladi — mos bo'lmasa
+        // PAID o'tkazilmaydi (409), order avvalgi holatida qoladi.
+        if (paid && paidAmountSom != null && order.getTotalAmount() != null
+                && paidAmountSom.compareTo(order.getTotalAmount()) != 0) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "Payment amount mismatch: expected " + order.getTotalAmount()
+                            + ", got " + paidAmountSom);
+        }
         order.setPaymentStatus(paid ? PaymentStatus.PAID : PaymentStatus.UNPAID);
         if (!paid && order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CANCELLED);

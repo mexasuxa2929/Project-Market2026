@@ -911,11 +911,14 @@ public class DeliveryService {
         eventRepository.save(event);
     }
 
+    private static final java.security.SecureRandom TRACK_RANDOM = new java.security.SecureRandom();
+
     private String nextTrackingCode() {
+        // M-9: 5 xona (10^5) → 10 xona (10^10) SecureRandom — brute-force yopiladi.
         String code;
         do {
-            int rand = ThreadLocalRandom.current().nextInt(10000, 100000);
-            code = "DLV-%d-%05d".formatted(Year.now().getValue(), rand);
+            long rand = TRACK_RANDOM.nextLong(10_000_000_000L);
+            code = "DLV-%d-%010d".formatted(Year.now().getValue(), rand);
         } while (deliveryRepository.findByTrackingCode(code).isPresent());
         return code;
     }

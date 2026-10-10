@@ -45,7 +45,7 @@ public class FeignClientInterceptor implements RequestInterceptor {
         if (path.startsWith("/internal/") && StringUtils.hasText(internalSecret)) {
             template.header(X_INTERNAL_SECRET, internalSecret);
         }
-        if (path.startsWith("/api/shops/internal/") && StringUtils.hasText(shopInternalApiKey)) {
+        if (path.startsWith("/internal/shop/") && StringUtils.hasText(shopInternalApiKey)) {
             template.header(X_INTERNAL_API_KEY, shopInternalApiKey);
         }
     }

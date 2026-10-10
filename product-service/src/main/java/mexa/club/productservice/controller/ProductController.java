@@ -469,6 +469,7 @@ public class ProductController {
     }
 
     @GetMapping("/export")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_VIEW', 'PRODUCT_MANAGE')")
     @Operation(
         summary = "Export products to Excel",
         description = "Exports the product catalog to an Excel file. Optionally filtered by category and/or active status."
@@ -486,6 +487,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}/stock-summary")
+    @PreAuthorize("hasAnyAuthority('PRODUCT_VIEW', 'PRODUCT_MANAGE')")
     @Operation(
         summary = "Get stock summary for a product",
         description = "Returns the aggregated warehouse stock information for the specified product, including total quantity on hand."

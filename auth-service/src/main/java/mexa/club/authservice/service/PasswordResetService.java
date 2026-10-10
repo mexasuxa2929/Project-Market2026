@@ -4,7 +4,10 @@ import mexa.club.authservice.config.PasswordResetProperties;
 import mexa.club.authservice.entity.PasswordResetToken;
 import mexa.club.authservice.entity.User;
 import mexa.club.authservice.repository.PasswordResetTokenRepository;
+import mexa.club.authservice.repository.RefreshTokenRepository;
 import mexa.club.authservice.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +23,15 @@ import java.util.NoSuchElementException;
 @Service
 public class PasswordResetService {
 
+    private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
+
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final PasswordResetProperties properties;
+    private final UserSessionService userSessionService;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public PasswordResetService(
@@ -32,27 +39,45 @@ public class PasswordResetService {
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             EmailService emailService,
-            PasswordResetProperties properties
+            PasswordResetProperties properties,
+            UserSessionService userSessionService,
+            RefreshTokenRepository refreshTokenRepository
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.properties = properties;
+        this.userSessionService = userSessionService;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Transactional
     public boolean forgotPassword(String rawEmail) {
         String email = normalizeEmail(rawEmail);
         return userRepository.findByEmailIgnoreCase(email).map(user -> {
+            // M-7: resend interval — oxirgi kod yuborilganiga kamida
+            // resendIntervalSeconds o'tmaguncha yangi kod yubormaymiz (bombardimondan himoya).
+            // Javob foydalanuvchi uchun farq qilmaydi (aynan shu "yuborildi" ko'rinishi).
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+            boolean resendSuppressed = passwordResetTokenRepository
+                    .findFirstByUserIdAndUsedFalseOrderByCreatedAtDesc(user.getId())
+                    .filter(t -> t.getCreatedAt().plusSeconds(properties.getResendIntervalSeconds()).isAfter(now))
+                    .isPresent();
+            if (resendSuppressed) {
+                log.debug("Password reset resend suppressed (interval) for user {}", user.getId());
+                return true;
+            }
+
             String rawCode = generateRawCode();
             passwordResetTokenRepository.deleteByUserIdAndUsedFalse(user.getId());
 
             PasswordResetToken token = new PasswordResetToken();
             token.setUserId(user.getId());
             token.setTokenHash(hash(rawCode));
-            token.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(properties.getTtlMinutes()));
+            token.setExpiresAt(now.plusMinutes(properties.getTtlMinutes()));
             token.setUsed(false);
+            token.setAttemptsUsed(0);
             passwordResetTokenRepository.save(token);
 
             emailService.sendPasswordResetCode(user.getEmail(), rawCode);
@@ -78,6 +103,11 @@ public class PasswordResetService {
 
         token.setUsed(true);
         passwordResetTokenRepository.save(token);
+
+        // M-8: parolni tiklagach eski sessiyalarni yopamiz — aks holda
+        // hisob o'g'irlanganida hujumchi refresh tokeni bilan ishlayveradi.
+        userSessionService.closeAll(user.getId());
+        refreshTokenRepository.revokeAllByUserId(user.getId());
     }
 
     @Transactional
@@ -93,9 +123,24 @@ public class PasswordResetService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Reset code is invalid or expired"));
 
-        return passwordResetTokenRepository
-                .findByUserIdAndTokenHashAndUsedFalseAndExpiresAtAfter(user.getId(), hash(normalizedCode), now)
+        PasswordResetToken token = passwordResetTokenRepository
+                .findFirstByUserIdAndUsedFalseOrderByCreatedAtDesc(user.getId())
+                .filter(t -> t.getExpiresAt().isAfter(now))
                 .orElseThrow(() -> new IllegalArgumentException("Reset code is invalid or expired"));
+
+        // M-7: necha marta urinish mumkinligini cheklash — cheksiz tirnoqlashga qarshi himoya.
+        if (token.getAttemptsUsed() >= properties.getMaxAttempts()) {
+            token.setUsed(true);
+            passwordResetTokenRepository.save(token);
+            throw new IllegalArgumentException("Reset code is invalid or expired");
+        }
+        token.setAttemptsUsed(token.getAttemptsUsed() + 1);
+        passwordResetTokenRepository.save(token);
+
+        if (!token.getTokenHash().equals(hash(normalizedCode))) {
+            throw new IllegalArgumentException("Reset code is invalid or expired");
+        }
+        return token;
     }
 
     private String generateRawCode() {
