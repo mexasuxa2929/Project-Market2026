@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import mexa.club.desktop_app.market.api.GatewayRealtimeHub
@@ -50,6 +51,7 @@ import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 data class TemplateRow(
     val id: String,
@@ -118,7 +120,7 @@ fun TemplatesScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) {
         // Realtime mutatsiyalar (templates) → avtomatik yangilash (T-H7)
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/templates") }.collect { reload() }
     }
 
     editTarget?.let { target ->

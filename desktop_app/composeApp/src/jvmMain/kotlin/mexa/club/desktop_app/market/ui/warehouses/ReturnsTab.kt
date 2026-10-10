@@ -444,6 +444,7 @@ private fun CreateReturnDialog(
                 loaded
             }
         }.onSuccess { products = it }
+            .onFailure { error = it.message ?: "Mahsulotlar yuklanmadi" }
     }
 
     fun save() {

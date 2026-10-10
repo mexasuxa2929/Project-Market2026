@@ -121,8 +121,8 @@ fun AddBrandDialog(
                 withContext(Dispatchers.IO) {
                     val body = buildString {
                         append("{")
-                        append("\"name\":\"${name.trim().replace("\"", "\\\"")}\",")
-                        if (description.isNotBlank()) append("\"description\":\"${description.trim().replace("\"", "\\\"")}\",")
+                        append("\"name\":\"${name.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (description.isNotBlank()) append("\"description\":\"${description.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         append("\"active\":$active")
                         append("}")
                     }

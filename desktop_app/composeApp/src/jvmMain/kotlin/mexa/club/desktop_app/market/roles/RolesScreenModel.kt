@@ -65,12 +65,9 @@ class RolesScreenModel(
         const val POLLING_INTERVAL_MS = 30_000L   // 30s fallback polling
     }
 
-    init {
-        startPolling()
-    }
-
+    // M-33: init'da abadiy polling YO'Q — ekran LifeCycle'iga bog'lanadi (RolesScreen stopPolling).
     /** Polling: har 30s da fon yangilanish (SSE ishlamasa ham ishlaydi). */
-    private fun startPolling() {
+    fun startPolling() {
         pollingJob?.cancel()
         pollingJob = screenModelScope.launch {
             while (isActive) {
@@ -78,6 +75,11 @@ class RolesScreenModel(
                 load()
             }
         }
+    }
+
+    fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
     }
 
     /**
@@ -224,6 +226,7 @@ class RolesScreenModel(
                     _uiState.update { it.copy(availablePermissions = r.value) }
                 }
                 is AuthApiResult.Err -> {
+                    _uiState.update { it.copy(error = r.message) }
                 }
             }
         }

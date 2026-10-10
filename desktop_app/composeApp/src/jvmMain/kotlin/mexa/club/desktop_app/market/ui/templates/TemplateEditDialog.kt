@@ -68,8 +68,8 @@ fun TemplateEditDialog(
             error = null
             val json = buildString {
                 append("{")
-                append("\"subject\":\"").append(subject.replace("\"", "\\\"").replace("\n", "\\n")).append("\",")
-                append("\"bodyTemplate\":\"").append(bodyTemplate.replace("\"", "\\\"").replace("\n", "\\n")).append("\",")
+                append("\"subject\":\"").append(subject.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\n", "\\n")).append("\",")
+                append("\"bodyTemplate\":\"").append(bodyTemplate.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\n", "\\n")).append("\",")
                 append("\"active\":").append(active)
                 append("}")
             }

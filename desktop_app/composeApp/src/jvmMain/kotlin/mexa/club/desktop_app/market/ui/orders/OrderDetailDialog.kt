@@ -58,6 +58,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import mexa.club.desktop_app.market.api.itemsOrContentArray
 
 private data class OrderItemRow(
     val productName: String,
@@ -153,7 +154,7 @@ fun OrderDetailDialog(
     suspend fun fetchHistory(): List<StatusHistoryRow> = withContext(Dispatchers.IO) {
         val text = ApiClient.get("/api/admin/orders/$orderId/history")
         val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObject(it) } ?: return@withContext emptyList()
-        val arr = data as? JsonArray ?: return@withContext emptyList()
+        val arr = data.itemsOrContentArray()
         arr.mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null
             StatusHistoryRow(
@@ -188,7 +189,7 @@ fun OrderDetailDialog(
                     val body = buildString {
                         append("{\"status\":\"").append(newStatus).append("\"")
                         if (reason.isNotBlank()) {
-                            append(",\"reason\":\"").append(reason.replace("\"", "\\\"")).append("\"")
+                            append(",\"reason\":\"").append(reason.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")).append("\"")
                         }
                         append("}")
                     }
@@ -205,10 +206,10 @@ fun OrderDetailDialog(
             savingNote = true
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val body = "{\"note\":\"${adminNoteText.replace("\"", "\\\"")}\"}"
+                    val body = "{\"note\":\"${adminNoteText.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"}"
                     ApiClient.put("/api/admin/orders/$orderId/admin-note", body)
                 }
-            }.onFailure { /* ignore */ }
+            }.onFailure { saveError = it.message ?: "Saqlash xatosi" }
             savingNote = false
         }
     }
@@ -218,7 +219,7 @@ fun OrderDetailDialog(
             saving = true
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val body = if (reason.isNotBlank()) "{\"reason\":\"${reason.replace("\"", "\\\"")}\"}" else "{}"
+                    val body = if (reason.isNotBlank()) "{\"reason\":\"${reason.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"}" else "{}"
                     ApiClient.post("/api/admin/orders/$orderId/refund", body)
                 }
             }.onSuccess { onUpdated() }

@@ -43,7 +43,7 @@ fun warehouseListToJson(list: List<WarehouseListData>): String {
 }
 
 fun esc(s: String): String =
-    s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"")
+    s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
 
 fun coordsToJson(coords: List<List<Double>>): String {
     val sb = StringBuilder("[")

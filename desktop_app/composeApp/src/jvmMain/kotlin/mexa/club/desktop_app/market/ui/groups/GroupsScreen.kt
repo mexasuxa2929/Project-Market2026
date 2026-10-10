@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,6 +66,7 @@ import mexa.club.desktop_app.market.api.GatewayRealtimeHub
 import mexa.club.desktop_app.market.api.jsonString
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 // ─── Models (GroupResponse / GroupDetailResponse / GroupMemberResponse) ───────
 
@@ -135,7 +137,7 @@ fun GroupsScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) {
         // Realtime mutatsiyalar → avtomatik yangilash
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/groups") }.collect { reload() }
     }
 
     // Guruhlar serverda to'liq keladi (pagination yo'q) — qidiruv lokal filtr

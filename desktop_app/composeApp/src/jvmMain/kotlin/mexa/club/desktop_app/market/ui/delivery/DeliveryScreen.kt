@@ -59,6 +59,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
@@ -194,6 +196,15 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) {
         runCatching { fetchCouriers() }
             .onSuccess { courierList = it }
+    }
+
+    var exportMsg by remember { mutableStateOf<String?>(null) }
+
+    // M-40: delivery realtime hodisalari → qayta yuklash
+    LaunchedEffect(Unit) {
+        mexa.club.desktop_app.market.api.GatewayRealtimeHub.events
+            .filter { it.contains("/deliveries") }
+            .collect { reload() }
     }
 
     detailTarget?.let { target ->
@@ -337,7 +348,8 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                                 val file = java.io.File(System.getProperty("user.home") + "/Downloads/deliveries_${java.time.LocalDate.now()}.csv")
                                 file.writeBytes(bytes)
                             }
-                        }
+                        }.onSuccess { exportMsg = "Saqlandi" }
+                            .onFailure { exportMsg = "Export xatosi: " + (it.message ?: it.toString()) }
                     }
                 },
                 modifier = Modifier
@@ -345,6 +357,9 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                     .size(40.dp),
             ) {
                 Icon(Icons.Default.Download, contentDescription = "Export CSV", tint = MexaWarehouseColors.indigoAccent)
+            }
+            exportMsg?.let { msg ->
+                Text(msg, fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
             }
         }
 

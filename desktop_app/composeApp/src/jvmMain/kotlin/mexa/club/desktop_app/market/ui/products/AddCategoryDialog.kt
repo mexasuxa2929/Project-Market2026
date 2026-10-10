@@ -122,9 +122,9 @@ fun AddCategoryDialog(
                 withContext(Dispatchers.IO) {
                     val body = buildString {
                         append("{")
-                        append("\"name\":\"${name.trim().replace("\"", "\\\"")}\",")
+                        append("\"name\":\"${name.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         if (description.isNotBlank())
-                            append("\"description\":\"${description.trim().replace("\"", "\\\"")}\",")
+                            append("\"description\":\"${description.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         if (selParentId.isNotBlank())
                             append("\"parentId\":\"$selParentId\",")
                         append("\"active\":$active")

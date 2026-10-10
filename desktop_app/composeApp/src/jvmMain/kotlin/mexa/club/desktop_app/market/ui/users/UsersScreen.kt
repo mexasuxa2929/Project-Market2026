@@ -37,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.filter
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,7 @@ import mexa.club.desktop_app.market.session.MarketSessionGate
 import mexa.club.desktop_app.market.users.UsersScreenModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun UsersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
@@ -77,6 +79,13 @@ fun UsersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
         vm.loadRoles()
         vm.loadUsers()
     }
+    // M-40: user realtime hodisalari
+    LaunchedEffect(Unit) {
+        mexa.club.desktop_app.market.api.GatewayRealtimeHub.events
+            .filter { it.contains("/users") || it.contains("/admin/users") }
+            .collect { vm.loadUsers() }
+    }
+
 
     var snackMessage by remember { mutableStateOf<String?>(null) }
     var detailTarget by remember { mutableStateOf<AdminUser?>(null) }

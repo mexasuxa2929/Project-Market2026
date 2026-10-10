@@ -36,6 +36,13 @@ private val WATCHED_RESOURCES = listOf(
     "/search",
 )
 
+/** M-40: SSE envelope'dan resurs nomini oladi (server normalizatsiyasi yoki path fallback). */
+fun extractRealtimeResource(envelopeJson: String): String? {
+    val root = ApiClient.parseJsonObject(envelopeJson) ?: return null
+    return (root["resource"] as? JsonPrimitive)?.content
+        ?: (root["path"] as? JsonPrimitive)?.content?.let { normalizeResourcePath(it) }
+}
+
 fun realtimeMutationAffectsSuperAdminDashboard(envelopeJson: String): Boolean {
     val root = ApiClient.parseJsonObject(envelopeJson) ?: return false
     val resource = (root["resource"] as? JsonPrimitive)?.content

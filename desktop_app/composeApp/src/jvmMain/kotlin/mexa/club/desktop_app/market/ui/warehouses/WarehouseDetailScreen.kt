@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,6 +102,7 @@ import mexa.club.desktop_app.market.ui.products.ProductRowData
 import mexa.club.desktop_app.market.ui.products.ProductViewDialog
 import mexa.club.desktop_app.market.ui.products.SimpleDatePickerDialog
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 // ─── Models ────────────────────────────────────────────────────────────────────
 
@@ -725,7 +727,7 @@ fun WarehouseDetailScreen(
 
     LaunchedEffect(Unit) {
         reload()
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect {
+        GatewayRealtimeHub.events.filter { it.contains("/warehouses") }.collect {
             syncTick++
             reload(silent = true)
         }

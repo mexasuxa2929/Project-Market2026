@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import mexa.club.desktop_app.market.api.GatewayRealtimeHub
@@ -59,6 +60,7 @@ import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 data class NotificationRow(
     val id: String,
@@ -171,7 +173,7 @@ fun NotificationsScreen(modifier: Modifier = Modifier, initialQuery: String = ""
 
     LaunchedEffect(Unit) {
         // Realtime NOTIFICATION_CREATED / admin mutatsiyalar → avtomatik yangilash (T-H7)
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/notifications") || it.contains("/templates") }.collect { reload() }
     }
 
     selected?.let { target ->

@@ -65,6 +65,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
@@ -149,6 +151,8 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    var exportMsg by remember { mutableStateOf<String?>(null) }
+
     fun exportCsv() {
         scope.launch {
             runCatching {
@@ -157,7 +161,8 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
                     val file = java.io.File(System.getProperty("user.home") + "/Downloads/couriers_${java.time.LocalDate.now()}.csv")
                     file.writeBytes(bytes)
                 }
-            }
+            }.onSuccess { exportMsg = "Saqlandi" }
+                .onFailure { exportMsg = "Export xatosi: " + (it.message ?: it.toString()) }
         }
     }
 
@@ -203,6 +208,13 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
             .collect { reload() }
     }
 
+    // M-40: courier realtime hodisalari → qayta yuklash
+    LaunchedEffect(Unit) {
+        mexa.club.desktop_app.market.api.GatewayRealtimeHub.events
+            .filter { it.contains("/couriers") }
+            .collect { reload() }
+    }
+
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -226,6 +238,9 @@ fun CouriersScreen(modifier: Modifier = Modifier) {
                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Export CSV")
+                }
+                exportMsg?.let { msg ->
+                    Text(msg, fontSize = 12.sp, color = MexaWarehouseColors.textMuted, modifier = Modifier.align(Alignment.CenterVertically))
                 }
                 Button(
                     onClick = { showAddDialog = true },

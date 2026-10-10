@@ -26,8 +26,8 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -50,9 +50,11 @@ object ApiClient {
 
     /**
      * Windows + CIO: parallel localhost so'rovlarda "Address already in use" chiqadi.
-     * JVM [Java] engine va ketma-ket GET buni bartaraf etadi.
+     * JVM [Java] engine buni bartaraf etadi. M-37: to'liq serial Mutex emas —
+     * kichik concurrency (Semaphore(4)): sekin export boshqa so'rovlarni 60sgacha
+     * bloklamaydi, lekin juda ko'p parallel ham cheklangan.
      */
-    private val httpGate = Mutex()
+    private val httpGate = kotlinx.coroutines.sync.Semaphore(4)
 
     val client: HttpClient = HttpClient(Java) {
         install(HttpTimeout) {
@@ -68,7 +70,9 @@ object ApiClient {
         install(HttpTimeout) {
             requestTimeoutMillis = Long.MAX_VALUE
             connectTimeoutMillis = 15_000
-            socketTimeoutMillis = Long.MAX_VALUE
+            // M-36: yarim ochiq TCP'da abadiy blok bo'lmasligi uchun.
+            // Server heartbeat 10-15s — 30s oqim bo'sh qolsa reconnect.
+            socketTimeoutMillis = 30_000
         }
     }
 
@@ -85,16 +89,21 @@ object ApiClient {
         if (path.startsWith("http")) path
         else "${resolveBaseUrl()}${if (path.startsWith("/")) path else "/$path"}"
 
-    suspend fun get(path: String): String = getWithRetry(path, attempts = 1)
+    suspend fun get(path: String): String = getWithRetry(path, attempts = 3)
 
-    suspend fun getBytes(path: String): ByteArray = httpGate.withLock {
+    suspend fun getBytes(path: String): ByteArray = httpGate.withPermit() {
         val response: HttpResponse = client.get(fullPath(path)) { authHeader() }
+        if (response.status.value == 401) {
+            SessionManager.clearGatewaySession()
+            UnauthorizedNotifier.notifyUnauthorized()
+            throw GatewayApiException(401, "Avtorizatsiya muddati tugagan")
+        }
         if (response.status.value !in 200..299) throw GatewayApiException(response.status.value, "HTTP ${response.status.value}")
         response.body<ByteArray>()
     }
 
     /** JSON body bilan PUT so'rov. IO dispatcher'da chaqiring. */
-    suspend fun put(path: String, jsonBody: String): String = httpGate.withLock {
+    suspend fun put(path: String, jsonBody: String): String = httpGate.withPermit() {
         val response: HttpResponse = client.put(fullPath(path)) {
             authHeader()
             contentType(ContentType.Application.Json)
@@ -134,7 +143,7 @@ object ApiClient {
     }
 
     /** DELETE so'rov. IO dispatcher'da chaqiring. */
-    suspend fun delete(path: String): String = httpGate.withLock {
+    suspend fun delete(path: String): String = httpGate.withPermit() {
         val response: HttpResponse = client.delete(fullPath(path)) {
             authHeader()
         }
@@ -152,7 +161,7 @@ object ApiClient {
     }
 
     /** Multipart PUT so'rov (product update with images). IO dispatcher'da chaqiring. */
-    suspend fun putMultipart(path: String, jsonPart: String, files: List<Pair<String, ByteArray>>): String = httpGate.withLock {
+    suspend fun putMultipart(path: String, jsonPart: String, files: List<Pair<String, ByteArray>>): String = httpGate.withPermit() {
         val response: HttpResponse = client.put(fullPath(path)) {
             authHeader()
             setBody(
@@ -197,7 +206,7 @@ object ApiClient {
         path: String,
         jsonPart: String,
         files: List<Pair<String, ByteArray>>,
-    ): String = httpGate.withLock {
+    ): String = httpGate.withPermit() {
         val response: HttpResponse = client.post(fullPath(path)) {
             authHeader()
             setBody(
@@ -241,7 +250,7 @@ object ApiClient {
     }
 
     /** JSON body bilan POST so'rov. IO dispatcher'da chaqiring. */
-    suspend fun post(path: String, jsonBody: String): String = httpGate.withLock {
+    suspend fun post(path: String, jsonBody: String): String = httpGate.withPermit() {
         val response: HttpResponse = client.post(fullPath(path)) {
             authHeader()
             contentType(ContentType.Application.Json)
@@ -261,7 +270,7 @@ object ApiClient {
     }
 
     /** Bitta faylni multipart "file" parametr sifatida yuborish. IO dispatcher'da chaqiring. */
-    suspend fun uploadFile(path: String, fileName: String, bytes: ByteArray): String = httpGate.withLock {
+    suspend fun uploadFile(path: String, fileName: String, bytes: ByteArray): String = httpGate.withPermit() {
         val mime = when {
             fileName.endsWith(".png",  ignoreCase = true) -> "image/png"
             fileName.endsWith(".svg",  ignoreCase = true) -> "image/svg+xml"
@@ -312,7 +321,7 @@ object ApiClient {
         throw last ?: GatewayApiException(0, "So‘rov bajarilmadi: $path")
     }
 
-    private suspend fun executeGet(path: String): String = httpGate.withLock {
+    private suspend fun executeGet(path: String): String = httpGate.withPermit() {
         val response: HttpResponse = client.get(fullPath(path)) {
             authHeader()
         }

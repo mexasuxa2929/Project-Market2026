@@ -44,6 +44,8 @@ import mexa.club.desktop_app.market.roles.RolesScreenModel
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 
 @Composable
 fun RolesScreen(modifier: Modifier = Modifier) {
@@ -56,8 +58,14 @@ fun RolesScreen(modifier: Modifier = Modifier) {
         MarketSessionGate.awaitReady()
         vm.loadPermissions()   // ruxsatlar faqat bir marta yuklanadi, shuning uchun shu yerda ham chaqiramiz
         vm.load()
-        GatewayRealtimeHub.dashboardRefresh.collect {
-            vm.onRealtimeRefreshTick()
+        // M-33: polling shu ekranning LifeCycle'iga bog'lanadi — chiqqanda to'xtaydi
+        vm.startPolling()
+        try {
+            GatewayRealtimeHub.events.filter { it.contains("/roles") }.collect {
+                vm.onRealtimeRefreshTick()
+            }
+        } finally {
+            vm.stopPolling()
         }
     }
 

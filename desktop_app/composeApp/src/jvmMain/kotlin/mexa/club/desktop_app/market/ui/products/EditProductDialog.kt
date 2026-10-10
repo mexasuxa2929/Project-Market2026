@@ -521,43 +521,43 @@ fun EditProductDialog(
                     val tagsJson = tags.joinToString(",") { "\"$it\"" }
                     val body = buildString {
                         append("{")
-                        append("\"name\":\"${name.trim().replace("\"", "\\\"")}\",")
-                        append("\"barcode\":\"${barcode.trim().replace("\"", "\\\"")}\",")
-                        if (colorValue.isNotBlank()) append("\"color\":\"${colorValue.trim().replace("\"", "\\\"")}\",")
-                        if (colorCode.isNotBlank()) append("\"colorCode\":\"${colorCode.trim().replace("\"", "\\\"")}\",")
-                        if (manufacturerName.isNotBlank()) append("\"manufacturerName\":\"${manufacturerName.trim().replace("\"", "\\\"")}\",")
+                        append("\"name\":\"${name.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        append("\"barcode\":\"${barcode.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (colorValue.isNotBlank()) append("\"color\":\"${colorValue.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (colorCode.isNotBlank()) append("\"colorCode\":\"${colorCode.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (manufacturerName.isNotBlank()) append("\"manufacturerName\":\"${manufacturerName.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         if (selCatId.isNotBlank()) append("\"categoryId\":\"$selCatId\",")
                         if (selBrandId.isNotBlank()) append("\"brandId\":\"$selBrandId\",")
-                        append("\"unit\":\"${unit.replace("\"", "\\\"")}\",")
+                        append("\"unit\":\"${unit.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         append("\"leadTimeDays\":${leadTimeDays.toIntOrNull() ?: 0},")
                         append("\"minStock\":${minStock.toIntOrNull() ?: 0},")
                         append("\"weight\":${weight.toDoubleOrNull() ?: 0.0},")
                         append("\"length\":${dimL.toDoubleOrNull() ?: 0.0},")
                         append("\"width\":${dimW.toDoubleOrNull() ?: 0.0},")
                         append("\"height\":${dimH.toDoubleOrNull() ?: 0.0},")
-                        if (packageType.isNotBlank()) append("\"packageType\":\"${packageType.trim().replace("\"", "\\\"")}\",")
+                        if (packageType.isNotBlank()) append("\"packageType\":\"${packageType.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         append("\"fragile\":$fragile,")
                         append("\"active\":$active,")
                         append("\"featured\":$featured,")
                         append("\"digital\":$digital,")
                         append("\"status\":\"$status\",")
-                        if (description.isNotBlank()) append("\"description\":\"${description.trim().replace("\\", "\\\\").replace("\"", "\\\"")}\",")
-                        if (shortDescription.isNotBlank()) append("\"shortDescription\":\"${shortDescription.trim().replace("\"", "\\\"")}\",")
-                        if (sku.isNotBlank()) append("\"sku\":\"${sku.trim().replace("\"", "\\\"")}\",")
-                        if (slug.isNotBlank()) append("\"slug\":\"${slug.trim().lowercase().replace("\"", "\\\"")}\",")
-                        if (metaDescription.isNotBlank()) append("\"metaDescription\":\"${metaDescription.trim().replace("\"", "\\\"")}\",")
-                        if (material.isNotBlank()) append("\"material\":\"${material.trim().replace("\"", "\\\"")}\",")
-                        if (countryOfOrigin.isNotBlank()) append("\"countryOfOrigin\":\"${countryOfOrigin.trim().replace("\"", "\\\"")}\",")
+                        if (description.isNotBlank()) append("\"description\":\"${description.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (shortDescription.isNotBlank()) append("\"shortDescription\":\"${shortDescription.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (sku.isNotBlank()) append("\"sku\":\"${sku.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (slug.isNotBlank()) append("\"slug\":\"${slug.trim().lowercase().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (metaDescription.isNotBlank()) append("\"metaDescription\":\"${metaDescription.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (material.isNotBlank()) append("\"material\":\"${material.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                        if (countryOfOrigin.isNotBlank()) append("\"countryOfOrigin\":\"${countryOfOrigin.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                         val wm = warrantyMonths.toIntOrNull() ?: 0
                         if (wm > 0) append("\"warrantyMonths\":$wm,")
                         // Tarjimalar
-                        append("\"nameTranslations\":{\"uz\":\"${nameUz.trim().replace("\"", "\\\"")}\",\"ru\":\"${nameRu.trim().replace("\"", "\\\"")}\"},")
-                        append("\"descriptionTranslations\":{\"uz\":\"${descUz.trim().replace("\\", "\\\\").replace("\"", "\\\"")}\",\"ru\":\"${descRu.trim().replace("\\", "\\\\").replace("\"", "\\\"")}\"},")
-                        append("\"shortDescriptionTranslations\":{\"uz\":\"${shortDescUz.trim().replace("\"", "\\\"")}\",\"ru\":\"${shortDescRu.trim().replace("\"", "\\\"")}\"},")
-                        append("\"materialTranslations\":{\"uz\":\"${materialUz.trim().replace("\"", "\\\"")}\",\"ru\":\"${materialRu.trim().replace("\"", "\\\"")}\"},")
-                        append("\"countryOfOriginTranslations\":{\"uz\":\"${countryUz.trim().replace("\"", "\\\"")}\",\"ru\":\"${countryRu.trim().replace("\"", "\\\"")}\"},")
-                        append("\"manufacturerNameTranslations\":{\"uz\":\"${manufacturerUz.trim().replace("\"", "\\\"")}\",\"ru\":\"${manufacturerRu.trim().replace("\"", "\\\"")}\"},")
-                        val colorsJson = colors.joinToString(",") { "\"${it.replace("\"", "\\\"")}\"" }
+                        append("\"nameTranslations\":{\"uz\":\"${nameUz.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${nameRu.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        append("\"descriptionTranslations\":{\"uz\":\"${descUz.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${descRu.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        append("\"shortDescriptionTranslations\":{\"uz\":\"${shortDescUz.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${shortDescRu.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        append("\"materialTranslations\":{\"uz\":\"${materialUz.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${materialRu.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        append("\"countryOfOriginTranslations\":{\"uz\":\"${countryUz.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${countryRu.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        append("\"manufacturerNameTranslations\":{\"uz\":\"${manufacturerUz.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"ru\":\"${manufacturerRu.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"},")
+                        val colorsJson = colors.joinToString(",") { "\"${it.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"" }
                         append("\"colors\":[$colorsJson],")
                         append("\"tags\":[$tagsJson]")
                         append("}")
@@ -583,7 +583,7 @@ fun EditProductDialog(
                     // Rasmlar tartibini saqlash
                     val activeOrdered = existingImageUrls.filter { it !in deletedUrls }
                     if (activeOrdered.isNotEmpty()) {
-                        val urlsJson = activeOrdered.joinToString(",") { "\"${it.replace("\"", "\\\"")}\"" }
+                        val urlsJson = activeOrdered.joinToString(",") { "\"${it.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"" }
                         runCatching {
                             ApiClient.put("/api/products/${activeProductId}/images/reorder", "{\"urls\":[$urlsJson]}")
                         }.onFailure { e -> warnings += "Rasmlar tartibi saqlanmadi: ${e.message ?: "noma'lum xato"}" }
@@ -1011,13 +1011,13 @@ fun EditProductDialog(
                                                                     withContext(Dispatchers.IO) {
                                                                         val body = buildString {
                                                                             append("{")
-                                                                            append("\"name\":\"${name.trim().replace("\"", "\\\"")}\",")
-                                                                            append("\"barcode\":\"${newColorBarcode.trim().replace("\"", "\\\"")}\",")
-                                                                            append("\"color\":\"${newColorName.trim().replace("\"", "\\\"")}\",")
-                                                                            if (newColorCode.isNotBlank()) append("\"colorCode\":\"${newColorCode.trim().replace("\"", "\\\"")}\",")
+                                                                            append("\"name\":\"${name.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                                                                            append("\"barcode\":\"${newColorBarcode.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                                                                            append("\"color\":\"${newColorName.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                                                                            if (newColorCode.isNotBlank()) append("\"colorCode\":\"${newColorCode.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                                                                             if (selCatId.isNotBlank()) append("\"categoryId\":\"$selCatId\",")
                                                                             if (selBrandId.isNotBlank()) append("\"brandId\":\"$selBrandId\",")
-                                                                            append("\"unit\":\"${unit.replace("\"", "\\\"")}\",")
+                                                                            append("\"unit\":\"${unit.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                                                                             append("\"active\":true,")
                                                                             append("\"status\":\"$status\"")
                                                                             append("}")

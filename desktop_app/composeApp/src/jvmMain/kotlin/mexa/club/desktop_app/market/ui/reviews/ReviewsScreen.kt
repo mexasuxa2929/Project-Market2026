@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import mexa.club.desktop_app.market.api.GatewayRealtimeHub
@@ -59,6 +60,7 @@ import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -118,7 +120,7 @@ fun ReviewsScreen(modifier: Modifier = Modifier) {
 
     // Realtime mutatsiyalar (reviews) → avtomatik yangilash (T-H7)
     LaunchedEffect(Unit) {
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { refreshKey++ }
+        GatewayRealtimeHub.events.filter { it.contains("/reviews") }.collect { refreshKey++ }
     }
 
     // ── Delete dialog ─────────────────────────────────────────────────────────

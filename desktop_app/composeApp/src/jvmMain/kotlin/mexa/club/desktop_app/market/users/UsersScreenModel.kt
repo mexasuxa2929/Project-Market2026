@@ -54,6 +54,7 @@ class UsersScreenModel(
                     _uiState.update { it.copy(assignableRoles = r.value) }
                 }
                 is AuthApiResult.Err -> {
+                    _uiState.update { it.copy(error = r.message) }
                 }
             }
         }
@@ -101,9 +102,16 @@ class UsersScreenModel(
         }
     }
 
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** M-41: sahifa reset + 300ms debounce (har harfda API so'rovi ketmasligi uchun). */
     fun updateSearch(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        loadUsers()
+        searchJob?.cancel()
+        searchJob = screenModelScope.launch {
+            kotlinx.coroutines.delay(300)
+            _uiState.update { it.copy(searchQuery = query, currentPage = 1) }
+            loadUsers()
+        }
     }
 
     /** Backenddan kelgan rol kodi ("ROLE_ADMIN" va hokazo) yoki null — to'g'ridan-to'g'ri serverga uzatiladi. */

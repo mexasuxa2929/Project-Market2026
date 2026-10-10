@@ -25,6 +25,11 @@ object GatewayRealtimeHub {
     private val _dashboardRefresh = MutableSharedFlow<Unit>(replay = 1, extraBufferCapacity = 1)
     val dashboardRefresh: SharedFlow<Unit> = _dashboardRefresh.asSharedFlow()
 
+    // M-40: resurs bo'yicha hodisalar — har ekran faqat o'zini tinglaydi.
+    // replay=0 → ochilishda darhol qo'shimcha reload yo'q (eski drop(1) kerak emas).
+    private val _events = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 8)
+    val events: SharedFlow<String> = _events.asSharedFlow()
+
     @Volatile
     private var lastDashboardRefreshEmitMs: Long = 0L
 
@@ -58,6 +63,8 @@ object GatewayRealtimeHub {
         if (listenerJob?.isActive == true) return
         listenerJob = scope.launch {
             MarketSessionGate.awaitReady()
+            // M-36: eksponensial backoff — 401/timeout'da ham doimiy 4s emas.
+            var backoff = 1_000L
             while (isActive) {
                 // Agar sessiya yopilgan bo'lsa (logout), qayta urinishsiz to'xtash
                 if (!MarketSessionGate.ready.value) {
@@ -66,20 +73,27 @@ object GatewayRealtimeHub {
                 }
                 try {
                     ApiClient.consumeServerSentEvents("/api/realtime/stream") { raw ->
-                        if (realtimeMutationAffectsSuperAdminDashboard(raw)) {
-                            emitRefreshThrottled()
+                        val resource = extractRealtimeResource(raw)
+                        if (resource != null) {
+                            // M-40: resurs nomini yuborish (ekranlar filter qiladi)
+                            _events.tryEmit(resource)
+                            if (realtimeMutationAffectsSuperAdminDashboard(raw)) {
+                                emitRefreshThrottled()
+                            }
                         }
                     }
                     // Server kanalni yopdi (yoki 200 bo'sh javob) — zudlik bilan
                     // qayta ulanish hot-loop hosil qiladi (audit T-H2), qisqa pauza.
+                    backoff = 1_000L
                     delay(1_000)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     // Non-2xx/401/socket xatlari: sessiya yopilgan bo'lsa darhol
-                    // to'xtash, aks holda 4s kutib qayta urinish
+                    // to'xtash, aks holda backoff (1s -> 30s) kutib qayta urinish.
                     if (!isActive || !MarketSessionGate.ready.value) break
-                    delay(4_000)
+                    delay(backoff)
+                    backoff = (backoff * 2).coerceAtMost(30_000L)
                 }
             }
         }
@@ -88,5 +102,8 @@ object GatewayRealtimeHub {
     fun stop() {
         listenerJob?.cancel()
         listenerJob = null
+        // M-36: logout'dan keyin trailing emit qilmasligi uchun.
+        trailingRefreshJob?.cancel()
+        trailingRefreshJob = null
     }
 }

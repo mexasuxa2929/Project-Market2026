@@ -148,9 +148,9 @@ fun DeliveryDetailDialog(
             savingNote = true
             runCatching {
                 withContext(Dispatchers.IO) {
-                    ApiClient.put("/api/admin/deliveries/$deliveryId/note", "{\"note\":\"${editNote.replace("\"", "\\\"")}\"}")
+                    ApiClient.put("/api/admin/deliveries/$deliveryId/note", "{\"note\":\"${editNote.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"}")
                 }
-            }
+            }.onFailure { error = it.message ?: "Saqlash xatosi" }
             savingNote = false
         }
     }
@@ -158,7 +158,7 @@ fun DeliveryDetailDialog(
     fun returnDelivery() {
         scope.launch {
             savingAction = true; actionError = null
-            val body = if (editNote.isNotBlank()) "{\"note\":\"${editNote.replace("\"", "\\\"")}\"}" else "{}"
+            val body = if (editNote.isNotBlank()) "{\"note\":\"${editNote.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"}" else "{}"
             runCatching {
                 withContext(Dispatchers.IO) { ApiClient.post("/api/admin/deliveries/$deliveryId/return", body) }
             }.onSuccess { onUpdated() }

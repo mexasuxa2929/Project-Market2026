@@ -118,6 +118,12 @@ class DashboardScreenModel(
         }
     }
 
+    /** M-34: ekrandan chiqqanda polling to'xtaydi (fon so'rovlari yo'qoladi). */
+    fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
     fun onRealtimeRefreshTick() {
         screenModelScope.launch {
             MarketSessionGate.awaitReady()

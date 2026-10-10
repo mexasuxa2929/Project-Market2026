@@ -168,9 +168,9 @@ fun CourierFormDialog(
             val json = buildString {
                 append("{")
                 append("\"userId\":\"$uid\",")
-                append("\"name\":\"${name.trim().replace("\"", "\\\"")}\",")
-                append("\"phone\":\"${phone.trim().replace("\"", "\\\"")}\",")
-                append("\"region\":\"${regionValue.trim().replace("\"", "\\\"")}\",")
+                append("\"name\":\"${name.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                append("\"phone\":\"${phone.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
+                append("\"region\":\"${regionValue.trim().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",")
                 append("\"active\":$active")
                 append("}")
             }

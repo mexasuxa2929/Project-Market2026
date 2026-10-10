@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +71,7 @@ import java.math.BigDecimal
 import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.flow.collect
 
 private const val PRICING = "/api/admin/pricing"
 
@@ -164,7 +166,7 @@ fun DeliveryPricingScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) {
         reload()
         // Realtime mutatsiyalar (pricing/types/surcharges/zones) → avtomatik yangilash (T-H7)
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/delivery") || it.contains("/pricing") }.collect { reload() }
     }
 
     // ─── Dialoglar ─────────────────────────────────────────────────────────

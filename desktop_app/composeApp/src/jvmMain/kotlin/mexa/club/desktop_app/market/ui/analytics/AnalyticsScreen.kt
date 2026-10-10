@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +67,7 @@ import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 import java.util.Locale
+import kotlinx.coroutines.flow.collect
 
 private const val K_SUMMARY = "summary"
 private const val K_REVENUE = "revenue"
@@ -124,7 +126,7 @@ fun AnalyticsScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) { reload() }
     LaunchedEffect(Unit) {
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/analytics") }.collect { reload() }
     }
 
     val hasData = summary != null || revenue != null || orders != null ||

@@ -92,7 +92,7 @@ sealed class PricingField {
 }
 
 private fun esc(s: String): String =
-    s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+    s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\n", "\\n")
 
 /** Fieldlar → JSON body (bo'sh ixtiyoriy maydonlar null sifatida yuboriladi — PUT merge'da eski qiymat tozalanadi). */
 fun buildJson(fields: List<PricingField>): String =

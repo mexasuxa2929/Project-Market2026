@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,6 +77,7 @@ import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.api.totalElementsString
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 // ─── Model ─────────────────────────────────────────────────────────────────────
 
@@ -119,7 +121,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotBlank()) searchQuery = initialQuery
     }
-    var statusFilter by remember { mutableStateOf("Barcha holatlar") }
+    var statusFilter by remember { mutableStateOf("__all__") }
     var gridView by remember { mutableStateOf(true) }
     var statusExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -138,9 +140,10 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
             if (searchQuery.isNotBlank()) {
                 add("q=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
             }
+            // M-42: sentinel ("__all__") ko'rinadigan matndan ajratilgan
             when (statusFilter) {
-                "Faol" -> add("active=true")
-                "Nofaol" -> add("active=false")
+                "ACTIVE" -> add("active=true")
+                "INACTIVE" -> add("active=false")
             }
         }
         val whText = ApiClient.get("/api/warehouses?${params.joinToString("&")}")
@@ -240,7 +243,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
 
     LaunchedEffect(Unit) {
         // Real-time: boshqa klient/mutatsiya → SSE → jim yangilash (spinner chiqmaydi)
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect {
+        GatewayRealtimeHub.events.filter { it.contains("/warehouses") }.collect {
             refreshAfterEdit()
         }
     }
@@ -278,7 +281,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     }
 
     // Filtering server tomonida (T-H4) — `warehouses` joriy sahifaning o'zi
-    val statusOptions = listOf("Barcha holatlar", "Faol", "Nofaol")
+    val statusOptions = listOf("__all__" to "Barcha holatlar", "ACTIVE" to "Faol", "INACTIVE" to "Nofaol")
     val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
 
@@ -427,7 +430,7 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
             )
             ExposedDropdownMenuBox(expanded = statusExpanded, onExpandedChange = { statusExpanded = it }) {
                 OutlinedTextField(
-                    value = statusFilter,
+                    value = statusOptions.firstOrNull { it.first == statusFilter }?.second ?: statusFilter,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(AppStrings.tableStatus(appLanguage())) },
@@ -436,8 +439,8 @@ fun WarehousesScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
                     shape = RoundedCornerShape(8.dp),
                 )
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
-                    statusOptions.forEach { opt ->
-                        DropdownMenuItem(text = { Text(opt) }, onClick = { statusFilter = opt; statusExpanded = false; page = 0 })
+                    statusOptions.forEach { (value, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = { statusFilter = value; statusExpanded = false; page = 0 })
                     }
                 }
             }

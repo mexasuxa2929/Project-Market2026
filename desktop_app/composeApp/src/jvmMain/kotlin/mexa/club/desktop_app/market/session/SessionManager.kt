@@ -37,5 +37,8 @@ suspend fun bootstrapSessionFromGateway(accessToken: String, refresh: String?) {
         val data = ApiClient.dataObject(env) ?: return@runCatching
         val user = ApiClient.json().decodeFromJsonElement(UserDto.serializer(), data)
         SessionManager.setSession(accessToken, refresh, user)
+    }.onFailure {
+        // M-38: jim yutish emas — profil yuklanmasa ham log qoladi
+        System.err.println("[bootstrapSession] profile load failed: " + it.message)
     }
 }

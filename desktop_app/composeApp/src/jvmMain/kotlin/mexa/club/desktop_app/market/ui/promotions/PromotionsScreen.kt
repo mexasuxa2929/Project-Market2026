@@ -70,6 +70,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,6 +91,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.flow.collect
 
 // ─── Models (PromotionResponse / PromotionStatsResponse / PromotionUsage) ─────
 
@@ -261,7 +263,7 @@ fun PromotionsScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) {
         // Realtime mutatsiyalar → avtomatik yangilash
-        GatewayRealtimeHub.dashboardRefresh.drop(1).collect { reload() }
+        GatewayRealtimeHub.events.filter { it.contains("/promotions") }.collect { reload() }
     }
 
     if (createOpen) {

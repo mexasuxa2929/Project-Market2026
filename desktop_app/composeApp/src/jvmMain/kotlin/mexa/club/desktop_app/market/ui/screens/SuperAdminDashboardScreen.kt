@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,8 +56,11 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
     val vm: DashboardScreenModel = koinInject()
     val ui by vm.state.collectAsState()
 
-    LaunchedEffect(vm) {
+    // M-34: polling ekran LifeCycle'iga bog'lanadi — Products boshqa ekraniga
+    // o'tganda 10s da bir 4 ta API so'rovi davom etmaydi.
+    DisposableEffect(vm) {
         vm.startAfterSessionReady()
+        onDispose { vm.stopPolling() }
     }
 
     LaunchedEffect(vm) {

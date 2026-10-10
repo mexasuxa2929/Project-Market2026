@@ -110,7 +110,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
         scope.launch {
             saving = true
-            val json = "{\"oldPassword\":\"${oldPassword.replace("\"", "\\\"")}\",\"newPassword\":\"${newPassword.replace("\"", "\\\"")}\"}"
+            val json = "{\"oldPassword\":\"${oldPassword.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\",\"newPassword\":\"${newPassword.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\"}"
             val result = withContext(Dispatchers.IO) {
                 runCatching { ApiClient.put("/api/admin/users/$uid/password", json) }
             }

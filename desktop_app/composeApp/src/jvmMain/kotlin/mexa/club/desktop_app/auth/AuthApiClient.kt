@@ -294,7 +294,7 @@ class AuthApiClient(
         withContext(Dispatchers.IO) {
             val body = if (reason.isNullOrBlank()) "{}"
             else {
-                val encoded = reason.trim().replace("\\", "\\\\").replace("\"", "\\\"")
+                val encoded = reason.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
                 """{"reason":"$encoded"}"""
             }
             val token = ensureFreshAccessToken() ?: accessToken

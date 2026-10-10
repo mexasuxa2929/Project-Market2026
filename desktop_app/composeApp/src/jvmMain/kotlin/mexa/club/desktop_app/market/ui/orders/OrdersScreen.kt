@@ -63,6 +63,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import mexa.club.desktop_app.market.api.ApiClient
 import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
@@ -172,22 +174,23 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotBlank()) searchQuery = initialQuery
     }
-    var statusFilter by remember { mutableStateOf("Barcha holatlar") }
+    var statusFilter by remember { mutableStateOf("__all__") }
     var statusExpanded by remember { mutableStateOf(false) }
-    var paymentFilter by remember { mutableStateOf("Barcha to'lovlar") }
+    var paymentFilter by remember { mutableStateOf("__all__") }
     var paymentExpanded by remember { mutableStateOf(false) }
     var selectedOrder by remember { mutableStateOf<OrderRow?>(null) }
     var page by remember { mutableStateOf(0) }
     var pageSize by remember { mutableStateOf(20) }
     // Server pagination (T-H4): jami soni serverdan
     var totalElements by remember { mutableStateOf(0L) }
+    var exportMsg by remember { mutableStateOf<String?>(null) }
 
     suspend fun fetchOrders(): Pair<List<OrderRow>, Long> = withContext(Dispatchers.IO) {
         val params = buildList {
             add("page=$page")
             add("size=$pageSize")
-            if (statusFilter != "Barcha holatlar") add("status=$statusFilter")
-            if (paymentFilter != "Barcha to'lovlar") add("paymentStatus=$paymentFilter")
+            if (statusFilter != "__all__") add("status=$statusFilter")
+            if (paymentFilter != "__all__") add("paymentStatus=$paymentFilter")
             if (searchQuery.isNotBlank()) {
                 add("search=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
             }
@@ -260,6 +263,13 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
         reload()
     }
 
+    // M-40: order realtime hodisalari → qayta yuklash
+    LaunchedEffect(Unit) {
+        mexa.club.desktop_app.market.api.GatewayRealtimeHub.events
+            .filter { it.contains("/orders") }
+            .collect { reload() }
+    }
+
     selectedOrder?.let { sel ->
         OrderDetailDialog(
             orderId = sel.id,
@@ -271,8 +281,8 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
         )
     }
 
-    val statusOptions = listOf("Barcha holatlar") + ORDER_STATUS_OPTIONS
-    val paymentOptions = listOf("Barcha to'lovlar", "PAID", "UNPAID", "REFUNDED")
+    val statusOptions = listOf("__all__") + ORDER_STATUS_OPTIONS
+    val paymentOptions = listOf("__all__", "PAID", "UNPAID", "REFUNDED")
     // Filtrlar server tomonida qo'llanadi (T-H4) — `orders` joriy sahifaning o'zi
     val totalPages = if (totalElements == 0L) 1 else ((totalElements + pageSize - 1) / pageSize).toInt()
     val safePage = page.coerceIn(0, totalPages - 1)
@@ -342,7 +352,7 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
             )
             ExposedDropdownMenuBox(expanded = statusExpanded, onExpandedChange = { statusExpanded = it }) {
                 OutlinedTextField(
-                    value = if (statusFilter == "Barcha holatlar") statusFilter else orderStatusLabel(statusFilter),
+                    value = if (statusFilter == "__all__") "Barcha holatlar" else orderStatusLabel(statusFilter),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(AppStrings.tableStatus(appLanguage())) },
@@ -353,7 +363,7 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
                 ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
                     statusOptions.forEach { opt ->
                         DropdownMenuItem(
-                            text = { Text(if (opt == "Barcha holatlar") opt else orderStatusLabel(opt)) },
+                            text = { Text(if (opt == "__all__") "Barcha holatlar" else orderStatusLabel(opt)) },
                             onClick = { statusFilter = opt; statusExpanded = false; page = 0 },
                         )
                     }
@@ -362,7 +372,7 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
             ExposedDropdownMenuBox(expanded = paymentExpanded, onExpandedChange = { paymentExpanded = it }) {
                 OutlinedTextField(
                     value = when (paymentFilter) {
-                        "Barcha to'lovlar" -> "Barcha to'lovlar"
+                        "__all__" -> "Barcha to'lovlar"
                         "PAID" -> "To'langan"
                         "UNPAID" -> "To'lanmagan"
                         "REFUNDED" -> "Qaytarilgan"
@@ -378,7 +388,7 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
                 ExposedDropdownMenu(expanded = paymentExpanded, onDismissRequest = { paymentExpanded = false }) {
                     paymentOptions.forEach { opt ->
                         val label = when (opt) {
-                            "Barcha to'lovlar" -> opt
+                            "__all__" -> "Barcha to'lovlar"
                             "PAID" -> "To'langan"
                             "UNPAID" -> "To'lanmagan"
                             "REFUNDED" -> "Qaytarilgan"
@@ -400,7 +410,8 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
                                 val file = java.io.File(System.getProperty("user.home") + "/Downloads/orders_${java.time.LocalDate.now()}.csv")
                                 file.writeBytes(bytes)
                             }
-                        }
+                        }.onSuccess { exportMsg = "Saqlandi" }
+                            .onFailure { exportMsg = "Export xatosi: " + (it.message ?: it.toString()) }
                     }
                 },
                 modifier = Modifier
@@ -408,6 +419,9 @@ fun OrdersScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
                     .size(40.dp),
             ) {
                 Icon(Icons.Default.Download, contentDescription = "Export CSV", tint = MexaWarehouseColors.indigoAccent)
+            }
+            exportMsg?.let { msg ->
+                Text(msg, fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
             }
         }
 

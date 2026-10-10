@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,6 +90,7 @@ import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
 import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
+import kotlinx.coroutines.flow.collect
 
 // ─── Data models ───────────────────────────────────────────────────────────────
 
@@ -263,6 +265,14 @@ fun ProductsScreen(modifier: Modifier = Modifier, initialQuery: String = "") {
          .onFailure { error = it.message ?: "Xatolik" }
         loading = false
     }
+
+    // M-40: product realtime hodisalari
+    LaunchedEffect(Unit) {
+        mexa.club.desktop_app.market.api.GatewayRealtimeHub.events
+            .filter { it.contains("/products") || it.contains("/product") }
+            .collect { refreshKey++ }
+    }
+
 
     // ── Fetch categories + brands once ─────────────────────────────────────────
     LaunchedEffect(Unit) {
