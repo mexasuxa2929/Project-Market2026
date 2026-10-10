@@ -44,7 +44,14 @@ class ReviewRepository(private val api: ReviewApiService) {
         runCatching { api.getMyReview(productId) }
             .fold(
                 onSuccess = { emit(Result.success(it.data)) },
-                onFailure = { emit(Result.success(null)) }  // 404 = review yo'q
+                onFailure = { e ->
+                    // M-58: faqat 404 "review yo'q"; boshqa xato — xato sifatida o'tadi
+                    if (e is retrofit2.HttpException && e.code() == 404) {
+                        emit(Result.success(null))
+                    } else {
+                        emit(Result.failure(e))
+                    }
+                }
             )
     }.flowOn(Dispatchers.IO)
 

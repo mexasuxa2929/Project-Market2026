@@ -42,6 +42,10 @@ class HomeViewModel(
     private val _recommended = MutableStateFlow<List<RecommendedProduct>>(emptyList())
     val recommended: StateFlow<List<RecommendedProduct>> = _recommended.asStateFlow()
 
+    // M-58: kategoriya/tavsiya yuklash xati (skeleton cheksiz aylanmasligi uchun)
+    private val _loadError = MutableStateFlow<String?>(null)
+    val loadError: StateFlow<String?> = _loadError.asStateFlow()
+
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
 
@@ -178,7 +182,15 @@ class HomeViewModel(
 
     private suspend fun loadCategories() {
         repository.getCategories().collect { result ->
-            result.onSuccess { _categories.value = it }
+            result.onSuccess {
+                _categories.value = it
+                if (it.isNotEmpty()) _loadError.value = null
+            }
+            result.onFailure { e ->
+                if (_categories.value.isEmpty()) {
+                    _loadError.value = e.message ?: "Kategoriyalarni yuklashda xatolik"
+                }
+            }
         }
     }
 
@@ -194,11 +206,25 @@ class HomeViewModel(
 
     private suspend fun loadRecommended() {
         reviewRepository.getRecommended(10, discountOnly = true).collect { result ->
-            result.onSuccess { _recommended.value = it.shuffled(Random(System.currentTimeMillis())) }
+            result.onSuccess {
+                _recommended.value = it.shuffled(Random(System.currentTimeMillis()))
+                _loadError.value = null
+            }
+            result.onFailure { e ->
+                if (_categories.value.isEmpty()) {
+                    _loadError.value = e.message ?: "Tavsiyalarni yuklashda xatolik"
+                }
+            }
         }
     }
 
     fun refresh() {
+        loadAll()
+    }
+
+    /** M-58: xato holatidan qayta yuklash. */
+    fun retry() {
+        _loadError.value = null
         loadAll()
     }
 

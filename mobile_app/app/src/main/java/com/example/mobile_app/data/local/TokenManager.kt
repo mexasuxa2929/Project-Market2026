@@ -5,7 +5,8 @@ import androidx.core.content.edit
 import com.example.mobile_app.MexaMarketApp
 
 object TokenManager {
-    private const val PREF_NAME = "mexa_secure_prefs"
+    private const val PREF_NAME = "mexa_secure_prefs_enc"
+    private const val LEGACY_PREF_NAME = "mexa_secure_prefs"
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_REFRESH_TOKEN = "refresh_token"
     private const val KEY_USERNAME = "username"
@@ -18,8 +19,47 @@ object TokenManager {
     private val devicePrefs
         get() = MexaMarketApp.instance.getSharedPreferences("mexa_device_prefs", Context.MODE_PRIVATE)
 
-    private val prefs
-        get() = MexaMarketApp.instance.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    /**
+     * M-55: tokenlar shifrlangan (AES256_GCM) SharedPreferences'da saqlanadi.
+     * Eski oddiy (plaintext) prefs'dan bir marta ko'chiriladi; fallback — oddiy prefs.
+     */
+    private val prefs: android.content.SharedPreferences by lazy {
+        val app = MexaMarketApp.instance
+        runCatching {
+            val masterKey = androidx.security.crypto.MasterKey.Builder(app)
+                .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val encrypted = androidx.security.crypto.EncryptedSharedPreferences.create(
+                app,
+                PREF_NAME,
+                masterKey,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+            // Migratsiya: eski plaintext fayldagi qiymatlarni ko'chirish
+            if (encrypted.getString(KEY_ACCESS_TOKEN, null) == null) {
+                val legacy = app.getSharedPreferences(LEGACY_PREF_NAME, Context.MODE_PRIVATE)
+                if (legacy.all.isNotEmpty()) {
+                    encrypted.edit {
+                        legacy.all.forEach { (k, v) ->
+                            when (v) {
+                                is String -> putString(k, v)
+                                is Long -> putLong(k, v)
+                                is Int -> putInt(k, v)
+                                is Boolean -> putBoolean(k, v)
+                                is Float -> putFloat(k, v)
+                                is Set<*> -> putStringSet(k, v.filterIsInstance<String>().toSet())
+                            }
+                        }
+                    }
+                    legacy.edit { clear() }
+                }
+            }
+            encrypted
+        }.getOrElse {
+            app.getSharedPreferences(LEGACY_PREF_NAME, Context.MODE_PRIVATE)
+        }
+    }
 
     var accessToken: String?
         get() = prefs.getString(KEY_ACCESS_TOKEN, null)

@@ -231,8 +231,8 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
+                val homeViewModel: HomeViewModel = viewModel(viewModelStoreOwner = activity, factory = HomeViewModel.Factory)
                 val wishlistViewModel: com.example.mobile_app.ui.viewmodel.WishlistViewModel = viewModel(viewModelStoreOwner = activity, factory = com.example.mobile_app.ui.viewmodel.WishlistViewModel.Factory)
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 HomeScreen(
@@ -251,7 +251,8 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
+                val homeViewModel: HomeViewModel = viewModel(viewModelStoreOwner = activity, factory = HomeViewModel.Factory)
                 val notificationViewModel: com.example.mobile_app.ui.viewmodel.NotificationViewModel = viewModel(factory = com.example.mobile_app.ui.viewmodel.NotificationViewModel.Factory)
                 CatalogScreen(
                     homeViewModel    = homeViewModel,
@@ -274,8 +275,8 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 val categoryId = backStackEntry.arguments?.getString("categoryId") ?: return@composable
                 val vm: com.example.mobile_app.ui.viewmodel.CategoryProductsViewModel =
                     viewModel(factory = com.example.mobile_app.ui.viewmodel.CategoryProductsViewModel.Factory)
-                val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
+                val homeViewModel: HomeViewModel = viewModel(viewModelStoreOwner = activity, factory = HomeViewModel.Factory)
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 val wishlistViewModel: com.example.mobile_app.ui.viewmodel.WishlistViewModel = viewModel(viewModelStoreOwner = activity, factory = com.example.mobile_app.ui.viewmodel.WishlistViewModel.Factory)
                 val wishlistState by wishlistViewModel.wishlist.collectAsState()
@@ -330,7 +331,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 CartScreen(
                     cartViewModel = cartViewModel,
@@ -348,7 +349,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val orderViewModel: OrderViewModel = viewModel(viewModelStoreOwner = activity, factory = OrderViewModel.Factory)
                 OrdersScreen(
                     orderViewModel = orderViewModel,
@@ -365,7 +366,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 exitTransition = { quickFadeOut }
             ) { backStackEntry ->
                 val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val orderViewModel: OrderViewModel = viewModel(viewModelStoreOwner = activity, factory = OrderViewModel.Factory)
                 OrderDetailScreen(
                     orderId = orderId,
@@ -400,7 +401,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val wishlistViewModel: com.example.mobile_app.ui.viewmodel.WishlistViewModel = viewModel(viewModelStoreOwner = activity, factory = com.example.mobile_app.ui.viewmodel.WishlistViewModel.Factory)
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 val wishlistState by wishlistViewModel.wishlist.collectAsState()
@@ -436,7 +437,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 val orderViewModel: OrderViewModel = viewModel(viewModelStoreOwner = activity, factory = OrderViewModel.Factory)
                 CheckoutScreen(
@@ -459,7 +460,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
             ) { backStackEntry ->
                 val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
                 val vm: ProductDetailViewModel = viewModel(factory = ProductDetailViewModel.Factory)
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val cartViewModel: CartViewModel = viewModel(viewModelStoreOwner = activity, factory = CartViewModel.Factory)
                 val wishlistViewModel: com.example.mobile_app.ui.viewmodel.WishlistViewModel = viewModel(viewModelStoreOwner = activity, factory = com.example.mobile_app.ui.viewmodel.WishlistViewModel.Factory)
                 ProductDetailScreen(
@@ -480,7 +481,7 @@ fun AppNavigation(navController: NavHostController, languageManager: LanguageMan
                 enterTransition = { quickFadeIn },
                 exitTransition = { quickFadeOut }
             ) {
-                val activity = LocalContext.current as ComponentActivity
+                val activity = LocalContext.current as? ComponentActivity ?: error("Activity topilmadi")
                 val wishlistViewModel: com.example.mobile_app.ui.viewmodel.WishlistViewModel = viewModel(viewModelStoreOwner = activity, factory = com.example.mobile_app.ui.viewmodel.WishlistViewModel.Factory)
                 com.example.mobile_app.ui.screens.wishlist.WishlistScreen(
                     viewModel = wishlistViewModel,

@@ -39,6 +39,14 @@ android {
     }
 
     defaultConfig {
+        // M-57: Maps API kaliti tracked fayldan olib tashlandi —
+        // -PMAPS_API_KEY=... yoki local.properties (gitignore) orqali.
+        manifestPlaceholders["MAPS_API_KEY"] = (project.findProperty("MAPS_API_KEY") as? String)
+            ?: runCatching {
+                rootProject.file("local.properties").takeIf { it.exists() }?.readLines()
+                    ?.firstOrNull { it.trim().startsWith("MAPS_API_KEY=") }
+                    ?.substringAfter("=")?.trim()
+            }.getOrNull() ?: ""
         applicationId = "com.example.mobile_app"
         minSdk = 21
         targetSdk = 35
@@ -53,7 +61,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // M-56: debug kalitda imzolangan release yasash taqiqlandi.
+            signingConfig = signingConfigs.findByName("release")
         }
         debug {
             isMinifyEnabled = false
@@ -92,6 +101,27 @@ android {
     }
 }
 
+
+// M-56: release uchun https majburiy + keystore majburiy.
+// Konfiguratsiya bosqichida emas, faqat release task bajarilganda (debug build buzilmasligi uchun).
+tasks.configureEach {
+    if (name == "assembleRelease" || name == "bundleRelease") {
+        doFirst {
+            if (!hasReleaseSigning) {
+                throw GradleException(
+                    "M-56: release build uchun keystore.properties (storePassword/keyPassword) majburiy. " +
+                        "Debug kalit bilan release yasash taqiqlangan."
+                )
+            }
+            if (!apiBaseUrl.startsWith("https://")) {
+                throw GradleException(
+                    "M-56: release uchun API_BASE_URL https:// bo'lishi shart (hozir: $apiBaseUrl)."
+                )
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -123,6 +153,7 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.credentials)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.google.identity.googleid)
     testImplementation(libs.junit)

@@ -28,9 +28,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -79,6 +81,7 @@ fun CatalogScreen(
 ) {
     // homeViewModel.categories — bitta source of truth.
     val categories: List<Category> = homeViewModel?.categories?.collectAsState()?.value ?: emptyList()
+    val loadError: String? = homeViewModel?.loadError?.collectAsState()?.value
     val unreadCount by (notificationViewModel?.unreadCount ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0) }).collectAsState()
 
     // Grid <-> List ko'rinish almashtirgich (burilishlarda ham saqlanadi)
@@ -129,7 +132,26 @@ fun CatalogScreen(
                 }
             }
 
-            if (categories.isEmpty()) {
+            if (categories.isEmpty() && loadError != null) {
+                // M-58: yuklash xati — cheksiz skeleton emas, retry tugma
+                item(key = "category_error") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = loadError,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { homeViewModel?.retry() }) {
+                            Text("Qayta urinish")
+                        }
+                    }
+                }
+            } else if (categories.isEmpty()) {
                 // Kategoriyalar hali yuklanmagan — skeleton cell'lar
                 items(
                     count = 6,

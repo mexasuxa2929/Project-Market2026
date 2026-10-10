@@ -102,8 +102,10 @@ class AuthRepository(private val authApiService: AuthApiService) {
                 Result.failure(Exception(body?.error?.message ?: "Verification failed"))
             }
         } else {
-            val errorBody = response.errorBody()?.string()
-            Result.failure(Exception("HTTP ${response.code()}: $errorBody"))
+            // M-58: xom JSON UI'ga chiqmaydi — server message yoki generik matn
+            val friendly = parseErrorBody(response)
+                ?: "So'rov bajarilmadi (HTTP ${response.code()})"
+            Result.failure(Exception(friendly))
         }
     } catch (e: Exception) {
         Result.failure(e)

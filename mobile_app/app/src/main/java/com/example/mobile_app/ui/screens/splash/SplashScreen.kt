@@ -54,16 +54,19 @@ fun SplashScreen(onNavigateToLogin: () -> Unit) {
     // Full-screen: status/nav bar ham binafsha, iconlar oq — chiroyli immersion
     val view = LocalView.current
     androidx.compose.runtime.DisposableEffect(Unit) {
-        val window = (view.context as android.app.Activity).window
-        window.statusBarColor = Primary.toArgb()
-        window.navigationBarColor = Primary.toArgb()
-        if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
-        val controller = WindowCompat.getInsetsController(window, view)
-        controller.isAppearanceLightStatusBars = false
-        controller.isAppearanceLightNavigationBars = false
+        val activity = view.context as? android.app.Activity
+        val window = activity?.window
+        if (window != null) {
+            window.statusBarColor = Primary.toArgb()
+            window.navigationBarColor = Primary.toArgb()
+            if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
+        }
         onDispose {
-            window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = Color.Transparent.toArgb()
+            window?.statusBarColor = Color.Transparent.toArgb()
+            window?.navigationBarColor = Color.Transparent.toArgb()
             // Theme will restore correct light/dark icons on next recomposition
         }
     }

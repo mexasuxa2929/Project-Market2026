@@ -68,11 +68,12 @@ class OrderRepository(private val orderApiService: OrderApiService) {
     suspend fun cancelOrder(id: String, reason: String?): Result<OrderResponsePayload> = try {
         val body = mapOf("reason" to reason)
         val response = orderApiService.cancelOrder(id, body)
-        if (response.isSuccessful && response.body()?.data != null) {
-            Result.success(response.body()!!.data!!)
+        val data = response.body()?.data
+        if (response.isSuccessful && data != null) {
+            Result.success(data)
         } else {
             val errorMsg = parseError(response.errorBody()?.string())
-            Result.failure(Exception(errorMsg))
+            Result.failure(Exception(errorMsg ?: "Javob bo'sh (HTTP ${response.code()})"))
         }
     } catch (e: Exception) {
         Result.failure(e)
