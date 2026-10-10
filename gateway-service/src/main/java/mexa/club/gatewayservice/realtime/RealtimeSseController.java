@@ -99,12 +99,12 @@ public class RealtimeSseController {
         }
         if (!semaphore.tryAcquire()) {
             releaseUser(currentUserId);
-            log.warn("SSE connection limit reached ({}/{}, user {})", activeConnections.get(), maxConnections, currentUserId);
+            log.warn("SSE connection limit reached ({}/{}, user {})", activeConnections.get(), maxConnections, maskUserId(currentUserId));
             return Flux.error(new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "SSE connection limit reached"));
         }
         activeConnections.incrementAndGet();
-        log.debug("SSE connection opened for user {} (active: {})", currentUserId, activeConnections.get());
+        log.debug("SSE connection opened for user {} (active: {})", maskUserId(currentUserId), activeConnections.get());
 
         return container.receive(new ChannelTopic(channel))
                 .filter(msg -> allowed(msg.getMessage(), currentUserId, admin))
@@ -113,7 +113,7 @@ public class RealtimeSseController {
                     activeConnections.decrementAndGet();
                     semaphore.release();
                     releaseUser(currentUserId);
-                    log.debug("SSE connection closed for user {} (active: {})", currentUserId, activeConnections.get());
+                    log.debug("SSE connection closed for user {} (active: {})", maskUserId(currentUserId), activeConnections.get());
                 });
     }
 
@@ -185,4 +185,12 @@ public class RealtimeSseController {
     private static ServerSentEvent<String> toSse(String body) {
         return ServerSentEvent.builder(Objects.requireNonNullElse(body, "")).build();
     }
+
+    // O-62: log'da to'liq userId/PII emas — qisqartirilgan ko'rinish
+    private static String maskUserId(String id) {
+        if (id == null || id.isBlank()) return "-";
+        if (id.length() <= 10) return "***";
+        return id.substring(0, 6) + "..." + id.substring(id.length() - 4);
+    }
+
 }

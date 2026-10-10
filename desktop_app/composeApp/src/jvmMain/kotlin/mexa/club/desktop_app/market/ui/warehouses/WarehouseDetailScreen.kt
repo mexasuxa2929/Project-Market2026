@@ -2401,7 +2401,10 @@ private fun CourierDetailDialog(
             val text = withContext(Dispatchers.IO) {
                 ApiClient.get("/api/admin/deliveries?courierId=${courier.id}&page=0&size=20")
             }
-            val arr = (ApiClient.parseJsonObject(text)?.get("data") as? JsonArray)
+            // O-46: server endi page payload ({items,totalElements}) qaytaradi
+            val arr = ApiClient.parseJsonObject(text)
+                ?.let { ApiClient.dataObjectOrSelf(it) }
+                ?.itemsOrContentArray()
                 ?: JsonArray(emptyList())
             deliveries = arr.mapNotNull { el ->
                 val o = el as? JsonObject ?: return@mapNotNull null

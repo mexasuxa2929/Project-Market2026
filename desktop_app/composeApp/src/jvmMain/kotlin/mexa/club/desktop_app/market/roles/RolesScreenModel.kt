@@ -138,52 +138,68 @@ class RolesScreenModel(
             }
 
             // ── 2. Foydalanuvchilar (user count va stats uchun) ────────────────
-            when (val usersRes = repository.listUsersPage(token, page = 0, size = 200)) {
-                is AuthApiResult.Ok -> {
-                    val allUsers = usersRes.value.items.map { item ->
-                        val u = item.toAdminUser()
-                        // rawRoleNames — backenddan kelgan asl kodlar (ROLE_MANAGER kabi custom uchun ham)
-                        val roleCode = u.rawRoleNames.firstOrNull()
-                            ?: u.roles.firstOrNull()?.let { userRoleToBackendName(it) }
-                            ?: "ROLE_USER"
-                        RoleUserRow(
-                            id       = u.id,
-                            fullName = u.fullName,
-                            email    = u.email,
-                            role     = roleCode,
-                            provider = u.authProvider,
-                            status   = u.status,
-                        )
+            // O-47: 200 dan keyin ham hisob to'g'ri bo'lishi uchun BARCHA sahifalar
+            // yig'iladi (totalElements/totalPages backenddan, xavfsiz chegara bilan).
+            val allUsers = mutableListOf<RoleUserRow>()
+            var usersErr: String? = null
+            var pageIndex = 0
+            while (usersErr == null) {
+                when (val usersRes = repository.listUsersPage(token, page = pageIndex, size = 200)) {
+                    is AuthApiResult.Ok -> {
+                        val pageRows = usersRes.value.items.map { item ->
+                            val u = item.toAdminUser()
+                            // rawRoleNames — backenddan kelgan asl kodlar (ROLE_MANAGER kabi custom uchun ham)
+                            val roleCode = u.rawRoleNames.firstOrNull()
+                                ?: u.roles.firstOrNull()?.let { userRoleToBackendName(it) }
+                                ?: "ROLE_USER"
+                            RoleUserRow(
+                                id       = u.id,
+                                fullName = u.fullName,
+                                email    = u.email,
+                                role     = roleCode,
+                                provider = u.authProvider,
+                                status   = u.status,
+                            )
+                        }
+                        allUsers.addAll(pageRows)
+                        val totalPages = usersRes.value.totalPages
+                        if (pageRows.size < 200 || pageIndex + 1 >= totalPages || pageIndex >= 49) break
+                        pageIndex++
                     }
-                    // Har bir rol kodi bo'yicha user soni (custom rollar ham hisoblanadi)
-                    val counts = allUsers.groupingBy { it.role }.eachCount()
-                    val rolesWithCounts = defs.map { def ->
-                        def.copy(userCount = counts[def.code] ?: 0)
+                    is AuthApiResult.Err -> {
+                        usersErr = usersRes.message
+                        break
                     }
-                    val stats = RoleScreenStats(
-                        totalRoles   = rolesWithCounts.size,
-                        totalUsers   = allUsers.size,
-                        activeUsers  = allUsers.count { it.status == UserStatus.ACTIVE },
-                        blockedUsers = allUsers.count { it.status == UserStatus.BLOCKED },
+                }
+            }
+            if (usersErr != null) {
+                if (err == null) err = usersErr
+                _uiState.update {
+                    it.copy(roles = defs, users = emptyList(), isLoading = false, error = err)
+                }
+                applyTabFilter()
+            } else {
+                // Har bir rol kodi bo'yicha user soni (custom rollar ham hisoblanadi)
+                val counts = allUsers.groupingBy { it.role }.eachCount()
+                val rolesWithCounts = defs.map { def ->
+                    def.copy(userCount = counts[def.code] ?: 0)
+                }
+                val stats = RoleScreenStats(
+                    totalRoles   = rolesWithCounts.size,
+                    totalUsers   = allUsers.size,
+                    activeUsers  = allUsers.count { it.status == UserStatus.ACTIVE },
+                    blockedUsers = allUsers.count { it.status == UserStatus.BLOCKED },
+                )
+                _uiState.update {
+                    it.copy(
+                        roles     = rolesWithCounts,
+                        users     = allUsers,
+                        stats     = stats,
+                        isLoading = false,
+                        error     = err,
                     )
-                    _uiState.update {
-                        it.copy(
-                            roles     = rolesWithCounts,
-                            users     = allUsers,
-                            stats     = stats,
-                            isLoading = false,
-                            error     = err,
-                        )
-                    }
-                    applyTabFilter()
                 }
-                is AuthApiResult.Err -> {
-                    if (err == null) err = usersRes.message
-                    _uiState.update {
-                        it.copy(roles = defs, users = emptyList(), isLoading = false, error = err)
-                    }
-                    applyTabFilter()
-                }
+                applyTabFilter()
             }
         }
     }

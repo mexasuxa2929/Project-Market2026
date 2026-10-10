@@ -31,8 +31,11 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = collectOrigins();
         if (origins.isEmpty()) {
-            config.addAllowedOriginPattern("*");
-            log.warn("CORS: allowed origins not configured, falling back to wildcard (*)");
+            // O-17: fail-open wildcard o'rniga — startni to'xtatish.
+            // GATEWAY_CORS_ALLOWED_ORIGINS (yoki _1/_2) majburiy.
+            throw new IllegalStateException(
+                "O-17: gateway.cors.allowed-origins sozlanmagan. " +
+                    "GATEWAY_CORS_ALLOWED_ORIGINS orqali ro'yxat bering (wildcard CORS taqiqlan).");
         } else {
             origins.forEach(config::addAllowedOrigin);
             log.info("CORS: allowed origins = {}", origins);

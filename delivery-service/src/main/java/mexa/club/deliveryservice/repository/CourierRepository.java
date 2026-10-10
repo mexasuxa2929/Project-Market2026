@@ -26,6 +26,12 @@ public interface CourierRepository extends JpaRepository<Courier, UUID> {
             @Param("active") Boolean active,
             @Param("region") String region);
 
+    // O-32: statistika uchun agregatlar (to'liq findAll emas)
+    long countByActiveTrue();
+
+    @Query("SELECT COALESCE(SUM(c.currentDeliveries), 0) FROM Courier c")
+    long sumCurrentDeliveries();
+
     List<Courier> findByActiveTrue();
 
     List<Courier> findByWarehouseId(UUID warehouseId);

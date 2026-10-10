@@ -32,4 +32,11 @@ public interface DeliveryRepository
 
     @Query("SELECT COUNT(d) FROM Delivery d WHERE d.status = :status")
     long countByStatus(@Param("status") DeliveryStatus status);
+
+    // O-32: deleteZone himoyasi — to'liq findAll emas, SQL COUNT
+    @Query("SELECT COUNT(d) FROM Delivery d WHERE LOWER(d.region) = LOWER(:region) " +
+           "AND LOWER(d.district) = LOWER(:district) " +
+           "AND d.status NOT IN (mexa.club.deliveryservice.entity.DeliveryStatus.DELIVERED, " +
+           "mexa.club.deliveryservice.entity.DeliveryStatus.RETURNED)")
+    long countActiveByRegionAndDistrict(@Param("region") String region, @Param("district") String district);
 }

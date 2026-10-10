@@ -29,9 +29,9 @@ fun DashboardBentoStatCard(
     icon: ImageVector,
     iconTint: Color,
     iconBackground: Color,
-    badgeText: String,
-    badgeBackground: Color,
-    badgeForeground: Color,
+    badgeText: String? = null,
+    badgeBackground: Color = Color.Unspecified,
+    badgeForeground: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -60,17 +60,19 @@ fun DashboardBentoStatCard(
                 ) {
                     Icon(icon, contentDescription = null, tint = iconTint)
                 }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = badgeBackground,
-                ) {
-                    Text(
-                        badgeText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = badgeForeground,
-                    )
+                if (badgeText != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = badgeBackground,
+                    ) {
+                        Text(
+                            badgeText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = badgeForeground,
+                        )
+                    }
                 }
             }
             Column {

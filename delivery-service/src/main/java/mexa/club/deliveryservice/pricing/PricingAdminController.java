@@ -346,9 +346,11 @@ public class PricingAdminController {
 
     @GetMapping("/audit")
     public ApiResponse<List<PricingAuditLog>> auditLog() {
-        List<PricingAuditLog> list = new ArrayList<>(auditRepository.findAll());
-        list.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        if (list.size() > 200) list = list.subList(0, 200);
+        // O-32: server tomonida tartib + limit (findAll + subList emas)
+        List<PricingAuditLog> list = auditRepository.findAll(
+                org.springframework.data.domain.PageRequest.of(0, 200,
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        ).getContent();
         return ApiResponse.ok(list);
     }
 

@@ -32,8 +32,12 @@ public class ElasticsearchIndexBootstrap implements ApplicationRunner {
                 if (ops.getSettings().toString().contains("uzbek_analyzer")) {
                     return;
                 }
-                ops.delete();
-                log.info("Elasticsearch index 'products' existed without analyzers, recreating");
+                // O-61: indeksni O'CHIRISH taqiqlandi (butun qidiruv yo'qolardi).
+                // Analyzer yangilanmasa — ishlayveradi (fallback), lekin aniq ogohlantiramiz.
+                log.error("Elasticsearch index 'products' eski analyzer bilan mavjud. "
+                        + "Indeks avvalgidek qoldirildi (delete taqiqlan); "
+                        + "yangilash uchun qo'lda alias/reindex bajaring.");
+                return;
             }
             Map<String, Object> settings = Map.of(
                     "analysis", Map.of(
@@ -55,7 +59,8 @@ public class ElasticsearchIndexBootstrap implements ApplicationRunner {
             ops.putMapping();
             log.info("Elasticsearch index 'products' created (uzbek_analyzer, ngram_analyzer)");
         } catch (Exception e) {
-            log.warn("Elasticsearch index bootstrap failed: {}", e.getMessage());
+            // O-61: xato yutilmasdan to'liq stack bilan logga tushadi
+            log.error("Elasticsearch index bootstrap failed", e);
         }
     }
 }

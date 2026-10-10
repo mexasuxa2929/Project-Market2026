@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 object UnauthorizedNotifier {
 
-    private val _events = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    // S-50: replay=1 — collector keyin ulansa ham oxirgi xabarni ko'radi
+    private val _events = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
     @Volatile
@@ -19,7 +20,4 @@ object UnauthorizedNotifier {
         _events.tryEmit("Sessiya muddati tugagan. Qaytadan kiring.")
     }
 
-    fun clearDebounce() {
-        lastEmitMs = 0L
-    }
 }

@@ -125,9 +125,10 @@ public class GlobalExceptionHandler {
         Throwable cause = ex.getMostSpecificCause();
         String detail = cause != null && cause.getMessage() != null ? cause.getMessage() : ex.getMessage();
         log.warn("Unreadable message (often invalid JSON in multipart part): {}", detail);
+        // O-19: parser tafsiloti logda, mijozga generik xabar
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail("BAD_REQUEST", "Invalid JSON or body: " + detail));
+                .body(ApiResponse.fail("BAD_REQUEST", "Invalid request body"));
     }
 
     @ExceptionHandler(MultipartException.class)

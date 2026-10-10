@@ -69,6 +69,7 @@ fun GoogleSignInButton(
                                     GoogleAuthFlow.Reason.ACCESS_DENIED -> AppStrings.googleDenied(lang)
                                     GoogleAuthFlow.Reason.STATE_MISMATCH,
                                     GoogleAuthFlow.Reason.MALFORMED,
+                                    GoogleAuthFlow.Reason.NO_CLIENT_SECRET,
                                     -> AppStrings.googleUnexpected(lang)
                                 },
                             ),

@@ -12,4 +12,6 @@ COPY --from=builder /build/notification-service/target/*.jar /app/app.jar
 
 EXPOSE 8087
 
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -Xmx512m"
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

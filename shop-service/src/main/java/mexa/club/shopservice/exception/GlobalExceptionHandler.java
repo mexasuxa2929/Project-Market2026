@@ -67,6 +67,8 @@ public class GlobalExceptionHandler {
             }
         } catch (Exception parseEx) {
             log.debug("Downstream error body parse failed: {}", parseEx.getMessage());
+            // O-19: parse bo'lmaganda ichki tafsilot ko'rinmaydi
+            message = "So'rov bajarilmadi, qaytadan urinib ko'ring";
         }
         log.warn("Downstream 4xx propagated as {}: {} - {}", ex.getStatusCode(), code, message);
         return ResponseEntity.status(ex.getStatusCode())
@@ -77,19 +79,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpServerErrorException.class)
     public ResponseEntity<ApiResponse<Object>> handleDownstreamServerError(HttpServerErrorException ex) {
         String code = "UPSTREAM_ERROR";
-        String message = ex.getMessage();
+        // O-19: 5xx ichki tafsilotini mijozga bermaslik — generik, asl xato logda
+        String message = "Xizmat vaqtincha mavjud emas, keyinroq urinib ko'ring";
         try {
             Map<?, ?> body = MAPPER.readValue(ex.getResponseBodyAsString(), Map.class);
             if (body.get("code") != null) {
                 code = String.valueOf(body.get("code"));
             }
-            if (body.get("message") != null) {
-                message = String.valueOf(body.get("message"));
-            }
         } catch (Exception parseEx) {
             log.debug("Downstream error body parse failed: {}", parseEx.getMessage());
         }
-        log.warn("Downstream 5xx: {} - {}", code, message);
+        log.warn("Downstream 5xx: {} - {}", code, ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new ApiResponse<>(false, null, new ApiResponse.ErrorPayload(code, message)));
     }
@@ -106,9 +106,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderProxyException.class)
     public ResponseEntity<ApiResponse<Object>> handleOrderProxy(OrderProxyException ex) {
         log.warn("Order proxy error: {}", ex.getMessage());
+        // O-19: proxy tafsiloti ichki — mijozga generik xabar
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new ApiResponse<>(false, null, new ApiResponse.ErrorPayload(
-                        "ORDER_SERVICE_ERROR", ex.getMessage())));
+                        "ORDER_SERVICE_ERROR", "Buyurtma xizmati bilan bog'lanishda xatolik")));
     }
 
     @ExceptionHandler(UnauthorizedShopException.class)

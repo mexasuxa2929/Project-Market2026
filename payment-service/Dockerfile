@@ -12,4 +12,6 @@ COPY --from=builder /build/payment-service/target/*.jar /app/app.jar
 
 EXPOSE 8091
 
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -Xmx512m"
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

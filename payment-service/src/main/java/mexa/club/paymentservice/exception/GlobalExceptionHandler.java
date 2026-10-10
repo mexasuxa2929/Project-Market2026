@@ -4,6 +4,8 @@ import java.util.Map;
 import mexa.club.paymentservice.payme.PaymeErrors;
 import mexa.club.paymentservice.payme.dto.JsonRpcResponse;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(PaymentException.class)
     public ResponseEntity<Map<String, Object>> handlePayment(PaymentException ex) {
@@ -38,6 +42,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public Object handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "not_found"));
+    }
+
+
+    // O-31: IllegalArgumentException (controller/yordamchi kodidan) -> 400, 500 emas
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.error("Illegal argument", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "success", false,
+                "code", "BAD_REQUEST",
+                "message", ex.getMessage() != null ? ex.getMessage() : "Invalid request"
+        ));
     }
 
     @ExceptionHandler(Exception.class)

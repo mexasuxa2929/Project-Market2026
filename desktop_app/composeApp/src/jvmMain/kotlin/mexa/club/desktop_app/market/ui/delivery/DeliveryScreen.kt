@@ -35,6 +35,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -55,14 +56,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import mexa.club.desktop_app.market.api.ApiClient
+import mexa.club.desktop_app.market.api.itemsOrContentArray
 import mexa.club.desktop_app.market.api.stringField
+import mexa.club.desktop_app.market.ui.components.PaginationBar
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
 data class DeliveryRow(
@@ -142,14 +147,30 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
     var courierExpanded by remember { mutableStateOf(false) }
     var courierList by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var detailTarget by remember { mutableStateOf<DeliveryRow?>(null) }
+    // O-46: server paginatsiya (200 dan keyin jim kesilmasligi uchun)
+    var page by remember { mutableStateOf(0) }
+    var pageSize by remember { mutableStateOf(20) }
+    var totalElements by remember { mutableStateOf(0L) }
     var assignTarget by remember { mutableStateOf<DeliveryRow?>(null) }
     var showZones by remember { mutableStateOf(false) }
 
-    suspend fun fetchDeliveries(): List<DeliveryRow> = withContext(Dispatchers.IO) {
-        val text = ApiClient.get("/api/admin/deliveries?page=0&size=200")
-        val root = ApiClient.parseJsonObject(text)
-        val arr = (root?.get("data") as? JsonArray) ?: JsonArray(emptyList())
-        arr.mapNotNull { el ->
+    suspend fun fetchDeliveries(): Pair<List<DeliveryRow>, Long> = withContext(Dispatchers.IO) {
+        // O-46: serverga filter+pagination uzatiladi (client-side 200-cut emas)
+        val params = buildList {
+            add("page=$page")
+            add("size=$pageSize")
+            if (statusFilter != ALL_FILTER) add("status=$statusFilter")
+            if (courierFilter != ALL_FILTER) add("courierId=$courierFilter")
+            if (searchQuery.isNotBlank()) {
+                add("search=${java.net.URLEncoder.encode(searchQuery.trim(), "UTF-8")}")
+            }
+        }
+        val text = ApiClient.get("/api/admin/deliveries?${params.joinToString("&")}")
+        // O-46: boshqa ekranlardagi naqsh — dataObjectOrSelf + itemsOrContentArray
+        // (server Page payload qaytarsa ham, eski array qaytarsa ham ishlaydi)
+        val data = ApiClient.parseJsonObject(text)?.let { ApiClient.dataObjectOrSelf(it) }
+        val arr = data?.itemsOrContentArray() ?: JsonArray(emptyList())
+        val rows = arr.mapNotNull { el ->
             val d = el as? JsonObject ?: return@mapNotNull null
             val id = d.stringField("id").ifEmpty { return@mapNotNull null }
             DeliveryRow(
@@ -166,6 +187,9 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                 createdAt = d.stringField("createdAt"),
             )
         }.sortedByDescending { it.createdAt }
+        val total = (data?.get("totalElements") as? JsonPrimitive)?.content?.toLongOrNull()
+            ?: rows.size.toLong()
+        rows to total
     }
 
     suspend fun fetchCouriers(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
@@ -185,13 +209,25 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
             loading = true
             error = null
             runCatching { fetchDeliveries() }
-                .onSuccess { deliveries = it }
+                .onSuccess { (rows, total) ->
+                    totalElements = total
+                    val totalPages = if (total == 0L) 1 else ((total + pageSize - 1) / pageSize).toInt()
+                    if (page > totalPages - 1) {
+                        page = totalPages - 1 // effekt qayta ishga tushadi
+                    } else {
+                        deliveries = rows
+                    }
+                }
                 .onFailure { error = it.message ?: "Xatolik" }
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    // O-46: filtr/qidiruv/sahifa o'zgarishi → 300ms debounce bilan server so'rovi
+    LaunchedEffect(searchQuery, statusFilter, courierFilter, page, pageSize) {
+        delay(300)
+        reload()
+    }
 
     LaunchedEffect(Unit) {
         runCatching { fetchCouriers() }
@@ -229,18 +265,9 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
     }
 
     val courierIdMap = courierList.toMap()
-    val filtered = deliveries.filter { d ->
-        val matchStatus = statusFilter == ALL_FILTER || d.status.equals(statusFilter, ignoreCase = true)
-        val matchCourier = courierFilter == ALL_FILTER || d.courierId.equals(courierFilter, ignoreCase = true)
-        val matchSearch = searchQuery.isBlank() ||
-            d.recipientName.contains(searchQuery, ignoreCase = true) ||
-            d.recipientPhone.contains(searchQuery, ignoreCase = true) ||
-            d.trackingCode.contains(searchQuery, ignoreCase = true) ||
-            d.deliveryAddress.contains(searchQuery, ignoreCase = true)
-        matchStatus && matchCourier && matchSearch
-    }
+    // O-46: filtr/qidiruv serverda (yuqoridagi params) — client filter yo'q
 
-    val totalCount = deliveries.size
+    val totalCount = totalElements.toInt()
     val pendingCount = deliveries.count { it.status.equals("PENDING", ignoreCase = true) }
     val inTransitCount = deliveries.count { it.status in setOf("ASSIGNED", "PICKED_UP", "IN_TRANSIT") }
     val deliveredCount = deliveries.count { it.status.equals("DELIVERED", ignoreCase = true) }
@@ -374,10 +401,22 @@ fun DeliveryScreen(modifier: Modifier = Modifier) {
                     Button(onClick = { reload() }) { Text(AppStrings.t(appLanguage(), "Qayta urinish")) }
                 }
             }
-            filtered.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            deliveries.isEmpty() -> Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Text("Yetkazmalar topilmadi", color = MexaWarehouseColors.textMuted)
             }
-            else -> DeliveriesTable(filtered, onRowClick = { detailTarget = it })
+            else -> DeliveriesTable(deliveries, onRowClick = { detailTarget = it })
+        }
+
+        // O-46: server pagination (OrdersScreen andozasi)
+        if (!loading && error == null && deliveries.isNotEmpty()) {
+            HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
+            PaginationBar(
+                page = page,
+                pageSize = pageSize,
+                totalElements = totalElements.toInt(),
+                onPageChange = { page = it },
+                onPageSizeChange = { pageSize = it; page = 0 },
+            )
         }
     }
 }

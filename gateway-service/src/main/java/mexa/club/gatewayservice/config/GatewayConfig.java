@@ -36,6 +36,15 @@ public class GatewayConfig {
         if (StringUtils.hasText(auth) && auth.startsWith("Bearer ")) {
             return "jwt:" + sha256(auth.substring(7).trim());
         }
+        // O-18: nginx/trusted proxy ortida barcha foydalanuvchi bitta bucketga
+        // tushmasligi uchun X-Forwarded-For'ning birinchi (real client) IP'si.
+        String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
+        if (StringUtils.hasText(xff)) {
+            String firstClient = xff.split(",")[0].trim();
+            if (!firstClient.isEmpty()) {
+                return "ip:" + firstClient;
+            }
+        }
         String ip = exchange.getRequest().getRemoteAddress() != null
                 ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
                 : "unknown";

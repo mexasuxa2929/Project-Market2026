@@ -160,14 +160,9 @@ public class AuthExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> fallback(Exception ex) {
+        // O-19: Docker'da ishlamaydigan FileWriter (shaxsiy yo'l git'da edi)
+        // o'chirildi — log.error yetarli.
         log.error("Unhandled auth-service error", ex);
-        try {
-            java.io.FileWriter fw = new java.io.FileWriter("C:\\Users\\Mehrob\\AppData\\Local\\Temp\\opencode\\auth_error.log", true);
-            java.io.PrintWriter pw = new java.io.PrintWriter(fw);
-            ex.printStackTrace(pw);
-            pw.close();
-            fw.close();
-        } catch (Exception ignored) {}
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(errorBody("INTERNAL_ERROR", "An unexpected error occurred"));
     }

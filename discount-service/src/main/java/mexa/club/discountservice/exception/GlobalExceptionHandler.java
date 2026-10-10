@@ -43,6 +43,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("NOT_FOUND", "Endpoint not found"));
     }
 
+
+    // O-31: IllegalArgumentException (controller/yordamchi kodidan) -> 400, 500 emas
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.error("Illegal argument", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "success", false,
+                "code", "BAD_REQUEST",
+                "message", ex.getMessage() != null ? ex.getMessage() : "Invalid request"
+        ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex) {
         log.error("Unexpected error", ex);

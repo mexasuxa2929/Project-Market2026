@@ -61,7 +61,7 @@ public class AdminDeliveryController {
     }
 
     @GetMapping("/deliveries")
-    public ApiResponse<List<DeliveryResponse>> all(
+    public ApiResponse<java.util.Map<String, Object>> all(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) DeliveryStatus status,
@@ -73,10 +73,17 @@ public class AdminDeliveryController {
     ) {
         boolean hasFilters = status != null || courierId != null || dateFrom != null
                 || dateTo != null || region != null || (search != null && !search.isBlank());
-        if (hasFilters) {
-            return ApiResponse.ok(deliveryService.search(status, courierId, dateFrom, dateTo, region, search, Math.max(0, page), Math.max(1, Math.min(size, 200))));
-        }
-        return ApiResponse.ok(deliveryService.all(Math.max(0, page), Math.max(1, Math.min(size, 200))));
+        int clampedSize = Math.max(1, Math.min(size, 200));
+        org.springframework.data.domain.Page<DeliveryResponse> paged = hasFilters
+                ? deliveryService.searchPage(status, courierId, dateFrom, dateTo, region, search, Math.max(0, page), clampedSize)
+                : deliveryService.allPage(Math.max(0, page), clampedSize);
+        // O-46: jami son bilan page payload (faqat list emas)
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("items", paged.getContent());
+        body.put("totalElements", paged.getTotalElements());
+        body.put("page", paged.getNumber());
+        body.put("size", paged.getSize());
+        return ApiResponse.ok(body);
     }
 
     @GetMapping("/deliveries/{id}")

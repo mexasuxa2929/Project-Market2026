@@ -21,98 +21,154 @@ spring:
             - Path=/swagger/auth/**
           filters:
             - RewritePath=/swagger/auth/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-product
           uri: ${PRODUCT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/swagger/product/**
           filters:
             - RewritePath=/swagger/product/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-shop
           uri: ${SHOP_SERVICE_URL:http://localhost:8094}
           predicates:
             - Path=/swagger/shop/**
           filters:
             - RewritePath=/swagger/shop/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-warehouse
           uri: ${WAREHOUSE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/swagger/warehouse/**
           filters:
             - RewritePath=/swagger/warehouse/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-order
           uri: ${ORDER_SERVICE_URL:http://localhost:8085}
           predicates:
             - Path=/swagger/order/**
           filters:
             - RewritePath=/swagger/order/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-notification
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/swagger/notification/**
           filters:
             - RewritePath=/swagger/notification/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-delivery
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8088}
           predicates:
             - Path=/swagger/delivery/**
           filters:
             - RewritePath=/swagger/delivery/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-report
           uri: ${REPORT_SERVICE_URL:http://localhost:8089}
           predicates:
             - Path=/swagger/report/**
           filters:
             - RewritePath=/swagger/report/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-search
           uri: ${SEARCH_SERVICE_URL:http://localhost:8090}
           predicates:
             - Path=/swagger/search/**
           filters:
             - RewritePath=/swagger/search/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-payment
           uri: ${PAYMENT_SERVICE_URL:http://localhost:8091}
           predicates:
             - Path=/swagger/payment/**
           filters:
             - RewritePath=/swagger/payment/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-discount
           uri: ${DISCOUNT_SERVICE_URL:http://localhost:8092}
           predicates:
             - Path=/swagger/discount/**
           filters:
             - RewritePath=/swagger/discount/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-analytics
           uri: ${ANALYTICS_SERVICE_URL:http://localhost:8096}
           predicates:
             - Path=/swagger/analytics/**
           filters:
             - RewritePath=/swagger/analytics/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: swagger-geo
           uri: ${GEO_SERVICE_URL:http://localhost:8095}
           predicates:
             - Path=/swagger/geo/**
           filters:
             - RewritePath=/swagger/geo/(?<segment>.*),/$\{segment}
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: payment-payme
           uri: ${PAYMENT_SERVICE_URL:http://localhost:8091}
           predicates:
             - Path=/payment/**
           filters:
             - StripPrefix=0
-
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                key-resolver: "#{@userOrIpKeyResolver}"
         - id: warehouse-api
           uri: ${WAREHOUSE_SERVICE_URL:http://localhost:8084}
           predicates:
@@ -133,8 +189,9 @@ spring:
             - StripPrefix=0
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:20}
-                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:40}
+                # O-18: login uchun alohida (pastki) limit — parol tirnoqlashga qarshi
+                redis-rate-limiter.replenishRate: ${AUTH_RATE_REPLENISH:1}
+                redis-rate-limiter.burstCapacity: ${AUTH_RATE_BURST:5}
                 key-resolver: "#{@userOrIpKeyResolver}"
 
         - id: admin-api

@@ -13,16 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SupervisorAccount
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -120,20 +116,6 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                         modifier = Modifier.padding(top = 4.dp),
                                     )
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = {},
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.onSurface),
-                                    ) {
-                                        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MexaWarehouseColors.onSurface)
-                                    }
-                                    Button(
-                                        onClick = {},
-                                        colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary, contentColor = Color.White),
-                                    ) {
-                                        Icon(Icons.Filled.Download, contentDescription = null, tint = Color.White)
-                                    }
-                                }
                             }
                         } else {
                             Row(
@@ -156,32 +138,6 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                         modifier = Modifier.padding(top = 4.dp),
                                     )
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    OutlinedButton(
-                                        onClick = {},
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MexaWarehouseColors.onSurface),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MexaWarehouseColors.onSurface)
-                                            Text(AppStrings.last30Days(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        }
-                                    }
-                                    Button(
-                                        onClick = {},
-                                        colors = ButtonDefaults.buttonColors(containerColor = MexaWarehouseColors.primary, contentColor = Color.White),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Icon(Icons.Filled.Download, contentDescription = null, tint = Color.White)
-                                            Text(AppStrings.downloadReport(appLanguage()), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
@@ -197,25 +153,19 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                     horizontalArrangement = Arrangement.spacedBy(cardGap),
                                 ) {
                                     DashboardBentoStatCard(
-                                        label = "Jami foydalanuvchilar",
+                                        label = AppStrings.t(appLanguage(), "Jami foydalanuvchilar"),
                                         value = formatStatDigits(ui.userCount),
                                         icon = Icons.Filled.SupervisorAccount,
                                         iconTint = MexaWarehouseColors.primary,
                                         iconBackground = MexaWarehouseColors.primary.copy(alpha = 0.1f),
-                                        badgeText = "+3.2%",
-                                        badgeBackground = MexaWarehouseColors.greenBadgeBg,
-                                        badgeForeground = MexaWarehouseColors.greenBadgeFg,
                                         modifier = Modifier.weight(1f),
                                     )
                                     DashboardBentoStatCard(
-                                        label = "Jami omborlar",
+                                        label = AppStrings.t(appLanguage(), "Jami omborlar"),
                                         value = formatStatDigits(ui.warehouseCount),
                                         icon = Icons.Filled.Inventory2,
                                         iconTint = Color(0xFF16A34A),
                                         iconBackground = MexaWarehouseColors.greenBadgeBg,
-                                        badgeText = "Faol",
-                                        badgeBackground = MexaWarehouseColors.greenBadgeBg,
-                                        badgeForeground = MexaWarehouseColors.greenBadgeFg,
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
@@ -224,25 +174,19 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                     horizontalArrangement = Arrangement.spacedBy(cardGap),
                                 ) {
                                     DashboardBentoStatCard(
-                                        label = "Jami mahsulotlar",
+                                        label = AppStrings.t(appLanguage(), "Jami mahsulotlar"),
                                         value = formatStatDigits(ui.productCount),
                                         icon = Icons.Filled.Inventory,
                                         iconTint = Color(0xFF2563EB),
                                         iconBackground = MexaWarehouseColors.blueBadgeBg,
-                                        badgeText = "+24 yangi",
-                                        badgeBackground = MexaWarehouseColors.blueBadgeBg,
-                                        badgeForeground = MexaWarehouseColors.blueBadgeFg,
                                         modifier = Modifier.weight(1f),
                                     )
                                     DashboardBentoStatCard(
-                                        label = "Bugungi buyurtmalar",
+                                        label = AppStrings.t(appLanguage(), "Bugungi buyurtmalar"),
                                         value = formatStatDigits(ui.todayOrders),
                                         icon = Icons.Filled.ShoppingCart,
                                         iconTint = Color(0xFFD97706),
                                         iconBackground = MexaWarehouseColors.amberBadgeBg,
-                                        badgeText = "+12%",
-                                        badgeBackground = MexaWarehouseColors.amberBadgeBg,
-                                        badgeForeground = MexaWarehouseColors.amberBadgeFg,
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
@@ -253,47 +197,35 @@ fun SuperAdminDashboardScreen(modifier: Modifier = Modifier) {
                                 horizontalArrangement = Arrangement.spacedBy(cardGap),
                             ) {
                                 DashboardBentoStatCard(
-                                    label = "Jami foydalanuvchilar",
+                                    label = AppStrings.t(appLanguage(), "Jami foydalanuvchilar"),
                                     value = formatStatDigits(ui.userCount),
                                     icon = Icons.Filled.SupervisorAccount,
                                     iconTint = MexaWarehouseColors.primary,
                                     iconBackground = MexaWarehouseColors.primary.copy(alpha = 0.1f),
-                                    badgeText = "+3.2%",
-                                    badgeBackground = MexaWarehouseColors.greenBadgeBg,
-                                    badgeForeground = MexaWarehouseColors.greenBadgeFg,
                                     modifier = Modifier.weight(1f),
                                 )
                                 DashboardBentoStatCard(
-                                    label = "Jami omborlar",
+                                    label = AppStrings.t(appLanguage(), "Jami omborlar"),
                                     value = formatStatDigits(ui.warehouseCount),
                                     icon = Icons.Filled.Inventory2,
                                     iconTint = Color(0xFF16A34A),
                                     iconBackground = MexaWarehouseColors.greenBadgeBg,
-                                    badgeText = "Faol",
-                                    badgeBackground = MexaWarehouseColors.greenBadgeBg,
-                                    badgeForeground = MexaWarehouseColors.greenBadgeFg,
                                     modifier = Modifier.weight(1f),
                                 )
                                 DashboardBentoStatCard(
-                                    label = "Jami mahsulotlar",
+                                    label = AppStrings.t(appLanguage(), "Jami mahsulotlar"),
                                     value = formatStatDigits(ui.productCount),
                                     icon = Icons.Filled.Inventory,
                                     iconTint = Color(0xFF2563EB),
                                     iconBackground = MexaWarehouseColors.blueBadgeBg,
-                                    badgeText = "+24 yangi",
-                                    badgeBackground = MexaWarehouseColors.blueBadgeBg,
-                                    badgeForeground = MexaWarehouseColors.blueBadgeFg,
                                     modifier = Modifier.weight(1f),
                                 )
                                 DashboardBentoStatCard(
-                                    label = "Bugungi buyurtmalar",
+                                    label = AppStrings.t(appLanguage(), "Bugungi buyurtmalar"),
                                     value = formatStatDigits(ui.todayOrders),
                                     icon = Icons.Filled.ShoppingCart,
                                     iconTint = Color(0xFFD97706),
                                     iconBackground = MexaWarehouseColors.amberBadgeBg,
-                                    badgeText = "+12%",
-                                    badgeBackground = MexaWarehouseColors.amberBadgeBg,
-                                    badgeForeground = MexaWarehouseColors.amberBadgeFg,
                                     modifier = Modifier.weight(1f),
                                 )
                             }

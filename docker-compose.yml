@@ -43,6 +43,7 @@ services:
   minio:
     image: minio/minio:latest
     container_name: warehouse-minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -62,6 +63,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: warehouse-redis
+    restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
     command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD required} --rename-command FLUSHALL "" --rename-command KEYS ""
@@ -79,6 +81,7 @@ services:
       context: .
       dockerfile: auth-service/Dockerfile
     container_name: warehouse-auth-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${AUTH_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/auth_db}
@@ -112,7 +115,7 @@ services:
       postgres-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -123,6 +126,7 @@ services:
       context: .
       dockerfile: product-service/Dockerfile
     container_name: warehouse-product-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${PRODUCT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/products_db}
@@ -160,7 +164,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8083/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -171,6 +175,7 @@ services:
       context: .
       dockerfile: shop-service/Dockerfile
     container_name: warehouse-shop-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${SHOP_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
@@ -200,7 +205,7 @@ services:
       product-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8094/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -211,6 +216,7 @@ services:
       context: .
       dockerfile: warehouse-service/Dockerfile
     container_name: warehouse-warehouse-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${WAREHOUSE_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
@@ -237,7 +243,7 @@ services:
       product-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8084/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -248,10 +254,12 @@ services:
       context: .
       dockerfile: gateway-service/Dockerfile
     container_name: warehouse-gateway-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
-      LOGGING_LEVEL_MEXA_CLUB_GATEWAYSERVICE_REALTIME: DEBUG
+      # O-62: DEBUG majburiy emas — env orqali, default INFO
+      LOGGING_LEVEL_MEXA_CLUB_GATEWAYSERVICE_REALTIME: ${GATEWAY_REALTIME_LOG_LEVEL:-INFO}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       PRODUCT_SERVICE_URL: ${GATEWAY_PRODUCT_SERVICE_URL:-http://product-service:8083}
       SHOP_SERVICE_URL: ${SHOP_SERVICE_URL:-http://shop-service:8094}
@@ -290,7 +298,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -301,6 +309,7 @@ services:
       context: .
       dockerfile: order-service/Dockerfile
     container_name: warehouse-order-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${ORDER_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
@@ -331,7 +340,7 @@ services:
       discount-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8085/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -342,6 +351,7 @@ services:
       context: .
       dockerfile: notification-service/Dockerfile
     container_name: warehouse-notification-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${NOTIFICATION_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
@@ -364,7 +374,7 @@ services:
       postgres-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8087/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -375,6 +385,7 @@ services:
       context: .
       dockerfile: delivery-service/Dockerfile
     container_name: warehouse-delivery-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${DELIVERY_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/warehouse_db}
@@ -399,7 +410,7 @@ services:
       notification-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8088/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -410,6 +421,7 @@ services:
       context: .
       dockerfile: report-service/Dockerfile
     container_name: warehouse-report-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
@@ -428,7 +440,7 @@ services:
       order-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8089/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -437,6 +449,7 @@ services:
   elasticsearch:
     image: elasticsearch:8.13.0
     container_name: warehouse-elasticsearch
+    restart: unless-stopped
     environment:
       discovery.type: single-node
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?ELASTIC_PASSWORD required}
@@ -462,6 +475,7 @@ services:
       context: .
       dockerfile: payment-service/Dockerfile
     container_name: warehouse-payment-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SERVER_PORT: ${PAYMENT_SERVER_PORT:-8091}
@@ -489,7 +503,7 @@ services:
       order-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8091/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -500,6 +514,7 @@ services:
       context: .
       dockerfile: discount-service/Dockerfile
     container_name: warehouse-discount-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${DISCOUNT_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/discounts_db}
@@ -521,7 +536,7 @@ services:
       product-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8092/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -532,6 +547,7 @@ services:
       context: .
       dockerfile: search-service/Dockerfile
     container_name: warehouse-search-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
@@ -549,7 +565,7 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8090/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -560,6 +576,7 @@ services:
       context: .
       dockerfile: analytics-service/Dockerfile
     container_name: warehouse-analytics-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SERVER_PORT: 8096
@@ -594,7 +611,7 @@ services:
       discount-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8096/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -605,6 +622,7 @@ services:
       context: .
       dockerfile: geo-service/Dockerfile
     container_name: warehouse-geo-service
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Tashkent}  # D-H2: surcharge vaqtlari (HOLIDAY/PEAK) mahalliy vaqtda
       SPRING_DATASOURCE_URL: ${GEO_SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/geo_db}
@@ -623,7 +641,7 @@ services:
       postgres-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep '[j]ava' > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8095/actuator/health 2>/dev/null | grep -q UP || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -632,6 +650,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: warehouse-mailpit
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"

@@ -35,6 +35,20 @@ object AppPreferences {
             prefs.put(KEY_LANGUAGE, value)
         }
 
+    /**
+     * S-49: prod'da https majburiy.
+     * `https://` har doim ruxsat; `http://` faqat loopback (127.0.0.1/localhost) —
+     * lokal ishlab chiqish uchun. Boshqa http manzillar taqiqlanadi.
+     */
+    fun isUrlAllowed(raw: String): Boolean {
+        val u = raw.trim().trimEnd('/').lowercase()
+        return when {
+            u.startsWith("https://") -> true
+            u.startsWith("http://127.0.0.1") || u.startsWith("http://localhost") -> true
+            else -> false
+        }
+    }
+
     /** Saqlangan URL ni o'chirib DEFAULT_URL ga qaytaradi. */
     fun resetUrl() {
         prefs.remove(KEY_BASE_URL)

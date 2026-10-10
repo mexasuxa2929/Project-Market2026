@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -131,30 +132,33 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
         SessionManager.currentUser?.username ?: AuthSession.username,
     )
 
-    val allItems = listOf(
-        AdminSidebarItem("Dashboard", AdminNavScreen.Dashboard, Icons.Filled.Dashboard),
-        AdminSidebarItem("Users", AdminNavScreen.Users, Icons.Filled.SupervisorAccount),
-        AdminSidebarItem("Roles", AdminNavScreen.Roles, Icons.Filled.Security),
-        AdminSidebarItem("Warehouses", AdminNavScreen.Warehouses, Icons.Filled.Warehouse),
-        AdminSidebarItem("Products", AdminNavScreen.Products, Icons.Filled.Inventory2),
-        AdminSidebarItem("Orders", AdminNavScreen.Orders, Icons.Filled.ShoppingCart),
-        AdminSidebarItem("Deliveries", AdminNavScreen.Deliveries, Icons.Filled.LocalShipping),
-        AdminSidebarItem("Couriers", AdminNavScreen.Couriers, Icons.Filled.DeliveryDining),
-        AdminSidebarItem("Delivery Pricing", AdminNavScreen.Delivery, Icons.Filled.PriceChange),
-        AdminSidebarItem("Notifications", AdminNavScreen.Notifications, Icons.Filled.Notifications),
-        AdminSidebarItem("Templates", AdminNavScreen.Templates, Icons.Filled.Description),
-        AdminSidebarItem("Reports", AdminNavScreen.Reports, Icons.Filled.Assessment),
-        AdminSidebarItem("Analytics", AdminNavScreen.Analytics, Icons.Filled.BarChart),
-        AdminSidebarItem("Promotions", AdminNavScreen.Promotions, Icons.Filled.LocalOffer),
-        AdminSidebarItem("Groups", AdminNavScreen.Groups, Icons.Filled.GroupWork),
-        AdminSidebarItem("Search", AdminNavScreen.SearchOps, Icons.Filled.Search),
-        AdminSidebarItem("Audit Log", AdminNavScreen.AuditLog, Icons.Filled.History),
-        AdminSidebarItem("Sharhlar", AdminNavScreen.Reviews, Icons.Filled.RateReview),
-        AdminSidebarItem("Xarita", AdminNavScreen.Map, Icons.Filled.Map),
-        AdminSidebarItem("Settings", AdminNavScreen.Settings, Icons.Filled.Settings),
-    )
-
-    val items = allItems.filter { isSuperAdmin || !it.screen.superAdminOnly }
+    // O-45: items barqiya har recompositionda yangi List — remember bilan barqaror.
+    // S-48: sidebar matnlari AppStrings orqali (hardcoded emas).
+    val sidebarLang = appLanguage()
+    val items = remember(isSuperAdmin, sidebarLang) {
+        listOf(
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Dashboard"), AdminNavScreen.Dashboard, Icons.Filled.Dashboard),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Users"), AdminNavScreen.Users, Icons.Filled.SupervisorAccount),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Roles"), AdminNavScreen.Roles, Icons.Filled.Security),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Warehouses"), AdminNavScreen.Warehouses, Icons.Filled.Warehouse),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Products"), AdminNavScreen.Products, Icons.Filled.Inventory2),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Orders"), AdminNavScreen.Orders, Icons.Filled.ShoppingCart),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Deliveries"), AdminNavScreen.Deliveries, Icons.Filled.LocalShipping),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Couriers"), AdminNavScreen.Couriers, Icons.Filled.DeliveryDining),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Delivery Pricing"), AdminNavScreen.Delivery, Icons.Filled.PriceChange),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Notifications"), AdminNavScreen.Notifications, Icons.Filled.Notifications),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Templates"), AdminNavScreen.Templates, Icons.Filled.Description),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Reports"), AdminNavScreen.Reports, Icons.Filled.Assessment),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Analytics"), AdminNavScreen.Analytics, Icons.Filled.BarChart),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Promotions"), AdminNavScreen.Promotions, Icons.Filled.LocalOffer),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Groups"), AdminNavScreen.Groups, Icons.Filled.GroupWork),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Search"), AdminNavScreen.SearchOps, Icons.Filled.Search),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Audit Log"), AdminNavScreen.AuditLog, Icons.Filled.History),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Sharhlar"), AdminNavScreen.Reviews, Icons.Filled.RateReview),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Xarita"), AdminNavScreen.Map, Icons.Filled.Map),
+            AdminSidebarItem(AppStrings.t(sidebarLang, "Settings"), AdminNavScreen.Settings, Icons.Filled.Settings),
+        ).filter { isSuperAdmin || !it.screen.superAdminOnly }
+    }
 
     LaunchedEffect(items) {
         if (current.superAdminOnly && !isSuperAdmin) {
@@ -169,7 +173,10 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                 selected = current,
                 onSelect = { current = it; pendingSearch = null },
                 title = "MEXA WAREHOUSE",
-                subtitle = if (isSuperAdmin) "SUPER ADMIN PANEL" else "WAREHOUSE ADMIN PANEL",
+                subtitle = AppStrings.t(
+                    appLanguage(),
+                    if (isSuperAdmin) "SUPER ADMIN PANEL" else "WAREHOUSE ADMIN PANEL",
+                ),
                 onLogout = { showLogoutDialog = true },
             )
             Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -193,6 +200,10 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                         // Xarita brauzeri chegaralarga yopishishi uchun — padding'siz to'liq egallaydi.
                         .then(if (current == AdminNavScreen.Map) Modifier else Modifier.padding(horizontal = 24.dp, vertical = 20.dp))
                 ) {
+                    // O-45: sahifa holati saqlanadi — Orders 5-sahifadan chiqib
+                    // qaytsa state yo'qolmaydi (SaveableStateHolder + kalit).
+                    val saveableStateHolder = rememberSaveableStateHolder()
+                    saveableStateHolder.SaveableStateProvider(key = current.toString()) {
                     when (current) {
                         AdminNavScreen.Dashboard     -> SuperAdminDashboardScreen()
                         AdminNavScreen.Users         -> UsersScreen(initialQuery = searchQueryFor("users"))
@@ -215,6 +226,7 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                         AdminNavScreen.Map           -> MarketMapScreen()
                         AdminNavScreen.Settings      -> SettingsScreen()
                     }
+                    }
                 }
             }
         }
@@ -225,10 +237,10 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
             icon = {
                 Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MexaWarehouseColors.danger)
             },
-            title = { Text("Chiqishni tasdiqlash") },
+            title = { Text(AppStrings.logoutDialogTitle(appLanguage())) },
             text = {
                 Text(
-                    "Tizimdan chiqmoqchimisiz?",
+                    AppStrings.logoutDialogMessage(appLanguage()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MexaWarehouseColors.textMuted,
                 )

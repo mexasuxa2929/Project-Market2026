@@ -196,9 +196,14 @@ public class DeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeliveryResponse> all(int page, int size) {
+    public Page<DeliveryResponse> allPage(int page, int size) {
         return deliveryRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200))))
-                .stream().map(this::toResponse).toList();
+                .map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryResponse> all(int page, int size) {
+        return allPage(page, size).getContent();
     }
 
     @Transactional(readOnly = true)
@@ -496,12 +501,10 @@ public class DeliveryService {
 
     @Transactional(readOnly = true)
     public CourierStatsResponse courierStats() {
-        List<Courier> all = courierRepository.findAll();
-        long total = all.size();
-        long active = all.stream().filter(Courier::isActive).count();
-        long totalCurrentDeliveries = all.stream()
-                .mapToLong(c -> c.getCurrentDeliveries() != null ? c.getCurrentDeliveries() : 0)
-                .sum();
+        // O-32: agregat count/sum — to'liq jadvalni yuklash emas
+        long total = courierRepository.count();
+        long active = courierRepository.countByActiveTrue();
+        long totalCurrentDeliveries = courierRepository.sumCurrentDeliveries();
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
@@ -639,7 +642,7 @@ public class DeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeliveryResponse> search(
+    public Page<DeliveryResponse> searchPage(
             DeliveryStatus status, UUID courierId, LocalDateTime dateFrom, LocalDateTime dateTo,
             String region, String search, int page, int size
     ) {
@@ -677,7 +680,15 @@ public class DeliveryService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         Page<Delivery> result = deliveryRepository.findAll(spec, PageRequest.of(page, size));
-        return result.map(this::toResponse).toList();
+        return result.map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryResponse> search(
+            DeliveryStatus status, UUID courierId, LocalDateTime dateFrom, LocalDateTime dateTo,
+            String region, String search, int page, int size
+    ) {
+        return searchPage(status, courierId, dateFrom, dateTo, region, search, page, size).getContent();
     }
 
     @Transactional
@@ -858,13 +869,9 @@ public class DeliveryService {
         DeliveryZone zone = zoneRepository.findById(id).orElseThrow(() ->
                 new DeliveryException(HttpStatus.NOT_FOUND, "ZONE_NOT_FOUND", "Zone not found"));
         // 1-bosqich: faol delivery bor zonani o'chirishdan himoya
-        long activeCount = deliveryRepository.findAll().stream()
-                .filter(d -> d.getRegion() != null && d.getDistrict() != null
-                        && d.getRegion().equalsIgnoreCase(zone.getRegion())
-                        && d.getDistrict().equalsIgnoreCase(zone.getDistrict()))
-                .filter(d -> d.getStatus() != DeliveryStatus.DELIVERED
-                        && d.getStatus() != DeliveryStatus.RETURNED)
-                .count();
+        // O-32: SQL COUNT (region/district + status filtri) — findAll emas
+        long activeCount = deliveryRepository.countActiveByRegionAndDistrict(
+                zone.getRegion(), zone.getDistrict());
         if (activeCount > 0) {
             throw new DeliveryException(HttpStatus.BAD_REQUEST, "ZONE_IN_USE",
                     "Bu zonada " + activeCount + " ta faol yetkazma bor — avval ularni yakunlang");
