@@ -10,6 +10,10 @@ import mexa.club.warehouseproject.repository.StockLotRepository;
 import mexa.club.warehouseproject.service.PurchaseService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -104,7 +108,25 @@ public class InternalAutoPurchaseController {
         }
         dto.setItems(lines);
 
-        PurchaseResponse created = purchaseService.createPurchase(warehouseId, dto);
+        PurchaseResponse created = runAsSystem(() -> purchaseService.createPurchase(warehouseId, dto));
         return new AutoPurchaseResponse(created.getId(), created.getInvoiceNumber(), lines.size());
+    }
+
+    /**
+     * Ichki tizim chaqiruvi biznes-mantiq ostida ishlaydi: X-Internal-Secret
+     * tekshirilgan, shuning uchun oxirgi user huquqi emas, tizim huquqi bilan
+     * bajariladi (aks holda oddiy mijoz buyurtmasida 403 chiqadi).
+     */
+    private static <T> T runAsSystem(java.util.function.Supplier<T> action) {
+        Authentication previous = SecurityContextHolder.getContext().getAuthentication();
+        UsernamePasswordAuthenticationToken systemAuth = new UsernamePasswordAuthenticationToken(
+                "system-auto-purchase", null,
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(systemAuth);
+        try {
+            return action.get();
+        } finally {
+            SecurityContextHolder.getContext().setAuthentication(previous);
+        }
     }
 }

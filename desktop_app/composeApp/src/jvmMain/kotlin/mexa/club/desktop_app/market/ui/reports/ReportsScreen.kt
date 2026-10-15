@@ -234,30 +234,71 @@ private fun GenericReportTable(rows: List<JsonObject>, columns: List<Pair<String
     val totalPages = if (rows.isEmpty()) 1 else (rows.size + pageSize - 1) / pageSize
     val safePage = page.coerceIn(0, totalPages - 1)
     val paged = rows.drop(safePage * pageSize).take(pageSize)
+    // Kartochka: border/fon tashqi konteynerda — scroll qilinmaydi.
+    // Jadval tor ekranda gorizontal scroll, keng ekranda to'liq enga cho'ziladi.
     Column(
         Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .border(1.dp, MexaWarehouseColors.borderSubtle, RoundedCornerShape(12.dp))
             .background(MexaWarehouseColors.surfaceLowest, RoundedCornerShape(12.dp)),
     ) {
-        Row(Modifier.background(MexaWarehouseColors.tableHeaderBg).padding(vertical = 12.dp, horizontal = 20.dp)) {
-            columns.forEach { (_, label) ->
-                Text(label.uppercase(), modifier = Modifier.width(180.dp), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, color = MexaWarehouseColors.outline)
-            }
-        }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle))
-        paged.forEachIndexed { idx, r ->
-            Row(
-                Modifier
-                    .background(if (idx % 2 == 0) MexaWarehouseColors.surfaceLowest else MexaWarehouseColors.surfaceContainerLow.copy(alpha = 0.35f))
-                    .padding(vertical = 12.dp, horizontal = 20.dp),
-            ) {
-                columns.forEach { (key, _) ->
-                    Text(r.stringField(key).ifBlank { "—" }, modifier = Modifier.width(180.dp), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val minCol = 180.dp
+            val needWidth = minCol * columns.size + 40.dp
+            if (maxWidth >= needWidth) {
+                // Keng ekran: ustunlar og'irlik bilan to'liq enga cho'ziladi.
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MexaWarehouseColors.tableHeaderBg)
+                            .padding(vertical = 12.dp, horizontal = 20.dp),
+                    ) {
+                        columns.forEach { (_, label) ->
+                            Text(label.uppercase(), modifier = Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, color = MexaWarehouseColors.outline, maxLines = 1)
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle))
+                    paged.forEachIndexed { idx, r ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(if (idx % 2 == 0) MexaWarehouseColors.surfaceLowest else MexaWarehouseColors.surfaceContainerLow.copy(alpha = 0.35f))
+                                .padding(vertical = 12.dp, horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            columns.forEach { (key, _) ->
+                                Text(r.stringField(key).ifBlank { "—" }, modifier = Modifier.weight(1f).padding(end = 8.dp), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f)))
+                    }
+                }
+            } else {
+                // Tor ekran: qat'iy en + gorizontal scroll.
+                Box(Modifier.horizontalScroll(rememberScrollState())) {
+                    Column(Modifier.width(needWidth)) {
+                        Row(Modifier.background(MexaWarehouseColors.tableHeaderBg).padding(vertical = 12.dp, horizontal = 20.dp)) {
+                            columns.forEach { (_, label) ->
+                                Text(label.uppercase(), modifier = Modifier.width(minCol), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, color = MexaWarehouseColors.outline, maxLines = 1)
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle))
+                        paged.forEachIndexed { idx, r ->
+                            Row(
+                                Modifier
+                                    .background(if (idx % 2 == 0) MexaWarehouseColors.surfaceLowest else MexaWarehouseColors.surfaceContainerLow.copy(alpha = 0.35f))
+                                    .padding(vertical = 12.dp, horizontal = 20.dp),
+                            ) {
+                                columns.forEach { (key, _) ->
+                                    Text(r.stringField(key).ifBlank { "—" }, modifier = Modifier.width(minCol), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                            }
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f)))
+                        }
+                    }
                 }
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f)))
         }
         androidx.compose.material3.HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
         PaginationBar(

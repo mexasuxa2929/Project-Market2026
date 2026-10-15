@@ -17,9 +17,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,8 +45,6 @@ import com.example.mobile_app.ui.theme.appTextFieldColors
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -177,26 +186,6 @@ fun CheckoutScreen(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         containerColor = Background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = tr("checkout_title"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = tr("checkout_back"),
-                            tint = Color(0xFF1F2937)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         bottomBar = {
             val state = cartState
             if (state is UiState.Success && state.data.lines.isNotEmpty()) {
@@ -294,17 +283,52 @@ fun CheckoutScreen(
                     }
                 } else {
                     val subtotal = cart.lines.sumOf { it.quantity * (it.unitPrice ?: 0.0) }
+                    // Fokuslangan maydon klaviatura ustida MARKAZDA turishi uchun:
+                    // har bir karta koordinatasi eslab qolinadi, fokusda scroll markazlanadi.
+                    val scrollState = rememberScrollState()
+                    var viewportPx by remember { mutableIntStateOf(0) }
+                    val fieldCoords = remember { mutableMapOf<String, LayoutCoordinates>() }
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
-                            .verticalScroll(rememberScrollState())
+                            .onSizeChanged { viewportPx = it.height }
+                            .verticalScroll(scrollState)
+                            .imePadding()
                             .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Ixcham sarlavha — Cart dagi andoza (alohida AppBar yo'q)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = tr("checkout_back"),
+                                    tint = Color(0xFF0F172A)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = tr("checkout_title"),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
                         // Section 1: Shipping Address
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusCenterOn(
+                                    key = "address",
+                                    coords = fieldCoords,
+                                    scrollState = scrollState,
+                                    getViewportPx = { viewportPx },
+                                    scope = checkoutScope
+                                ),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(2.dp)
@@ -462,7 +486,15 @@ fun CheckoutScreen(
 
                         // Section 1.5: Izoh
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusCenterOn(
+                                    key = "note",
+                                    coords = fieldCoords,
+                                    scrollState = scrollState,
+                                    getViewportPx = { viewportPx },
+                                    scope = checkoutScope
+                                ),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(2.dp)
@@ -489,7 +521,15 @@ fun CheckoutScreen(
 
                         // Section 1.6: Chegirma kodi
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusCenterOn(
+                                    key = "promo",
+                                    coords = fieldCoords,
+                                    scrollState = scrollState,
+                                    getViewportPx = { viewportPx },
+                                    scope = checkoutScope
+                                ),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(2.dp)
@@ -838,3 +878,31 @@ private fun CheckoutLineItem(line: CartLineResponse) {
         )
     }
 }
+/**
+ * Fokuslangan karta klaviatura ustida MARKAZDA turishi uchun modifier.
+ * Fokusda: klaviatura animatsiyasi kutiladi (350ms), karta markazi ko'rinadigan
+ * soha markaziga keltiriladi. adjustResize bo'lgani uchun viewport = jonli balandlik.
+ */
+private fun Modifier.focusCenterOn(
+    key: String,
+    coords: MutableMap<String, LayoutCoordinates>,
+    scrollState: ScrollState,
+    getViewportPx: () -> Int,
+    scope: CoroutineScope,
+): Modifier = this
+    .onGloballyPositioned { coords[key] = it }
+    .onFocusEvent {
+        if (it.isFocused) {
+            scope.launch {
+                delay(350)
+                val c = coords[key] ?: return@launch
+                if (!c.isAttached) return@launch
+                val bounds = c.boundsInWindow()
+                val viewport = getViewportPx()
+                if (viewport <= 0) return@launch
+                val docCenterY = scrollState.value + bounds.top + bounds.height / 2f
+                val target = (docCenterY - viewport / 2f).coerceAtLeast(0f).toInt()
+                scrollState.animateScrollTo(target)
+            }
+        }
+    }

@@ -10,6 +10,7 @@ import mexa.club.warehouseproject.dto.StockMovementResponse;
 import mexa.club.warehouseproject.dto.StockUpsertRequest;
 import mexa.club.warehouseproject.dto.StockLotResponse;
 import mexa.club.warehouseproject.dto.WarehouseStockLineResponse;
+import mexa.club.warehouseproject.entity.MovementStatus;
 import mexa.club.warehouseproject.entity.MovementType;
 import mexa.club.warehouseproject.entity.StockLot;
 import mexa.club.warehouseproject.entity.Warehouse;
@@ -616,6 +617,17 @@ public class WarehouseStockService {
     }
 
 
+    /**
+     * Sotuv paytidagi tushum snapshot'i: birlik narx × sotilgan to'liq qator miqdori.
+     * Narx kelmasa null (hisobotda fallback ishlaydi).
+     */
+    private static BigDecimal saleRevenue(BigDecimal quantity, BigDecimal unitPrice) {
+        if (unitPrice == null || quantity == null) {
+            return null;
+        }
+        return unitPrice.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+    }
+
     @Transactional
     public SalesOutResponse salesOut(UUID warehouseId, SalesOutRequest request) {
         warehouseAccessService.requireCanManageWarehouse(warehouseId);
@@ -648,9 +660,10 @@ public class WarehouseStockService {
             StockLotService.ConsumptionResult consumption = leftToDeduct.signum() > 0
                     ? stockLotService.consumeFifo(warehouseId, i.getProductId(), leftToDeduct)
                     : StockLotService.ConsumptionResult.zero();
-            stockMovementService.logWithCost(warehouseId, i.getProductId(), MovementType.SALES_OUT, leftToDeduct,
+            stockMovementService.logSale(warehouseId, i.getProductId(), MovementType.SALES_OUT, leftToDeduct,
                     consumption.unitCost(), consumption.totalCost(),
-                    request.getOrderId(), "ORDER", null);
+                    i.getUnitPrice(), saleRevenue(i.getQuantity(), i.getUnitPrice()),
+                    request.getOrderId(), "ORDER", null, MovementStatus.CONFIRMED);
             auditLogService.log("STOCK_SALES_OUT", "WAREHOUSE_STOCK",
                     warehouseId + ":" + i.getProductId(), warehouseId,
                     "orderId=" + request.getOrderId() + ", deducted=" + i.getQuantity());
@@ -697,8 +710,10 @@ public class WarehouseStockService {
             BigDecimal unitCost = m.getUnitCost() != null ? m.getUnitCost() : BigDecimal.ZERO;
             stockLotService.restoreAtCost(warehouseId, m.getProductId(), m.getQuantity(), unitCost);
             BigDecimal restoredCost = unitCost.multiply(m.getQuantity()).setScale(2, RoundingMode.HALF_UP);
-            stockMovementService.logWithCost(warehouseId, m.getProductId(), MovementType.RETURN_IN, m.getQuantity(),
-                    unitCost, restoredCost, orderId, "ORDER_REVERSE", "sales-out-reverse");
+            // Bekor qilish asl sotuvdagi tushumni aynan qaytaradi (narx o'zgargan bo'lsa ham).
+            stockMovementService.logSale(warehouseId, m.getProductId(), MovementType.RETURN_IN, m.getQuantity(),
+                    unitCost, restoredCost, m.getUnitPrice(), m.getTotalRevenue(),
+                    orderId, "ORDER_REVERSE", "sales-out-reverse", MovementStatus.CONFIRMED);
             auditLogService.log("STOCK_SALES_OUT_REVERSE", "WAREHOUSE_STOCK",
                     warehouseId + ":" + m.getProductId(), warehouseId,
                     "orderId=" + orderId + ", restored=" + m.getQuantity());

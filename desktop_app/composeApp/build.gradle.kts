@@ -45,6 +45,9 @@ kotlin {
             // JCEF — Chromium Embedded Framework
             implementation("me.friwi:jcefmaven:146.0.10")
         }
+        jvmTest.dependencies {
+            implementation(libs.junit)
+        }
     }
 }
 

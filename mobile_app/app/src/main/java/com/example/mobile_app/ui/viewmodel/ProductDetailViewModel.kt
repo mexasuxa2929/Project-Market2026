@@ -117,7 +117,12 @@ class ProductDetailViewModel(
             _recommendedProducts.value = UiState.Loading
             productRepository.getTrendingProducts().collect { result ->
                 result.fold(
-                    onSuccess = { _recommendedProducts.value = UiState.Success(it) },
+                    onSuccess = {
+                        // Chegirmalilar chiqmaydi + ko'rilayotgan mahsulotning o'zi chiqmaydi
+                        _recommendedProducts.value = UiState.Success(
+                            it.filter { p -> p.discountPercent <= 0 && p.id != currentProductId }
+                        )
+                    },
                     onFailure = { _recommendedProducts.value = UiState.Error(it.message ?: "Xatolik") }
                 )
             }

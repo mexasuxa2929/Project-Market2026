@@ -10,6 +10,7 @@ import com.example.mobile_app.data.local.CatalogProductDao
 import com.example.mobile_app.data.model.Brand
 import com.example.mobile_app.data.model.Category
 import com.example.mobile_app.data.model.HomeBundleData
+import com.example.mobile_app.data.model.PagePayload
 import com.example.mobile_app.data.model.Product
 import com.example.mobile_app.data.paging.CatalogRemoteMediator
 import com.example.mobile_app.data.remote.ApiService
@@ -35,6 +36,46 @@ private fun Product.isValid(): Boolean = try {
     !idVal.isNullOrBlank() && !nameVal.isNullOrBlank()
 } catch (_: Exception) {
     false
+}
+
+/**
+ * Product sahifasini o'ramdan chiqarib parse'lash (unit-testlanadigan).
+ * Xom PagePayload ham, {"success","data":{...}} o'rami ham qabul qilinadi.
+ */
+internal fun parseProductPage(
+    body: com.google.gson.JsonElement,
+    gson: Gson,
+): PagePayload<Product> {
+    val page: PagePayload<Product> = gson.fromJson(
+        unwrapProductDetail(body),
+        object : com.google.gson.reflect.TypeToken<PagePayload<Product>>() {}.type,
+    )
+    // Gson Kotlin default'ni ishlatmaydi — content null kelishi mumkin
+    @Suppress("UNNECESSARY_ELVIS")
+    return page.copy(content = page.content ?: emptyList())
+}
+
+/**
+ * Product-detail javobini o'ramdan chiqarish (unit-testlanadigan).
+ * Admin yo'nalish product-service o'ramida qaytaradi:
+ * {"success":true,"data":{...}} → {...}. Xom Product o'z holicha qaytadi,
+ * success=false da server xabari bilan xatolik otiladi.
+ */
+internal fun unwrapProductDetail(body: com.google.gson.JsonElement): com.google.gson.JsonElement {
+    if (body.isJsonObject) {
+        val obj = body.asJsonObject
+        val data = obj.get("data")
+        if (data != null && data.isJsonObject) return data
+        if (obj.has("success") && obj.get("success")?.asBoolean == false) {
+            val msg = try {
+                obj.getAsJsonObject("error")?.get("message")?.asString
+            } catch (_: Exception) { null }
+            throw IllegalStateException(
+                msg?.takeIf { it.isNotBlank() } ?: "Mahsulot topilmadi"
+            )
+        }
+    }
+    return body
 }
 
 private fun Product.safeLocalize(lang: Language): Product? {
@@ -85,7 +126,7 @@ class ProductRepository(
 
     fun getProducts(search: String? = null): Flow<Result<List<Product>>> = flow {
         try {
-            val page = apiService.getProducts(search = search)
+            val page = parseProductPage(apiService.getProducts(search = search), gson)
             val lang = AppLanguage.current
             emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {
@@ -95,7 +136,7 @@ class ProductRepository(
 
     fun getTrendingProducts(): Flow<Result<List<Product>>> = flow {
         try {
-            val page = apiService.getProducts(size = 10)
+            val page = parseProductPage(apiService.getProducts(size = 10), gson)
             val lang = AppLanguage.current
             emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {
@@ -105,7 +146,7 @@ class ProductRepository(
     /** Keyset pagination: cursor = oxirgi qaytarilgan mahsulot id, null = 1-sahifa */
     fun getProductsPage(cursor: String?, size: Int = 10, search: String? = null): Flow<Result<ProductPage>> = flow {
         try {
-            val response = apiService.getProducts(search = search, cursor = cursor, size = size)
+            val response = parseProductPage(apiService.getProducts(search = search, cursor = cursor, size = size), gson)
             val lang = AppLanguage.current
             val products = response.content.filterValidAndLocalize(lang)
             emit(Result.success(ProductPage(products, response.hasMore, response.nextCursor)))
@@ -145,7 +186,7 @@ class ProductRepository(
     fun getProductById(id: String): Flow<Result<Product>> = flow {
         try {
             val lang = AppLanguage.current
-            val raw = apiService.getProductById(id)
+            val raw = gson.fromJson(unwrapData(apiService.getProductById(id)), Product::class.java)
             if (!raw.isValid()) {
                 val rawId = try { raw.javaClass.getDeclaredField("id").apply { isAccessible = true }.get(raw) as String? } catch (_: Exception) { "unknown" }
                 throw IllegalStateException("Noto'g'ri mahsulot (id=$rawId, so'ralgan=$id)")
@@ -157,9 +198,17 @@ class ProductRepository(
         }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Detail javobini o'ramdan chiqarish: {"success":true,"data":{...}} → {...}.
+     * Xom Product kelsa o'z holicha qaytadi. success=false bo'lsa server xabari
+     * bilan xatolik otadi.
+     */
+    private fun unwrapData(body: com.google.gson.JsonElement): com.google.gson.JsonElement =
+        unwrapProductDetail(body)
+
     fun searchProducts(query: String): Flow<Result<List<Product>>> = flow {
         try {
-            val page = apiService.getProducts(search = query)
+            val page = parseProductPage(apiService.getProducts(search = query), gson)
             val lang = AppLanguage.current
             emit(Result.success(page.content.filterValidAndLocalize(lang)))
         } catch (e: Exception) {

@@ -52,6 +52,21 @@ public class StockMovement {
     @Column(name = "total_cost", precision = 19, scale = 6)
     private BigDecimal totalCost;
 
+    /**
+     * Sotuv paytidagi haqiqiy sotuv narxi (birlik uchun). Faqat SALES_OUT va
+     * unga mos ORDER_REVERSE (RETURN_IN) harakatlarda to'ldiriladi.
+     * Eski yozuvlarda null — hisobotda joriy basePrice fallback ishlatiladi.
+     */
+    @Column(name = "unit_price", precision = 19, scale = 6)
+    private BigDecimal unitPrice;
+
+    /**
+     * Sotuv paytidagi haqiqiy tushum (unitPrice × sotilgan miqdor).
+     * ProfitReport aynan shu maydondan o'qiydi — narx o'zgarsa ham tarix buzilmaydi.
+     */
+    @Column(name = "total_revenue", precision = 19, scale = 6)
+    private BigDecimal totalRevenue;
+
     private UUID referenceId;
 
     @Column(length = 32)

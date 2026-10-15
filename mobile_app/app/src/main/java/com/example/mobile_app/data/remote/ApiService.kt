@@ -13,6 +13,8 @@ import retrofit2.http.Query
 interface ApiService {
 
     // Shop-service: PagePayload<Product> qaytaradi (content, nextCursor, hasMore, ...)
+    // Admin yo'nalishda product-service o'ramida keladi ({"success","data"}) —
+    // JsonElement olinib, caller da ochiladi (parseProductPage).
     @GET("api/products")
     suspend fun getProducts(
         @Query("search") search: String? = null,
@@ -22,12 +24,18 @@ interface ApiService {
         @Query("maxPrice") maxPrice: Double? = null,
         @Query("cursor") cursor: String? = null,
         @Query("size") size: Int = 20
-    ): PagePayload<Product>
+    ): com.google.gson.JsonElement
 
+    /**
+     * Detail ikki xil shaklda kelishi mumkin (gateway yo'nalishiga bog'liq):
+     * oddiy user → shop-service (xom Product), admin → product-service
+     * (ApiResponse o'rami: {"success","data"}). Shuning uchun JsonElement
+     * olinib, repository da ochiladi.
+     */
     @GET("api/products/{id}")
     suspend fun getProductById(
         @Path("id") id: String
-    ): Product
+    ): com.google.gson.JsonElement
 
     // Homepage bundle (2-bosqich): trending + recommended + brands + categories — bitta so'rov
     @GET("api/shops/home")

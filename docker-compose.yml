@@ -281,7 +281,9 @@ services:
       SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:-http://search-service:8090}
       GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
     ports:
-      - "127.0.0.1:8080:8080"
+      # Telefon (LAN) dan kirish uchun barcha interfeyslarda ochiq.
+      # Qolgan servislar ataylab 127.0.0.1 da — tashqaridan yopiq.
+      - "8080:8080"
     depends_on:
       auth-service:
         condition: service_healthy
@@ -320,6 +322,9 @@ services:
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
       REDIS_PORT: ${REDIS_PORT:-6379}
       APP_INTERNAL_SECRET: ${APP_INTERNAL_SECRET:?APP_INTERNAL_SECRET required}
+      # shop-service ichki manzillar API si uchun (preview/checkout dagi delivery fee).
+      # Qiymat shop dagi APP_INTERNAL_API_KEY bilan BIR XIL bo'lishi shart.
+      SHOP_INTERNAL_API_KEY: ${APP_INTERNAL_API_KEY:?APP_INTERNAL_API_KEY required}
       WAREHOUSE_SERVICE_URL: ${WAREHOUSE_SERVICE_URL:-http://warehouse-service:8084}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8083}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8087}
@@ -328,6 +333,7 @@ services:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       DELIVERY_SERVICE_URL: ${DELIVERY_SERVICE_URL:-http://delivery-service:8088}
       PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8091}
+      GEO_SERVICE_URL: ${GEO_SERVICE_URL:-http://geo-service:8095}
     ports:
       - "127.0.0.1:8085:8085"
     depends_on:

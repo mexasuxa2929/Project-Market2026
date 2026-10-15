@@ -44,14 +44,17 @@ class CatalogRemoteMediator(
         }
 
         return try {
-            val response = apiService.getProducts(
-                search = search.ifBlank { null },
-                categoryId = categoryId,
-                sort = sort,
-                minPrice = minPrice,
-                maxPrice = maxPrice,
-                cursor = cursor,
-                size = state.config.pageSize
+            val response = com.example.mobile_app.data.repository.parseProductPage(
+                apiService.getProducts(
+                    search = search.ifBlank { null },
+                    categoryId = categoryId,
+                    sort = sort,
+                    minPrice = minPrice,
+                    maxPrice = maxPrice,
+                    cursor = cursor,
+                    size = state.config.pageSize
+                ),
+                gson
             )
 
             if (loadType == LoadType.REFRESH) {

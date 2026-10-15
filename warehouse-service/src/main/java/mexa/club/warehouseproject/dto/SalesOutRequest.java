@@ -32,5 +32,11 @@ public class SalesOutRequest {
         @NotNull
         @DecimalMin(value = "0.000001", inclusive = true)
         private BigDecimal quantity;
+        /**
+         * Sotuv paytidagi haqiqiy birlik narxi (order-service OrderItem.unitPrice).
+         * Ixtiyoriy — eski chaqiruvchilar yubormasa null bo'ladi, hisobotda fallback ishlaydi.
+         */
+        @DecimalMin(value = "0.0", inclusive = true)
+        private BigDecimal unitPrice;
     }
 }

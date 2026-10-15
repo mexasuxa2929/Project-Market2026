@@ -45,8 +45,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -115,19 +113,6 @@ fun AddressesScreen(
     Scaffold(
         containerColor = Background,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                modifier = Modifier.height(48.dp),
-                title = { Text(tr("addresses_title"), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF0F172A)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color(0xFF0F172A), modifier = Modifier.size(20.dp))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
@@ -184,6 +169,19 @@ fun AddressesScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Ixcham sarlavha — Cart dagi andoza (alohida AppBar yo'q)
+                        item(key = "header") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color(0xFF0F172A))
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(tr("addresses_title"), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                            }
+                        }
                         items(addresses, key = { it.id }) { item ->
                             AddressCard(
                                 address = item,

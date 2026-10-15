@@ -25,6 +25,10 @@ public class StockMovementResponse {
     private BigDecimal quantity;
     private BigDecimal unitCost;
     private BigDecimal totalCost;
+    /** Sotuv paytidagi birlik narx (SALES_OUT / ORDER_REVERSE). Eski yozuvlarda null. */
+    private BigDecimal unitPrice;
+    /** Sotuv paytidagi tushum snapshot'i. Eski yozuvlarda null. */
+    private BigDecimal totalRevenue;
     private String referenceType;
     private UUID referenceId;
     private String reason;
@@ -41,6 +45,8 @@ public class StockMovementResponse {
                 .quantity(m.getQuantity())
                 .unitCost(m.getUnitCost())
                 .totalCost(m.getTotalCost())
+                .unitPrice(m.getUnitPrice())
+                .totalRevenue(m.getTotalRevenue())
                 .referenceType(m.getReferenceType())
                 .referenceId(m.getReferenceId())
                 .reason(m.getReason())

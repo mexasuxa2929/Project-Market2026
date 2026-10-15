@@ -208,7 +208,7 @@ private fun AuditLogTable(logs: List<AuditLogRow>) {
         Row(
             Modifier.fillMaxWidth().background(MexaWarehouseColors.tableHeaderBg).padding(vertical = 12.dp, horizontal = 20.dp),
         ) {
-            listOf("Amal" to 1.2f, "Obyekt" to 1.4f, "Foydalanuvchi" to 1.2f, "Tafsilot" to 2f, "Sana" to 1f).forEach { (h, w) ->
+            listOf("Amal" to 1.6f, "Obyekt" to 1.4f, "Foydalanuvchi" to 1f, "Tafsilot" to 1.8f, "Sana" to 1f).forEach { (h, w) ->
                 Text(h.uppercase(), modifier = Modifier.weight(w), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, color = MexaWarehouseColors.outline)
             }
         }
@@ -221,13 +221,48 @@ private fun AuditLogTable(logs: List<AuditLogRow>) {
                     .padding(vertical = 14.dp, horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(l.action.ifBlank { "—" }, modifier = Modifier.weight(1.2f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MexaWarehouseColors.textPrimary)
-                Column(Modifier.weight(1.4f)) {
-                    Text(l.targetType.ifBlank { "—" }, fontSize = 13.sp, color = MexaWarehouseColors.textPrimary)
-                    if (l.targetId.isNotBlank()) Text(l.targetId.take(8), fontSize = 11.sp, color = MexaWarehouseColors.textMuted)
+                // AMAL: ustida odam tushunadigan nom, ostida tizim kodi.
+                Column(Modifier.weight(1.6f).padding(end = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(8.dp)
+                                .background(auditActionColor(l.action), androidx.compose.foundation.shape.CircleShape),
+                        )
+                        Text(
+                            auditActionFriendlyName(l.action, l.details),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MexaWarehouseColors.textPrimary,
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                    if (l.action.isNotBlank()) {
+                        Text(
+                            l.action,
+                            fontSize = 11.sp,
+                            color = MexaWarehouseColors.textMuted,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 16.dp, top = 2.dp),
+                        )
+                    }
                 }
-                Text(l.actorUsername.ifBlank { "—" }, modifier = Modifier.weight(1.2f), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
-                Text(l.details.ifBlank { "—" }, modifier = Modifier.weight(2f), fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
+                // OBYEKT: ustida odam tushunadigan nom, ostida kod + id.
+                Column(Modifier.weight(1.4f).padding(end = 8.dp)) {
+                    Text(auditTargetFriendlyName(l.targetType), fontSize = 13.sp, color = MexaWarehouseColors.textPrimary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    val sub = buildString {
+                        if (l.targetType.isNotBlank()) append(l.targetType)
+                        if (l.targetId.isNotBlank()) {
+                            if (isNotEmpty()) append(" · ")
+                            append(l.targetId.take(8))
+                        }
+                    }
+                    if (sub.isNotBlank()) Text(sub, fontSize = 11.sp, color = MexaWarehouseColors.textMuted, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                Text(l.actorUsername.ifBlank { "—" }, modifier = Modifier.weight(1f), fontSize = 13.sp, color = MexaWarehouseColors.textMuted)
+                Text(l.details.ifBlank { "—" }, modifier = Modifier.weight(1.8f), fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
                 Text(l.createdAt.take(19).replace("T", " "), modifier = Modifier.weight(1f), fontSize = 12.sp, color = MexaWarehouseColors.textMuted)
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(MexaWarehouseColors.borderSubtle.copy(alpha = 0.6f)))

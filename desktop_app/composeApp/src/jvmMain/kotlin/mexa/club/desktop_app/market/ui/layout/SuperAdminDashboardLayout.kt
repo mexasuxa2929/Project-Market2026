@@ -100,30 +100,9 @@ private fun avatarInitials(raw: String?): String {
 @Composable
 fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Unit) {
     var current by remember { mutableStateOf<AdminNavScreen>(AdminNavScreen.Dashboard) }
-    var searchQuery by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    // T-H1: global qidiruv → (bo'lim kaliti, so'rov); tanlangan ekranga initialQuery sifatida uzatiladi
-    var pendingSearch by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val isSuperAdmin = AuthSession.isSuperAdmin
-
-    // Global qidiruv bo'limlari (superadmin bo'lmaganlar uchun faqat ruxsat etilganlari)
-    val searchScreenByKey = remember(isSuperAdmin) {
-        mapOf(
-            "orders" to AdminNavScreen.Orders,
-            "products" to AdminNavScreen.Products,
-            "users" to AdminNavScreen.Users,
-            "warehouses" to AdminNavScreen.Warehouses,
-            "notifications" to AdminNavScreen.Notifications,
-            "auditlog" to AdminNavScreen.AuditLog,
-        ).filterValues { isSuperAdmin || !it.superAdminOnly }
-    }
-    val allSearchTargets = AppStrings.globalSearchTargets(appLanguage())
-    val searchTargets = remember(allSearchTargets, searchScreenByKey) {
-        allSearchTargets.filterKeys { it in searchScreenByKey }
-    }
-    fun searchQueryFor(key: String): String =
-        if (pendingSearch?.first == key) pendingSearch?.second.orEmpty() else ""
 
     val displayName = userDisplayName(
         SessionManager.currentUser?.username ?: AuthSession.username,
@@ -131,6 +110,21 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
     val initials = avatarInitials(
         SessionManager.currentUser?.username ?: AuthSession.username,
     )
+    val topBarLang = appLanguage()
+    val todayLine = remember(topBarLang) {
+        val date = try {
+            java.time.LocalDate.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy, EEEE"))
+        } catch (_: Exception) {
+            ""
+        }
+        if (date.isBlank()) {
+            null
+        } else {
+            // Bosh harfni kattalashtiramiz: "11 oktyabr..." → "11 Oktyabr ..."
+            date.replaceFirstChar { it.uppercaseChar() }
+        }
+    }
 
     // O-45: items barqiya har recompositionda yangi List — remember bilan barqaror.
     // S-48: sidebar matnlari AppStrings orqali (hardcoded emas).
@@ -171,7 +165,7 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                 modifier = Modifier.width(240.dp),
                 items = items,
                 selected = current,
-                onSelect = { current = it; pendingSearch = null },
+                onSelect = { current = it },
                 title = "MEXA WAREHOUSE",
                 subtitle = AppStrings.t(
                     appLanguage(),
@@ -181,15 +175,14 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
             )
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 SuperAdminTopBar(
-                    searchQuery = searchQuery,
-                    onSearchChange = { searchQuery = it },
-                    searchTargets = searchTargets,
-                    onSearchNavigate = { key, query ->
-                        searchScreenByKey[key]?.let { current = it }
-                        pendingSearch = key to query.trim()
-                    },
+                    title = items.firstOrNull { it.screen == current }?.title
+                        ?: AppStrings.t(topBarLang, "Dashboard"),
+                    dateLine = todayLine,
                     displayName = displayName,
-                    subtitle = "Admin Panel",
+                    roleLabel = AppStrings.t(
+                        topBarLang,
+                        if (isSuperAdmin) "Super admin" else "Admin",
+                    ),
                     avatarInitials = initials,
                 )
                 Box(
@@ -206,22 +199,22 @@ fun SuperAdminDashboardLayout(modifier: Modifier = Modifier, onLogout: () -> Uni
                     saveableStateHolder.SaveableStateProvider(key = current.toString()) {
                     when (current) {
                         AdminNavScreen.Dashboard     -> SuperAdminDashboardScreen()
-                        AdminNavScreen.Users         -> UsersScreen(initialQuery = searchQueryFor("users"))
+                        AdminNavScreen.Users         -> UsersScreen()
                         AdminNavScreen.Roles         -> RolesScreen()
-                        AdminNavScreen.Warehouses    -> WarehousesScreen(initialQuery = searchQueryFor("warehouses"))
-                        AdminNavScreen.Products      -> ProductsScreen(initialQuery = searchQueryFor("products"))
-                        AdminNavScreen.Orders        -> OrdersScreen(initialQuery = searchQueryFor("orders"))
+                        AdminNavScreen.Warehouses    -> WarehousesScreen()
+                        AdminNavScreen.Products      -> ProductsScreen()
+                        AdminNavScreen.Orders        -> OrdersScreen()
                         AdminNavScreen.Deliveries    -> DeliveryScreen()
                         AdminNavScreen.Couriers      -> CouriersScreen()
                         AdminNavScreen.Delivery      -> DeliveryPricingScreen()
-                        AdminNavScreen.Notifications -> NotificationsScreen(initialQuery = searchQueryFor("notifications"))
+                        AdminNavScreen.Notifications -> NotificationsScreen()
                         AdminNavScreen.Templates     -> TemplatesScreen()
                         AdminNavScreen.Reports       -> ReportsScreen()
                         AdminNavScreen.Analytics     -> AnalyticsScreen()
                         AdminNavScreen.Promotions    -> PromotionsScreen()
                         AdminNavScreen.Groups        -> GroupsScreen()
                         AdminNavScreen.SearchOps     -> SearchOpsScreen()
-                        AdminNavScreen.AuditLog      -> AuditLogScreen(initialQuery = searchQueryFor("auditlog"))
+                        AdminNavScreen.AuditLog      -> AuditLogScreen()
                         AdminNavScreen.Reviews       -> ReviewsScreen()
                         AdminNavScreen.Map           -> MarketMapScreen()
                         AdminNavScreen.Settings      -> SettingsScreen()

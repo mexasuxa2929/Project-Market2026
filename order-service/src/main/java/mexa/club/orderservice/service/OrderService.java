@@ -219,6 +219,13 @@ public class OrderService {
         // zaxira bo'yicha eski allocate (eng ko'p zaxiraga ega ombor).
         UUID preferredWarehouseId = resolvePreferredWarehouse(
                 request.deliveryAddressId(), request.deliveryAddress());
+        if (preferredWarehouseId != null) {
+            log.info("Order geo-routed to warehouse {} by delivery polygon (addressId={})",
+                    preferredWarehouseId, request.deliveryAddressId());
+        } else {
+            log.info("Order geo-routing skipped (no polygon match), stock-based allocation (addressId={})",
+                    request.deliveryAddressId());
+        }
         allocateWarehouseStock(order.getItems(), preferredWarehouseId);
         order.setEstimatedDeliveryDays(estimateDeliveryDays(order.getItems(), productsById));
 
@@ -1031,11 +1038,18 @@ public class OrderService {
             if (env == null || !env.success() || env.data() == null) {
                 return null;
             }
-            return env.data().stream()
-                    .map(GeoZoneClient.GeoZonePayload::warehouseId)
-                    .filter(wh -> wh != null)
+            // Bir nechta poligon ustma-ust tushsa — birinchisi olinadi
+            // (zonalar kesishmasligi kerak, admin chizishda nazorat qiladi).
+            var match = env.data().stream()
+                    .filter(z -> z.warehouseId() != null)
                     .findFirst()
                     .orElse(null);
+            if (match != null) {
+                log.info("Geo-routing match: zone {} ('{}') -> warehouse {}",
+                        match.id(), match.name(), match.warehouseId());
+                return match.warehouseId();
+            }
+            return null;
         } catch (Exception e) {
             log.warn("Geo-routing unavailable, fallback to stock-based allocation: {}", e.getMessage());
             return null;
@@ -1218,7 +1232,7 @@ public class OrderService {
                             ? qtyOverride.getOrDefault(i.getProductId(), i.getQuantity())
                             : i.getQuantity();
                     if (qty > 0) {
-                        lines.add(new SalesOutRequestPayload.Item(i.getProductId(), qty));
+                        lines.add(new SalesOutRequestPayload.Item(i.getProductId(), qty, i.getUnitPrice()));
                     }
                 }
                 if (lines.isEmpty()) {
@@ -1236,7 +1250,7 @@ public class OrderService {
                     warehouseStockClient.reverseSalesOut(entry.getKey(), new SalesOutRequestPayload(
                             order.getId(),
                             entry.getValue().stream()
-                                    .map(i -> new SalesOutRequestPayload.Item(i.getProductId(), i.getQuantity()))
+                                    .map(i -> new SalesOutRequestPayload.Item(i.getProductId(), i.getQuantity(), null))
                                     .toList()
                     ));
                 } catch (FeignException reverseEx) {
@@ -1270,7 +1284,7 @@ public class OrderService {
                 warehouseStockClient.reverseSalesOut(entry.getKey(), new SalesOutRequestPayload(
                         order.getId(),
                         entry.getValue().stream()
-                                .map(i -> new SalesOutRequestPayload.Item(i.getProductId(), i.getQuantity()))
+                                .map(i -> new SalesOutRequestPayload.Item(i.getProductId(), i.getQuantity(), null))
                                 .toList()
                 ));
             } catch (FeignException ex) {

@@ -127,7 +127,10 @@ fun HomeScreen(
     }
 
     val trendingRows = remember(trendingProducts) {
-        (trendingProducts as? UiState.Success)?.data?.chunked(2) ?: emptyList()
+        // Asosiy ro'yxatda chegirmalilar chiqmaydi (ular alohida flash-aksiya qatorida)
+        (trendingProducts as? UiState.Success)?.data
+            ?.filter { it.discountPercent <= 0 }
+            ?.chunked(2) ?: emptyList()
     }
     val flashProducts = remember(trendingProducts) {
         (trendingProducts as? UiState.Success)?.data

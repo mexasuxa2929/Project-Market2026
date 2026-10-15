@@ -80,6 +80,29 @@ public class StockMovementService {
             String reason,
             MovementStatus status
     ) {
+        logSale(warehouseId, productId, movementType, quantity, unitCost, totalCost,
+                null, null, referenceId, referenceType, reason, status);
+    }
+
+    /**
+     * Sotuv narxi snapshot'i bilan harakat yozish (SALES_OUT / ORDER_REVERSE).
+     * Narx maydonlari null bo'lishi mumkin (eski chaqiruvchilar / narxsiz oqimlar).
+     */
+    @Transactional
+    public void logSale(
+            UUID warehouseId,
+            UUID productId,
+            MovementType movementType,
+            BigDecimal quantity,
+            BigDecimal unitCost,
+            BigDecimal totalCost,
+            BigDecimal unitPrice,
+            BigDecimal totalRevenue,
+            UUID referenceId,
+            String referenceType,
+            String reason,
+            MovementStatus status
+    ) {
         StockMovement m = new StockMovement();
         m.setWarehouseId(warehouseId);
         m.setProductId(productId);
@@ -87,6 +110,8 @@ public class StockMovementService {
         m.setQuantity(quantity);
         m.setUnitCost(unitCost);
         m.setTotalCost(totalCost);
+        m.setUnitPrice(unitPrice);
+        m.setTotalRevenue(totalRevenue);
         m.setReferenceId(referenceId);
         m.setReferenceType(referenceType);
         m.setReason(reason);

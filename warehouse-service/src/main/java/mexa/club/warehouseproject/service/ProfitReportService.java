@@ -22,9 +22,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Profit report: revenue is derived from the current unified sale price of each
- * product (product-service {@code basePrice}) times the quantity sold; COGS is
- * the FIFO lot cost snapshot stored on each SALES_OUT movement.
+ * Profit report: tushum sotuv paytida harakatga yozilgan haqiqiy narxdan
+ * (StockMovement.totalRevenue) olinadi — narx keyinchalik o'zgarsa ham tarix
+ * buzilmaydi. COGS — har bir SALES_OUT harakatida saqlangan FIFO lot tannarxi.
+ * Narxi yozilmagan eski harakatlar uchun joriy basePrice fallback ishlatiladi.
  */
 @Service
 public class ProfitReportService {
@@ -71,6 +72,11 @@ public class ProfitReportService {
             if (m.getTotalCost() != null) {
                 line.cost = line.cost.add(m.getTotalCost());
             }
+            if (m.getTotalRevenue() != null) {
+                line.soldRevenue = line.soldRevenue.add(m.getTotalRevenue());
+            } else {
+                line.unpricedSoldQty = line.unpricedSoldQty.add(qty);
+            }
         }
         for (StockMovement m : returns) {
             SoldLine line = byProduct.computeIfAbsent(m.getProductId(), k -> new SoldLine());
@@ -82,6 +88,11 @@ public class ProfitReportService {
                         ? m.getUnitCost().multiply(qty)
                         : BigDecimal.ZERO);
             line.returnedCost = line.returnedCost.add(returnedCost);
+            if (m.getTotalRevenue() != null) {
+                line.returnedRevenue = line.returnedRevenue.add(m.getTotalRevenue());
+            } else {
+                line.unpricedReturnedQty = line.unpricedReturnedQty.add(qty);
+            }
         }
 
         List<ProfitReportResponse.ProductProfitLine> lines = new ArrayList<>();
@@ -93,8 +104,14 @@ public class ProfitReportService {
             SoldLine line = e.getValue();
             BigDecimal netQuantity = line.soldQuantity.subtract(line.returnedQuantity).max(BigDecimal.ZERO);
             BigDecimal netCost = line.cost.subtract(line.returnedCost).max(BigDecimal.ZERO);
+            // Narxi yozilgan qism — tarixiy haqiqiy tushum; narxsiz eski qism — joriy narxda.
             BigDecimal salePrice = productReferenceService.findSalePrice(productId).orElse(BigDecimal.ZERO);
-            BigDecimal revenue = netQuantity.multiply(salePrice).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal revenue = line.soldRevenue
+                    .add(line.unpricedSoldQty.multiply(salePrice))
+                    .subtract(line.returnedRevenue)
+                    .subtract(line.unpricedReturnedQty.multiply(salePrice))
+                    .max(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP);
             BigDecimal cost = netCost.setScale(2, RoundingMode.HALF_UP);
             BigDecimal profit = revenue.subtract(cost);
             totalRevenue = totalRevenue.add(revenue);
@@ -147,5 +164,11 @@ public class ProfitReportService {
         private BigDecimal cost = BigDecimal.ZERO;
         private BigDecimal returnedQuantity = BigDecimal.ZERO;
         private BigDecimal returnedCost = BigDecimal.ZERO;
+        // Sotuv paytidagi haqiqiy tushum (narxi yozilgan harakatlar)
+        private BigDecimal soldRevenue = BigDecimal.ZERO;
+        private BigDecimal returnedRevenue = BigDecimal.ZERO;
+        // Narxi yozilmagan eski harakatlar miqdori (joriy narxda baholanadi)
+        private BigDecimal unpricedSoldQty = BigDecimal.ZERO;
+        private BigDecimal unpricedReturnedQty = BigDecimal.ZERO;
     }
 }

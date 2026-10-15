@@ -173,7 +173,8 @@ private val LEAFLET_HTML = """
       polygonLayer = makeLayerGroup();
       markerLayer = makeLayerGroup();
       // Maxsus chizish rejimi (Google DrawingManager v3.65+ da o'chirilgan —
-      // bosish-bilan-nuqtа qo'shish, double-click bilan yakunlash).
+      // bosish-bilan-nuqta qo'shish, birinchi nuqtaga qaytib bosish yoki
+      // double-click bilan halqani yopish).
 
       map.addListener('click', function() { deselectPolygon(); });
 
@@ -377,7 +378,7 @@ private val LEAFLET_HTML = """
         document.getElementById('drawBtn').classList.add('active');
         destroyDrawer();
         startDrawSession();
-        updateStatus("Xaritada nuqtalarni bosing — yakunlash uchun double-click");
+        updateStatus("Xaritada nuqtalarni bosing — yashil nuqtaga qaytib bossangiz yoki double-click qilsangiz halqa yopiladi");
       } else if (mode === 'edit') {
         document.getElementById('editBtn').classList.add('active');
         if (selectedPolygon) {
@@ -447,19 +448,47 @@ private val LEAFLET_HTML = """
   var drawer = null;
 
   // ── Maxsus poligon chizish (DrawingManager o'rniga) ──────────────────────
-  // Bir marta bosish = nuqta qo'shish, double-click / Chizish tugmasi = yakunlash.
+  // Bir marta bosish = nuqta qo'shish; halqa yopish = birinchi (yashil) nuqta
+  // ustiga qaytib bosish yoki double-click yoki Chizish tugmasi.
   var drawPoints = [], drawPreview = null, drawVertexMarkers = [];
   var drawClickHandle = null, drawDblClickHandle = null;
+  var CLOSE_TOLERANCE_PX = 18;
+
+  function drawToPixel(latlng) {
+    try {
+      var proj = map.getProjection();
+      if (!proj) return null;
+      var scale = Math.pow(2, map.getZoom());
+      var p = proj.fromLatLngToPoint(latlng);
+      return { x: p.x * scale, y: p.y * scale };
+    } catch (ex) { return null; }
+  }
 
   function startDrawSession() {
     cancelDrawSession();
     map.setOptions({ disableDoubleClickZoom: true, draggableCursor: 'crosshair' });
     drawClickHandle = map.addListener('click', function(e) {
+      // Halqani yopish: >=3 nuqta bo'lsa va bosish birinchi nuqta yonida bo'lsa
+      if (drawPoints.length >= 3) {
+        var a = drawToPixel(e.latLng);
+        var b = drawToPixel(new google.maps.LatLng(drawPoints[0].lat, drawPoints[0].lng));
+        if (a && b) {
+          var dx = a.x - b.x, dy = a.y - b.y;
+          if (dx * dx + dy * dy < CLOSE_TOLERANCE_PX * CLOSE_TOLERANCE_PX) {
+            finishDrawSession();
+            return;
+          }
+        }
+      }
       var p = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      var isFirst = drawPoints.length === 0;
       drawPoints.push(p);
       drawVertexMarkers.push(new google.maps.Marker({
         position: p, map: map,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: '#4648D4', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+        title: isFirst ? 'Halqani yopish uchun shu nuqtani bosing' : undefined,
+        icon: isFirst
+          ? { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#16A34A', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+          : { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: '#4648D4', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
       }));
       redrawDrawPreview();
     });
@@ -476,7 +505,18 @@ private val LEAFLET_HTML = """
   }
 
   function finishDrawSession() {
-    var pts = drawPoints.slice();
+    // Ketma-ket takror nuqtalarni tozalash (double-click 1-2 ta ortiqcha
+    // click qo'shadi; yopuvchi nuqta birinchisiga teng bo'lsa olib tashlanadi —
+    // Google Polygon halqani o'zi yopadi).
+    var pts = [];
+    drawPoints.forEach(function(p) {
+      var last = pts[pts.length - 1];
+      if (!last || Math.abs(last.lat - p.lat) > 1e-9 || Math.abs(last.lng - p.lng) > 1e-9) pts.push(p);
+    });
+    if (pts.length > 1) {
+      var f = pts[0], l = pts[pts.length - 1];
+      if (Math.abs(f.lat - l.lat) < 1e-9 && Math.abs(f.lng - l.lng) < 1e-9) pts.pop();
+    }
     cancelDrawSession();
     map.setOptions({ disableDoubleClickZoom: false, draggableCursor: null });
     if (pts.length < 3) {

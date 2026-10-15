@@ -10,180 +10,110 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import mexa.club.desktop_app.localization.AppStrings
-import mexa.club.desktop_app.localization.appLanguage
 import mexa.club.desktop_app.market.ui.theme.MexaWarehouseColors
 
+/**
+ * Yuqori header — global search, notification va help tugmalari olib tashlangan.
+ * Chapda sahifa sarlavhasi + sana, o'ngda faqat profil.
+ */
 @Composable
 fun SuperAdminTopBar(
-    searchQuery: String,
-    onSearchChange: (String) -> Unit,
-    searchTargets: Map<String, String>,
-    onSearchNavigate: (targetKey: String, query: String) -> Unit,
+    title: String,
+    dateLine: String?,
     displayName: String,
-    subtitle: String,
+    roleLabel: String,
     avatarInitials: String,
     modifier: Modifier = Modifier,
 ) {
-    val lang = appLanguage()
-    var searchMenuExpanded by remember { mutableStateOf(false) }
-
-    fun navigateFirst() {
-        searchTargets.entries.firstOrNull()?.let { onSearchNavigate(it.key, searchQuery) }
-        searchMenuExpanded = false
-    }
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .background(MexaWarehouseColors.surfaceLowest)
-            .border(1.dp, MexaWarehouseColors.outlineVariant)
-            .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .background(MexaWarehouseColors.surfaceLowest),
     ) {
-        Box(
+        Row(
             Modifier
-                .weight(1f),
-            contentAlignment = Alignment.CenterStart,
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = {
-                    onSearchChange(it)
-                    searchMenuExpanded = it.isNotBlank() && searchTargets.isNotEmpty()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { navigateFirst() }),
-                placeholder = {
+            // Chap: sahifa nomi + sana
+            Column(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    title,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MexaWarehouseColors.textPrimary,
+                    maxLines = 1,
+                )
+                if (!dateLine.isNullOrBlank()) {
                     Text(
-                        AppStrings.globalSearchPlaceholder(lang),
-                        color = MexaWarehouseColors.outline,
-                        fontSize = 14.sp,
+                        dateLine,
+                        fontSize = 12.sp,
+                        color = MexaWarehouseColors.textMuted,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Search,
-                        contentDescription = null,
-                        tint = MexaWarehouseColors.outline,
-                    )
-                },
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MexaWarehouseColors.primary,
-                    unfocusedBorderColor = MexaWarehouseColors.outlineVariant,
-                    focusedContainerColor = MexaWarehouseColors.surfaceContainerLow,
-                    unfocusedContainerColor = MexaWarehouseColors.surfaceContainerLow,
-                    cursorColor = MexaWarehouseColors.primary,
-                    focusedTextColor = MexaWarehouseColors.onSurface,
-                    unfocusedTextColor = MexaWarehouseColors.onSurface,
-                ),
-            )
-            // T-H1: global qidiruv → bo'lim tanlash (Enter = birinchi bo'lim)
-            if (searchMenuExpanded && searchQuery.isNotBlank()) {
-                DropdownMenu(
-                    expanded = true,
-                    onDismissRequest = { searchMenuExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f),
-                ) {
-                    searchTargets.forEach { (key, label) ->
-                        DropdownMenuItem(
-                            text = { Text("«${searchQuery.trim()}» — $label", fontSize = 14.sp) },
-                            onClick = {
-                                onSearchNavigate(key, searchQuery)
-                                searchMenuExpanded = false
-                            },
-                        )
-                    }
                 }
             }
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            Icons.Filled.Notifications,
-                            contentDescription = null,
-                            tint = MexaWarehouseColors.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Help,
-                            contentDescription = null,
-                            tint = MexaWarehouseColors.onSurfaceVariant,
-                        )
-                    }
-                }
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(32.dp)
-                        .background(MexaWarehouseColors.outlineVariant),
-                )
+
+            // O'ng: faqat profil
             Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                     Column(horizontalAlignment = Alignment.End) {
+                        val name = remember(displayName) {
+                            val u = displayName.trim()
+                            if (u.isEmpty()) "Super Admin"
+                            else if (u.length > 20) u.take(20) + "…" else u
+                        }
                         Text(
-                            displayName,
+                            name,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MexaWarehouseColors.onSurface,
+                            maxLines = 1,
                         )
                         Text(
-                            subtitle.uppercase(),
-                            fontSize = 11.sp,
+                            roleLabel.uppercase(),
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MexaWarehouseColors.onSurfaceVariant,
+                            letterSpacing = 0.8.sp,
+                            color = MexaWarehouseColors.primary,
+                            maxLines = 1,
                         )
                     }
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .background(MexaWarehouseColors.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        avatarInitials,
-                        color = MexaWarehouseColors.surfaceLowest,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                    )
-                }
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .background(MexaWarehouseColors.primaryContainer, CircleShape)
+                            .border(2.dp, MexaWarehouseColors.infoBadgeBg, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            avatarInitials,
+                            color = MexaWarehouseColors.surfaceLowest,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
+                    }
             }
         }
+        HorizontalDivider(color = MexaWarehouseColors.borderSubtle, thickness = 1.dp)
     }
 }
